@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
-import { GraficoPerfil } from "./componentes/GraficoPerfil";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
@@ -334,11 +333,6 @@ export function Aplicacao() {
             aoElementoRemovido={removerElemento}
             aoSelecionarElemento={setElementoSelecionadoId}
             aoBoundsAlterado={setBoundsMapa}
-          />
-          <GraficoPerfil
-            perfil={perfil}
-            carregando={carregandoPerfil}
-            aoSelecionarPonto={(ponto) => setPontoDestacado(ponto)}
           />
         </div>
 

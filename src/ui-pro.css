@@ -231,8 +231,8 @@ select {
 }
 
 .coluna-mapa {
-  grid-template-rows: minmax(0, 1fr) 190px;
-  gap: 12px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
   height: 100%;
 }
 
@@ -510,6 +510,6 @@ input[type="checkbox"] {
 
   .coluna-mapa {
     height: auto;
-    grid-template-rows: minmax(440px, 62dvh) auto;
+    grid-template-rows: minmax(440px, 62dvh);
   }
 }
