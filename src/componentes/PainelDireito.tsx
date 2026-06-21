@@ -53,6 +53,7 @@ interface PropriedadesPainelDireito {
   perfil: PerfilElevacao | null;
   carregandoPerfil: boolean;
   curvasNivel: CurvasNivelGeoJson | null;
+  visibilidadeCamadaCurvasNivel: boolean;
   carregandoCurvas: boolean;
   selecionandoAreaCurvas: boolean;
   selecionandoPontoAltitude: boolean;
@@ -77,10 +78,13 @@ interface PropriedadesPainelDireito {
   aoLimparCurvas: () => void;
   aoImportarArquivo: () => void;
   aoAlternarCamadaImportada: (id: string) => void;
+  aoAlternarCamadaCurvasNivel: () => void;
   aoExportarRelatorio: () => void;
   aoExportarCsv: () => void;
   aoExportarGeoJson: () => void;
-  aoExportarCurvasGeoJson: () => void;
+  aoExportarCurvasKml: () => void;
+  aoExportarCurvasKmz: () => void;
+  aoExportarCurvasDxf: () => void;
   aoExportarKml: () => void;
 }
 
@@ -111,6 +115,7 @@ export function PainelDireito({
   perfil,
   carregandoPerfil,
   curvasNivel,
+  visibilidadeCamadaCurvasNivel,
   carregandoCurvas,
   selecionandoAreaCurvas,
   selecionandoPontoAltitude,
@@ -135,12 +140,16 @@ export function PainelDireito({
   aoLimparCurvas,
   aoImportarArquivo,
   aoAlternarCamadaImportada,
+  aoAlternarCamadaCurvasNivel,
   aoExportarRelatorio,
   aoExportarCsv,
   aoExportarGeoJson,
-  aoExportarCurvasGeoJson,
+  aoExportarCurvasKml,
+  aoExportarCurvasKmz,
+  aoExportarCurvasDxf,
   aoExportarKml
 }: PropriedadesPainelDireito) {
+  const [menuExportacaoCurvasAberto, setMenuExportacaoCurvasAberto] = useState(false);
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
   const resolucaoReferenciaIntervalo = curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
   const intervaloMinimoRecomendado = Math.ceil(resolucaoReferenciaIntervalo / 100);
@@ -178,6 +187,38 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Camadas" icone={<Layers size={17} />}>
         <div className="lista-elementos-desenhados">
+          <div className="item-camada-desenho item-camada-controle">
+            <label className="controle-camada-curvas">
+              <input
+                type="checkbox"
+                checked={visibilidadeCamadaCurvasNivel}
+                onChange={aoAlternarCamadaCurvasNivel}
+                disabled={!curvasNivel || curvasNivel.features.length === 0}
+              />
+              <span className="icone-camada-desenho">
+                <LineChart size={15} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>Curvas de nível</strong>
+                <small>
+                  {curvasNivel
+                    ? `${formatarNumero(curvasNivel.metadados.quantidadeCurvas ?? curvasNivel.features.length, 0)} curva(s) · ${
+                        curvasNivel.metadados.fonte
+                      } · ${formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}`
+                    : "Nenhuma curva gerada"}
+                </small>
+              </span>
+            </label>
+            <button
+              className="botao-mini"
+              type="button"
+              onClick={aoLimparCurvas}
+              disabled={!curvasNivel || curvasNivel.features.length === 0}
+            >
+              Limpar
+            </button>
+          </div>
+
           {elementos.length === 0 ? (
             <div className="estado-vazio">Nenhum elemento desenhado.</div>
           ) : (
@@ -385,14 +426,49 @@ export function PainelDireito({
           </button>
         </div>
 
-        <button
-          className="botao-largo"
-          type="button"
-          onClick={aoExportarCurvasGeoJson}
-          disabled={!curvasNivel || curvasNivel.features.length === 0}
-        >
-          Exportar GeoJSON
-        </button>
+        <div className="menu-exportacao-curvas">
+          <button
+            className="botao-largo"
+            type="button"
+            onClick={() => setMenuExportacaoCurvasAberto((valor) => !valor)}
+            disabled={!curvasNivel || curvasNivel.features.length === 0}
+            title={!curvasNivel || curvasNivel.features.length === 0 ? "Gere curvas de nível antes de exportar." : undefined}
+          >
+            Exportar curvas
+          </button>
+
+          {menuExportacaoCurvasAberto && curvasNivel && curvasNivel.features.length > 0 && (
+            <div className="opcoes-exportacao-curvas">
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuExportacaoCurvasAberto(false);
+                  aoExportarCurvasKml();
+                }}
+              >
+                KML
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuExportacaoCurvasAberto(false);
+                  aoExportarCurvasKmz();
+                }}
+              >
+                KMZ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuExportacaoCurvasAberto(false);
+                  aoExportarCurvasDxf();
+                }}
+              >
+                DXF
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="grade-metricas">
           <div>
@@ -400,24 +476,16 @@ export function PainelDireito({
             <strong>{formatarNumero(curvasNivel?.metadados.quantidadeCurvas ?? curvasNivel?.features.length, 0)}</strong>
           </div>
           <div>
-            <span>Mínima</span>
-            <strong>{formatarMetros(curvasNivel?.metadados.altitudeMinima, 0)}</strong>
+            <span>Intervalo</span>
+            <strong>{formatarMetros(curvasNivel?.metadados.intervaloMetros, 0)}</strong>
           </div>
           <div>
-            <span>Máxima</span>
-            <strong>{formatarMetros(curvasNivel?.metadados.altitudeMaxima, 0)}</strong>
-          </div>
-          <div>
-            <span>Resolução efetiva</span>
+            <span>Resolução</span>
             <strong>{formatarMetros(curvasNivel?.metadados.resolucaoEfetivaMetros, 0)}</strong>
           </div>
           <div>
-            <span>Pontos</span>
-            <strong>{formatarNumero(curvasNivel?.metadados.pontosConsultados, 0)}</strong>
-          </div>
-          <div>
-            <span>Cache</span>
-            <strong>{curvasNivel?.metadados.cacheAtivo ? "Ativo" : "-"}</strong>
+            <span>Fonte</span>
+            <strong>{curvasNivel?.metadados.fonte ? "Open-Elevation" : "-"}</strong>
           </div>
         </div>
 

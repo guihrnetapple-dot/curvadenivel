@@ -24,12 +24,16 @@ import type {
   TemaVisual
 } from "./tipos/altimetria";
 import {
-  exportarCurvasNivelGeoJson,
   exportarDesenhosGeoJson,
   exportarDesenhosKml,
   exportarPerfilCsv,
   exportarRelatorioHtml
 } from "./utilitarios/exportacao";
+import {
+  exportarCurvasNivelDxf,
+  exportarCurvasNivelKml,
+  exportarCurvasNivelKmz
+} from "./utilitarios/exportacaoCurvasNivel";
 import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
@@ -73,6 +77,7 @@ export function Aplicacao() {
   const [perfil, setPerfil] = useState<PerfilElevacao | null>(null);
   const [carregandoPerfil, setCarregandoPerfil] = useState(false);
   const [curvasNivel, setCurvasNivel] = useState<CurvasNivelGeoJson | null>(null);
+  const [visibilidadeCamadaCurvasNivel, setVisibilidadeCamadaCurvasNivel] = useState(true);
   const [carregandoCurvas, setCarregandoCurvas] = useState(false);
   const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
@@ -263,6 +268,7 @@ export function Aplicacao() {
         resolucaoCurvasMetros
       );
       setCurvasNivel(resultado);
+      setVisibilidadeCamadaCurvasNivel(true);
       setAlerta({
         tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
         mensagem:
@@ -280,9 +286,9 @@ export function Aplicacao() {
     }
   }
 
-  function executarExportacao(acao: () => void) {
+  async function executarExportacao(acao: () => void | Promise<void>) {
     try {
-      acao();
+      await acao();
       setAlerta({ tipo: "sucesso", mensagem: "Exportação iniciada." });
     } catch (erro) {
       setAlerta({
@@ -340,6 +346,7 @@ export function Aplicacao() {
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
+            visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
             pontoDestacado={pontoDestacado}
             elementoSelecionadoId={elementoSelecionadoId}
             selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
@@ -363,6 +370,7 @@ export function Aplicacao() {
           perfil={perfil}
           carregandoPerfil={carregandoPerfil}
           curvasNivel={curvasNivel}
+          visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
           selecionandoPontoAltitude={selecionandoPontoAltitude}
@@ -393,10 +401,13 @@ export function Aplicacao() {
           }}
           aoImportarArquivo={() => inputArquivoRef.current?.click()}
           aoAlternarCamadaImportada={alternarCamadaImportada}
+          aoAlternarCamadaCurvasNivel={() => setVisibilidadeCamadaCurvasNivel((valor) => !valor)}
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
           aoExportarCsv={() => executarExportacao(() => exportarPerfilCsv(perfil))}
           aoExportarGeoJson={() => executarExportacao(() => exportarDesenhosGeoJson(elementos, camadasImportadas))}
-          aoExportarCurvasGeoJson={() => executarExportacao(() => exportarCurvasNivelGeoJson(curvasNivel))}
+          aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
+          aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
+          aoExportarCurvasDxf={() => executarExportacao(() => exportarCurvasNivelDxf(curvasNivel))}
           aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
         />
       </main>

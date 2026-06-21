@@ -113,9 +113,9 @@ export interface FeatureCurvaNivel {
   properties: {
     elevacao: number;
     tipo: "mestra" | "normal";
-    fonte: "Open-Elevation";
-    comprimentoMetros: number;
-    fechada: boolean;
+    fonte: string;
+    comprimentoMetros?: number;
+    fechada?: boolean;
   };
   geometry: GeometriaLinha;
 }

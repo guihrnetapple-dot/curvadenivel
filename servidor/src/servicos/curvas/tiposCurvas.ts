@@ -37,9 +37,9 @@ export type SegmentoCurva = [CoordenadaLinhaCurva, CoordenadaLinhaCurva];
 export interface PropriedadesCurva {
   elevacao: number;
   tipo: "mestra" | "normal";
-  fonte: "Open-Elevation";
-  comprimentoMetros: number;
-  fechada: boolean;
+  fonte: string;
+  comprimentoMetros?: number;
+  fechada?: boolean;
 }
 
 export interface FeatureCurva {

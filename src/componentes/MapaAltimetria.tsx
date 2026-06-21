@@ -45,6 +45,7 @@ interface PropriedadesMapaAltimetria {
   camadasVisiveis: CamadasVisiveis;
   camadasImportadas: CamadaImportada[];
   curvasNivel: CurvasNivelGeoJson | null;
+  visibilidadeCamadaCurvasNivel: boolean;
   pontoDestacado: PontoPerfil | null;
   elementoSelecionadoId: string | null;
   selecaoAreaCurvasAtiva: boolean;
@@ -316,6 +317,7 @@ export function MapaAltimetria({
   camadasVisiveis,
   camadasImportadas,
   curvasNivel,
+  visibilidadeCamadaCurvasNivel,
   pontoDestacado,
   elementoSelecionadoId,
   selecaoAreaCurvasAtiva,
@@ -866,7 +868,7 @@ export function MapaAltimetria({
       curvasNivelRef.current = null;
     }
 
-    if (!curvasNivel || curvasNivel.features.length === 0) {
+    if (!visibilidadeCamadaCurvasNivel || !curvasNivel || curvasNivel.features.length === 0) {
       return;
     }
 
@@ -917,7 +919,9 @@ export function MapaAltimetria({
         });
       }
     }).addTo(mapa);
-  }, [curvasNivel]);
+
+    desenhosRef.current?.bringToFront();
+  }, [curvasNivel, visibilidadeCamadaCurvasNivel]);
 
   useEffect(() => {
     const mapa = mapaRef.current;
