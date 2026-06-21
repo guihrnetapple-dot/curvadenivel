@@ -11,12 +11,15 @@ import {
   Square,
   UploadCloud
 } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
+import { analisarPropriedadeElemento } from "../servicos/apiPropriedades";
 import type {
+  AnalisePropriedade,
   CamadaImportada,
   CurvasNivelGeoJson,
-  ElementoMapa
+  ElementoMapa,
+  MetricaPropriedade
 } from "../tipos/altimetria";
 import { formatarMetros, formatarNumero } from "../utilitarios/formatacao";
 
@@ -68,12 +71,11 @@ interface PropriedadesPainelDireito {
   aoExportarRelatorio: () => void;
   aoExportarCsv: () => void;
   aoExportarGeoJson: () => void;
-  aoExportarElementoGeoJson: () => void;
-  aoExportarElementoKml: () => void;
   aoExportarCurvasKml: () => void;
   aoExportarCurvasKmz: () => void;
   aoExportarCurvasDxf: () => void;
   aoExportarKml: () => void;
+  aoCriarMarcadorTecnico: (metrica: MetricaPropriedade, elementoOrigem: ElementoMapa) => void;
 }
 
 function obterIconeElemento(tipo: string): ReactNode {
@@ -113,6 +115,13 @@ function descreverGeometria(elemento: ElementoMapa | null): string {
   return `Raio ${formatarMetros(elemento.geometria.radiusMeters, 0)}`;
 }
 
+function formatarCoordenadaCabecalho(coordenada: AnalisePropriedade["resumo"]["coordenadaCentral"]): string {
+  if (!coordenada) {
+    return "-";
+  }
+  return `${formatarNumero(coordenada.latitude, 6)}, ${formatarNumero(coordenada.longitude, 6)}`;
+}
+
 export function PainelDireito({
   elementos,
   elementoSelecionadoId,
@@ -138,15 +147,52 @@ export function PainelDireito({
   aoExportarRelatorio,
   aoExportarCsv,
   aoExportarGeoJson,
-  aoExportarElementoGeoJson,
-  aoExportarElementoKml,
   aoExportarCurvasKml,
   aoExportarCurvasKmz,
   aoExportarCurvasDxf,
-  aoExportarKml
+  aoExportarKml,
+  aoCriarMarcadorTecnico
 }: PropriedadesPainelDireito) {
   const [menuExportacaoCurvasAberto, setMenuExportacaoCurvasAberto] = useState(false);
+  const [analisePropriedade, setAnalisePropriedade] = useState<AnalisePropriedade | null>(null);
+  const [carregandoPropriedade, setCarregandoPropriedade] = useState(false);
+  const [erroPropriedade, setErroPropriedade] = useState<string | null>(null);
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
+
+  useEffect(() => {
+    if (!elementoSelecionado) {
+      setAnalisePropriedade(null);
+      setErroPropriedade(null);
+      setCarregandoPropriedade(false);
+      return;
+    }
+
+    let ativa = true;
+    setCarregandoPropriedade(true);
+    setErroPropriedade(null);
+    setAnalisePropriedade(null);
+
+    analisarPropriedadeElemento(elementoSelecionado)
+      .then((resultado) => {
+        if (ativa) {
+          setAnalisePropriedade(resultado);
+        }
+      })
+      .catch((erro) => {
+        if (ativa) {
+          setErroPropriedade(erro instanceof Error ? erro.message : "Não foi possível calcular as propriedades.");
+        }
+      })
+      .finally(() => {
+        if (ativa) {
+          setCarregandoPropriedade(false);
+        }
+      });
+
+    return () => {
+      ativa = false;
+    };
+  }, [elementoSelecionado]);
 
   return (
     <aside className="painel-direito">
@@ -241,22 +287,46 @@ export function PainelDireito({
       <SecaoPainel titulo="Propriedade" icone={<Info size={17} />} abertaInicialmente>
         {elementoSelecionado ? (
           <>
-            <div className="resultado-atual propriedade-selecionada">
-              <span>Elemento selecionado</span>
-              <strong>{elementoSelecionado.nome}</strong>
-              <small>
-                {elementoSelecionado.tipo} · {descreverGeometria(elementoSelecionado)}
-              </small>
+            <div className="cabecalho-propriedade">
+              <strong>{analisePropriedade?.resumo.nome ?? elementoSelecionado.nome}</strong>
+              <div className="resumo-propriedade">
+                <span>{analisePropriedade?.resumo.tipo ?? elementoSelecionado.tipo}</span>
+                <span>{analisePropriedade?.resumo.quantidadePontos ?? descreverGeometria(elementoSelecionado)}</span>
+                <span>{formatarCoordenadaCabecalho(analisePropriedade?.resumo.coordenadaCentral)}</span>
+              </div>
             </div>
 
-            <div className="grade-exportacao">
-              <button type="button" onClick={aoExportarElementoGeoJson}>
-                GeoJSON
-              </button>
-              <button type="button" onClick={aoExportarElementoKml}>
-                KML
-              </button>
-            </div>
+            {carregandoPropriedade && <div className="estado-vazio">Calculando propriedades...</div>}
+            {erroPropriedade && <div className="estado-vazio erro-propriedade">{erroPropriedade}</div>}
+            {analisePropriedade?.aviso && <div className="aviso-propriedade">{analisePropriedade.aviso}</div>}
+
+            {analisePropriedade && (
+              <div className="tabela-propriedades" role="table" aria-label="Tabela técnica da propriedade">
+                <div className="linha-propriedade cabecalho" role="row">
+                  <span role="columnheader">Item</span>
+                  <span role="columnheader">Valor</span>
+                  <span role="columnheader">Ação</span>
+                </div>
+                {analisePropriedade.metricas.map((metrica) => (
+                  <button
+                    key={metrica.chave}
+                    className={
+                      metrica.clicavel && metrica.coordenada
+                        ? "linha-propriedade linha-propriedade-clicavel"
+                        : "linha-propriedade"
+                    }
+                    type="button"
+                    disabled={!metrica.clicavel || !metrica.coordenada}
+                    onClick={() => aoCriarMarcadorTecnico(metrica, elementoSelecionado)}
+                    role="row"
+                  >
+                    <span role="cell">{metrica.item}</span>
+                    <strong className="valor-propriedade" role="cell">{metrica.valor}</strong>
+                    <span role="cell">{metrica.clicavel && metrica.coordenada ? "Marcar" : "-"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         ) : null}
       </SecaoPainel>

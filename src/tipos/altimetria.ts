@@ -195,6 +195,36 @@ export interface PerfilElevacao {
   estatisticas: EstatisticasPerfil;
 }
 
+export interface MetricaPropriedade {
+  chave: string;
+  item: string;
+  valor: string;
+  unidade?: string;
+  coordenada?: {
+    latitude: number;
+    longitude: number;
+  };
+  clicavel?: boolean;
+}
+
+export interface ResumoPropriedade {
+  nome: string;
+  tipo: string;
+  quantidadePontos: number;
+  coordenadaCentral?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+export interface AnalisePropriedade {
+  tipo: string;
+  nome: string;
+  resumo: ResumoPropriedade;
+  metricas: MetricaPropriedade[];
+  aviso?: string;
+}
+
 export interface AlertaSistema {
   tipo: "sucesso" | "aviso" | "erro";
   mensagem: string;

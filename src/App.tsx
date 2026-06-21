@@ -16,6 +16,7 @@ import type {
   CurvasNivelGeoJson,
   ElementoMapa,
   LocalizacaoEncontrada,
+  MetricaPropriedade,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -25,8 +26,6 @@ import type {
 import {
   exportarDesenhosGeoJson,
   exportarDesenhosKml,
-  exportarElementoGeoJson,
-  exportarElementoKml,
   exportarPerfilCsv,
   exportarRelatorioHtml
 } from "./utilitarios/exportacao";
@@ -232,6 +231,41 @@ export function Aplicacao() {
     alterarElementosComHistorico((itens) => [elemento, ...itens]);
   }
 
+  function criarMarcadorTecnico(metrica: MetricaPropriedade, elementoOrigem: ElementoMapa) {
+    if (!metrica.coordenada) {
+      return;
+    }
+
+    const id = `marcador-tecnico-${elementoOrigem.id}-${metrica.chave}`;
+    const horario = new Date().toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+    const marcador: ElementoMapa = {
+      id,
+      nome: `${metrica.item} ${horario}`,
+      tipo: "Marcador",
+      origem: "desenho",
+      geometria: {
+        type: "Point",
+        coordinates: [metrica.coordenada.longitude, metrica.coordenada.latitude]
+      },
+      ativo: true,
+      cor: "#dc2626",
+      criadoEm: new Date().toISOString()
+    };
+
+    alterarElementosComHistorico((itens) => {
+      const existe = itens.some((item) => item.id === id);
+      if (existe) {
+        return itens.map((item) => (item.id === id ? marcador : item));
+      }
+      return [marcador, ...itens];
+    });
+    setElementoSelecionadoId(id);
+    setAlerta({ tipo: "sucesso", mensagem: "Marcador técnico criado no mapa." });
+  }
+
   function atualizarElemento(elementoAtualizado: ElementoMapa) {
     alterarElementosComHistorico((itens) =>
       itens.map((item) =>
@@ -358,10 +392,6 @@ export function Aplicacao() {
     }
   }
 
-  function obterElementoSelecionado(): ElementoMapa | null {
-    return elementos.find((item) => item.id === elementoSelecionadoId) ?? null;
-  }
-
   async function buscarLocalizacao() {
     setCarregandoLocalizacao(true);
     try {
@@ -448,12 +478,11 @@ export function Aplicacao() {
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
           aoExportarCsv={() => executarExportacao(() => exportarPerfilCsv(perfil))}
           aoExportarGeoJson={() => executarExportacao(() => exportarDesenhosGeoJson(elementos, camadasImportadas))}
-          aoExportarElementoGeoJson={() => executarExportacao(() => exportarElementoGeoJson(obterElementoSelecionado()))}
-          aoExportarElementoKml={() => executarExportacao(() => exportarElementoKml(obterElementoSelecionado()))}
           aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
           aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
           aoExportarCurvasDxf={() => executarExportacao(() => exportarCurvasNivelDxf(curvasNivel))}
           aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
+          aoCriarMarcadorTecnico={criarMarcadorTecnico}
         />
       </main>
 

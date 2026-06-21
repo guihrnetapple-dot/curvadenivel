@@ -296,6 +296,306 @@ function normalizarGeometria(geometria) {
   return amostras;
 }
 
+function numeroPtBr(valor, casas = 0) {
+  if (!Number.isFinite(valor)) return "-";
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas }).format(Number(valor));
+}
+
+function metrosPtBr(valor, casas = 0) {
+  return Number.isFinite(valor) ? `${numeroPtBr(Number(valor), casas)} m` : "-";
+}
+
+function areaPtBr(valor) {
+  if (!Number.isFinite(valor)) return "-";
+  return `${numeroPtBr(valor, 0)} m² / ${numeroPtBr(valor / 10000, 4)} ha`;
+}
+
+function coordenadaPtBr(coordenada) {
+  if (!coordenada) return "-";
+  return `${numeroPtBr(coordenada.latitude, 6)}, ${numeroPtBr(coordenada.longitude, 6)}`;
+}
+
+function metrica(chave, item, valor, coordenada = null, unidade = undefined) {
+  return { chave, item, valor, unidade, coordenada: coordenada ? { latitude: coordenada.latitude, longitude: coordenada.longitude } : undefined, clicavel: Boolean(coordenada) };
+}
+
+function fecharCoordenadas(coordenadas) {
+  if (coordenadas.length < 2) return coordenadas;
+  const primeira = coordenadas[0], ultima = coordenadas.at(-1);
+  return primeira.latitude === ultima.latitude && primeira.longitude === ultima.longitude ? coordenadas : [...coordenadas, primeira];
+}
+
+function comprimentoCoordenadas(coordenadas) {
+  let total = 0;
+  for (let i = 1; i < coordenadas.length; i += 1) total += distancia(coordenadas[i - 1], coordenadas[i]);
+  return total;
+}
+
+function destinoGeografico(origem, distanciaMetros, anguloGraus) {
+  const raio = 6371008.8;
+  const distanciaAngular = distanciaMetros / raio;
+  const angulo = (anguloGraus * Math.PI) / 180;
+  const lat1 = (origem.latitude * Math.PI) / 180;
+  const lng1 = (origem.longitude * Math.PI) / 180;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanciaAngular) + Math.cos(lat1) * Math.sin(distanciaAngular) * Math.cos(angulo));
+  const lng2 = lng1 + Math.atan2(Math.sin(angulo) * Math.sin(distanciaAngular) * Math.cos(lat1), Math.cos(distanciaAngular) - Math.sin(lat1) * Math.sin(lat2));
+  return { latitude: (lat2 * 180) / Math.PI, longitude: (((lng2 * 180) / Math.PI + 540) % 360) - 180 };
+}
+
+function projecaoLocal(coordenadas) {
+  const latitudeOrigem = coordenadas.reduce((s, c) => s + c.latitude, 0) / Math.max(coordenadas.length, 1);
+  const longitudeOrigem = coordenadas.reduce((s, c) => s + c.longitude, 0) / Math.max(coordenadas.length, 1);
+  return { latitudeOrigem, longitudeOrigem, metrosPorGrauLongitude: Math.max(1, 111320 * Math.cos((latitudeOrigem * Math.PI) / 180)) };
+}
+
+function projetarLocal(coordenada, projecao) {
+  return { x: (coordenada.longitude - projecao.longitudeOrigem) * projecao.metrosPorGrauLongitude, y: (coordenada.latitude - projecao.latitudeOrigem) * 111320 };
+}
+
+function desprojetarLocal(ponto, projecao) {
+  return { latitude: projecao.latitudeOrigem + ponto.y / 111320, longitude: projecao.longitudeOrigem + ponto.x / projecao.metrosPorGrauLongitude };
+}
+
+function areaPoligono(coordenadas) {
+  const anel = fecharCoordenadas(coordenadas);
+  if (anel.length < 4) return null;
+  const projecao = projecaoLocal(anel);
+  const pontos = anel.map((c) => projetarLocal(c, projecao));
+  let soma = 0;
+  for (let i = 0; i < pontos.length - 1; i += 1) soma += pontos[i].x * pontos[i + 1].y - pontos[i + 1].x * pontos[i].y;
+  return Math.abs(soma) / 2;
+}
+
+function dentroPoligono(ponto, poligono) {
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i, i += 1) {
+    const pi = poligono[i], pj = poligono[j];
+    if (pi.y > ponto.y !== pj.y > ponto.y) {
+      const x = ((pj.x - pi.x) * (ponto.y - pi.y)) / (pj.y - pi.y || 1) + pi.x;
+      if (ponto.x < x) dentro = !dentro;
+    }
+  }
+  return dentro;
+}
+
+function centroidePoligono(coordenadas) {
+  const anel = fecharCoordenadas(coordenadas);
+  const projecao = projecaoLocal(anel);
+  const pontos = anel.map((c) => projetarLocal(c, projecao));
+  let area2 = 0, cx = 0, cy = 0;
+  for (let i = 0; i < pontos.length - 1; i += 1) {
+    const fator = pontos[i].x * pontos[i + 1].y - pontos[i + 1].x * pontos[i].y;
+    area2 += fator;
+    cx += (pontos[i].x + pontos[i + 1].x) * fator;
+    cy += (pontos[i].y + pontos[i + 1].y) * fator;
+  }
+  if (Math.abs(area2) < 0.000001) {
+    return { latitude: coordenadas.reduce((s, c) => s + c.latitude, 0) / coordenadas.length, longitude: coordenadas.reduce((s, c) => s + c.longitude, 0) / coordenadas.length };
+  }
+  return desprojetarLocal({ x: cx / (3 * area2), y: cy / (3 * area2) }, projecao);
+}
+
+function amostrarCaminho(coordenadas, espacamento = 30, limite = 180) {
+  const total = comprimentoCoordenadas(coordenadas);
+  if (coordenadas.length === 1 || total <= 0) return [{ ...coordenadas[0], distanciaMetros: 0 }];
+  const quantidade = Math.min(limite, Math.max(2, Math.ceil(total / espacamento) + 1));
+  const passo = total / (quantidade - 1);
+  const segmentos = [];
+  let antes = 0;
+  for (let i = 1; i < coordenadas.length; i += 1) {
+    const comp = distancia(coordenadas[i - 1], coordenadas[i]);
+    segmentos.push({ inicio: coordenadas[i - 1], fim: coordenadas[i], comprimento: comp, antes });
+    antes += comp;
+  }
+  const amostras = [];
+  let si = 0;
+  for (let i = 0; i < quantidade; i += 1) {
+    const alvo = i === quantidade - 1 ? total : i * passo;
+    while (si < segmentos.length - 1 && segmentos[si].antes + segmentos[si].comprimento < alvo) si += 1;
+    const seg = segmentos[si];
+    const t = seg.comprimento > 0 ? Math.min(Math.max((alvo - seg.antes) / seg.comprimento, 0), 1) : 0;
+    amostras.push({ ...interpolar(seg.inicio, seg.fim, t), distanciaMetros: alvo });
+  }
+  return amostras;
+}
+
+function amostrarAreaPoligono(coordenadas) {
+  const anel = fecharCoordenadas(coordenadas);
+  const projecao = projecaoLocal(anel);
+  const plano = anel.map((c) => projetarLocal(c, projecao));
+  const xs = plano.map((p) => p.x), ys = plano.map((p) => p.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const largura = Math.max(1, maxX - minX), altura = Math.max(1, maxY - minY);
+  const ideal = Math.ceil(largura / 35) * Math.ceil(altura / 35);
+  const passo = Math.max(35, Math.sqrt((largura * altura) / 220));
+  const pontos = [];
+  for (let y = minY + passo / 2; y <= maxY; y += passo) {
+    for (let x = minX + passo / 2; x <= maxX; x += passo) {
+      if (dentroPoligono({ x, y }, plano)) pontos.push(desprojetarLocal({ x, y }, projecao));
+    }
+  }
+  if (!pontos.length) pontos.push(centroidePoligono(coordenadas));
+  return { pontos: pontos.slice(0, 220), ajustada: ideal > 220 };
+}
+
+function amostrarAreaCirculo(centro, raio) {
+  const area = Math.PI * raio * raio;
+  const passo = Math.max(35, Math.sqrt(area / 220));
+  const pontos = [centro];
+  for (let y = -raio; y <= raio; y += passo) {
+    for (let x = -raio; x <= raio; x += passo) {
+      if (x === 0 && y === 0) continue;
+      const d = Math.sqrt(x * x + y * y);
+      if (d <= raio) pontos.push(destinoGeografico(centro, d, (Math.atan2(x, y) * 180) / Math.PI));
+    }
+  }
+  return { pontos: pontos.slice(0, 220), ajustada: Math.ceil(area / (35 * 35)) > 220 };
+}
+
+function pontosComAltitude(resultados, amostras) {
+  return resultados.map((resultado, indice) => ({ latitude: amostras[indice].latitude, longitude: amostras[indice].longitude, altitude: Number.isFinite(resultado.altitude) ? resultado.altitude : null, distanciaMetros: amostras[indice].distanciaMetros }));
+}
+
+function extremo(pontos, modo) {
+  const validos = pontos.filter((p) => Number.isFinite(p.altitude));
+  if (!validos.length) return null;
+  return validos.reduce((melhor, ponto) => modo === "max" ? (ponto.altitude > melhor.altitude ? ponto : melhor) : (ponto.altitude < melhor.altitude ? ponto : melhor), validos[0]);
+}
+
+function mediaAltitude(pontos) {
+  const validos = pontos.filter((p) => Number.isFinite(p.altitude));
+  return validos.length ? validos.reduce((s, p) => s + p.altitude, 0) / validos.length : null;
+}
+
+function direcaoQueda(alto, baixo) {
+  if (!alto || !baixo) return "-";
+  const dLat = baixo.latitude - alto.latitude, dLng = baixo.longitude - alto.longitude;
+  if (Math.abs(dLat) < 1e-9 && Math.abs(dLng) < 1e-9) return "-";
+  const vertical = dLat >= 0 ? "sul" : "norte", horizontal = dLng >= 0 ? "leste" : "oeste";
+  if (Math.abs(dLat) > Math.abs(dLng) * 1.7) return vertical;
+  if (Math.abs(dLng) > Math.abs(dLat) * 1.7) return horizontal;
+  return `${vertical}-${horizontal}`;
+}
+
+function metricasAltimetria(prefixo, rotulo, pontos, referencia) {
+  const alto = extremo(pontos, "max"), baixo = extremo(pontos, "min");
+  const dif = alto && baixo ? alto.altitude - baixo.altitude : null;
+  const inc = Number.isFinite(dif) && referencia > 0 ? (dif / referencia) * 100 : null;
+  const ang = Number.isFinite(inc) ? (Math.atan(inc / 100) * 180) / Math.PI : null;
+  return [
+    metrica(`${prefixo}_ponto_mais_alto`, `Ponto mais alto ${rotulo}`, coordenadaPtBr(alto), alto),
+    metrica(`${prefixo}_altitude_mais_alta`, `Altitude do ponto mais alto ${rotulo}`, metrosPtBr(alto?.altitude, 2), alto, "m"),
+    metrica(`${prefixo}_ponto_mais_baixo`, `Ponto mais baixo ${rotulo}`, coordenadaPtBr(baixo), baixo),
+    metrica(`${prefixo}_altitude_mais_baixa`, `Altitude do ponto mais baixo ${rotulo}`, metrosPtBr(baixo?.altitude, 2), baixo, "m"),
+    metrica(`${prefixo}_diferenca_elevacao`, `Diferença de elevação ${rotulo}`, metrosPtBr(dif, 2), null, "m"),
+    metrica(`${prefixo}_altitude_media`, `Altitude média ${rotulo}`, metrosPtBr(mediaAltitude(pontos), 2), null, "m"),
+    metrica(`${prefixo}_inclinacao_media`, `Inclinação média estimada ${rotulo}`, Number.isFinite(inc) ? `${numeroPtBr(inc, 2)} %` : "-"),
+    metrica(`${prefixo}_angulo_medio`, `Ângulo médio estimado ${rotulo}`, Number.isFinite(ang) ? `${numeroPtBr(ang, 2)}°` : "-"),
+    metrica(`${prefixo}_direcao_queda`, `Direção aproximada de queda ${rotulo}`, direcaoQueda(alto, baixo))
+  ];
+}
+
+async function analisarPropriedade(body) {
+  const geometria = body?.geometria;
+  if (!geometria?.type) throw new ErroAplicacao("Informe uma geometria para analisar a propriedade.");
+  const nome = body?.nome ?? "Elemento";
+  const tipo = body?.tipo ?? geometria.type;
+
+  if (geometria.type === "Point") {
+    const coordenada = { latitude: geometria.coordinates[1], longitude: geometria.coordinates[0] };
+    const [ponto] = pontosComAltitude(await consultarLote([coordenada]), [coordenada]);
+    return { tipo, nome, resumo: { nome, tipo, quantidadePontos: 1, coordenadaCentral: coordenada }, metricas: [
+      metrica("latitude", "Latitude", numeroPtBr(coordenada.latitude, 6), coordenada),
+      metrica("longitude", "Longitude", numeroPtBr(coordenada.longitude, 6), coordenada),
+      metrica("altitude_ponto", "Altitude do ponto", metrosPtBr(ponto.altitude, 2), coordenada, "m"),
+      metrica("data_consulta", "Data/hora da consulta", new Date().toLocaleString("pt-BR")),
+      metrica("fonte_altitude", "Fonte da altitude", "Open-Elevation"),
+      metrica("precisao_estimada", "Precisão estimada", "Média"),
+      metrica("coordenada_formatada", "Coordenada formatada", coordenadaPtBr(coordenada), coordenada)
+    ] };
+  }
+
+  if (geometria.type === "LineString") {
+    const coordenadas = geometria.coordinates.map(([longitude, latitude]) => ({ latitude, longitude }));
+    if (coordenadas.length < 2) throw new ErroAplicacao("A linha precisa ter pelo menos dois pontos.");
+    const comprimento = comprimentoCoordenadas(coordenadas);
+    const amostras = amostrarCaminho(coordenadas, 30, 180);
+    const pontos = pontosComAltitude(await consultarLote(amostras), amostras);
+    const alto = extremo(pontos, "max"), baixo = extremo(pontos, "min"), inicio = pontos[0], fim = pontos.at(-1);
+    const dif = alto && baixo ? alto.altitude - baixo.altitude : null;
+    const dec = Number.isFinite(dif) && comprimento > 0 ? (dif / comprimento) * 100 : null;
+    const ang = Number.isFinite(dec) ? (Math.atan(dec / 100) * 180) / Math.PI : null;
+    return { tipo, nome, aviso: amostras.length >= 180 ? "Amostragem ajustada automaticamente para evitar excesso de consultas." : undefined, resumo: { nome, tipo, quantidadePontos: coordenadas.length, coordenadaCentral: coordenadas[Math.floor(coordenadas.length / 2)] }, metricas: [
+      metrica("tipo", "Tipo", "Linha"),
+      metrica("quantidade_pontos", "Quantidade de pontos", numeroPtBr(coordenadas.length, 0)),
+      metrica("comprimento_total", "Comprimento total", metrosPtBr(comprimento, 2), null, "m"),
+      metrica("altitude_inicial", "Altitude no ponto inicial", metrosPtBr(inicio?.altitude, 2), inicio, "m"),
+      metrica("altitude_final", "Altitude no ponto final", metrosPtBr(fim?.altitude, 2), fim, "m"),
+      metrica("ponto_mais_alto_linha", "Ponto mais alto na linha", coordenadaPtBr(alto), alto),
+      metrica("altitude_mais_alta_linha", "Altitude do ponto mais alto na linha", metrosPtBr(alto?.altitude, 2), alto, "m"),
+      metrica("ponto_mais_baixo_linha", "Ponto mais baixo na linha", coordenadaPtBr(baixo), baixo),
+      metrica("altitude_mais_baixa_linha", "Altitude do ponto mais baixo na linha", metrosPtBr(baixo?.altitude, 2), baixo, "m"),
+      metrica("diferenca_elevacao", "Diferença de elevação", metrosPtBr(dif, 2), null, "m"),
+      metrica("declividade_media", "Declividade média percentual", Number.isFinite(dec) ? `${numeroPtBr(dec, 2)} %` : "-"),
+      metrica("angulo_medio", "Ângulo médio", Number.isFinite(ang) ? `${numeroPtBr(ang, 2)}°` : "-"),
+      metrica("sentido_queda", "Sentido predominante de queda", direcaoQueda(alto, baixo)),
+      metrica("distancia_ate_ponto_alto", "Comprimento acumulado até o ponto mais alto", metrosPtBr(alto?.distanciaMetros, 2), alto, "m"),
+      metrica("distancia_ate_ponto_baixo", "Comprimento acumulado até o ponto mais baixo", metrosPtBr(baixo?.distanciaMetros, 2), baixo, "m")
+    ] };
+  }
+
+  if (geometria.type === "Circle") {
+    const centro = { latitude: geometria.center[1], longitude: geometria.center[0] };
+    const raio = Number(geometria.radiusMeters);
+    if (!Number.isFinite(raio) || raio <= 0) throw new ErroAplicacao("O círculo precisa ter raio válido em metros.");
+    const area = Math.PI * raio * raio, perimetro = 2 * Math.PI * raio;
+    const borda = Array.from({ length: 96 }, (_, i) => destinoGeografico(centro, raio, (i / 96) * 360));
+    const areaAmostrada = amostrarAreaCirculo(centro, raio);
+    const amostrasBorda = amostrarCaminho(fecharCoordenadas(borda), 30, 180);
+    const [pontosArea, pontosBorda, pontoCentro] = await Promise.all([consultarLote(areaAmostrada.pontos), consultarLote(amostrasBorda), consultarLote([centro])]);
+    return { tipo, nome, aviso: areaAmostrada.ajustada || amostrasBorda.length >= 180 ? "Amostragem ajustada automaticamente para evitar excesso de consultas." : undefined, resumo: { nome, tipo, quantidadePontos: 1, coordenadaCentral: centro }, metricas: [
+      metrica("tipo", "Tipo", "Círculo"),
+      metrica("raio", "Raio", metrosPtBr(raio, 2), null, "m"),
+      metrica("diametro", "Diâmetro", metrosPtBr(raio * 2, 2), null, "m"),
+      metrica("area", "Área", areaPtBr(area)),
+      metrica("circunferencia", "Perímetro ou circunferência", metrosPtBr(perimetro, 2), null, "m"),
+      metrica("centro", "Centro", coordenadaPtBr(centro), centro),
+      metrica("altitude_centro", "Altitude no centro", metrosPtBr(pontoCentro[0]?.altitude, 2), centro, "m"),
+      ...metricasAltimetria("area", "dentro da área útil do círculo", pontosComAltitude(pontosArea, areaAmostrada.pontos), raio * 2),
+      ...metricasAltimetria("borda", "na borda do círculo", pontosComAltitude(pontosBorda, amostrasBorda), perimetro)
+    ] };
+  }
+
+  if (geometria.type === "Polygon") {
+    const coordenadas = fecharCoordenadas((geometria.coordinates?.[0] ?? []).map(([longitude, latitude]) => ({ latitude, longitude })));
+    if (coordenadas.length < 4) throw new ErroAplicacao("O polígono precisa ter pelo menos três vértices.");
+    const rotuloTipo = String(tipo).toLowerCase().includes("ret") ? "Retângulo" : "Polígono";
+    const area = areaPoligono(coordenadas), perimetro = comprimentoCoordenadas(coordenadas), centro = centroidePoligono(coordenadas);
+    const areaAmostrada = amostrarAreaPoligono(coordenadas);
+    const amostrasPerimetro = amostrarCaminho(coordenadas, 30, 180);
+    const [pontosArea, pontosPerimetro, pontoCentro] = await Promise.all([consultarLote(areaAmostrada.pontos), consultarLote(amostrasPerimetro), consultarLote([centro])]);
+    const base = [
+      metrica("tipo", "Tipo", rotuloTipo),
+      metrica("quantidade_vertices", "Quantidade de vértices", numeroPtBr(Math.max(0, coordenadas.length - 1), 0)),
+      metrica("area_util", "Área útil interna", areaPtBr(area)),
+      metrica("perimetro", "Perímetro", metrosPtBr(perimetro, 2), null, "m")
+    ];
+    if (rotuloTipo === "Retângulo") {
+      base.push(metrica("largura", "Largura aproximada", metrosPtBr(distancia(coordenadas[0], coordenadas[1]), 2), null, "m"));
+      base.push(metrica("altura", "Altura aproximada", metrosPtBr(distancia(coordenadas[1], coordenadas[2]), 2), null, "m"));
+    }
+    base.push(metrica("centro", rotuloTipo === "Retângulo" ? "Centro do retângulo" : "Centroide aproximado", coordenadaPtBr(centro), centro));
+    base.push(metrica("altitude_centro", rotuloTipo === "Retângulo" ? "Altitude no centro" : "Altitude no centroide", metrosPtBr(pontoCentro[0]?.altitude, 2), centro, "m"));
+    return { tipo, nome, aviso: areaAmostrada.ajustada || amostrasPerimetro.length >= 180 ? "Amostragem ajustada automaticamente para evitar excesso de consultas." : undefined, resumo: { nome, tipo, quantidadePontos: Math.max(0, coordenadas.length - 1), coordenadaCentral: centro }, metricas: [
+      ...base,
+      ...metricasAltimetria("area", "dentro da área útil", pontosComAltitude(pontosArea, areaAmostrada.pontos), Math.sqrt(area ?? 0)),
+      ...metricasAltimetria("perimetro", "no perímetro", pontosComAltitude(pontosPerimetro, amostrasPerimetro), perimetro)
+    ] };
+  }
+
+  throw new ErroAplicacao("Tipo de geometria não suportado para análise de propriedade.");
+}
+
 function validarBbox(bbox) {
   const saida = { minLat: Number(bbox?.minLat), minLng: Number(bbox?.minLng), maxLat: Number(bbox?.maxLat), maxLng: Number(bbox?.maxLng) };
   if (!Object.values(saida).every(Number.isFinite) || saida.maxLat <= saida.minLat || saida.maxLng <= saida.minLng) {
@@ -700,6 +1000,7 @@ export default async function handler(req, res) {
         }
       });
     }
+    if (req.method === "POST" && url.pathname === "/api/properties/analyze") return responder(res, 200, await analisarPropriedade(req.body));
     if (req.method === "POST" && url.pathname === "/api/contours") return responder(res, 200, await gerarCurvas(req.body));
     throw new ErroAplicacao("Rota não encontrada.", 404);
   } catch (erro) {

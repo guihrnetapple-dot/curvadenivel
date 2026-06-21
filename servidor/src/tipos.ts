@@ -85,6 +85,36 @@ export interface ResultadoPerfil {
   estatisticas: EstatisticasPerfil;
 }
 
+export interface MetricaPropriedade {
+  chave: string;
+  item: string;
+  valor: string;
+  unidade?: string;
+  coordenada?: Coordenada;
+  clicavel?: boolean;
+}
+
+export interface ResumoPropriedade {
+  nome: string;
+  tipo: string;
+  quantidadePontos: number;
+  coordenadaCentral?: Coordenada;
+}
+
+export interface RequisicaoPropriedade {
+  geometria: GeometriaPerfil;
+  tipo?: string;
+  nome?: string;
+}
+
+export interface ResultadoPropriedade {
+  tipo: string;
+  nome: string;
+  resumo: ResumoPropriedade;
+  metricas: MetricaPropriedade[];
+  aviso?: string;
+}
+
 export interface ProvedorElevacao {
   consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude>;
   consultarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]>;

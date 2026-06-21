@@ -12,6 +12,7 @@ import {
 } from "./configuracao";
 import { ServicoCurvas } from "./servicos/curvas/servicoCurvas";
 import { ServicoOpenElevation } from "./servicos/elevacao/servicoOpenElevation";
+import { ServicoPropriedades } from "./servicos/propriedades/servicoPropriedades";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
 import { ErroAplicacao } from "./utilitarios/erros";
@@ -21,6 +22,7 @@ const porta = obterPortaServidor();
 const servicoOpenElevation = new ServicoOpenElevation();
 const servicoPerfil = new ServicoPerfil(servicoOpenElevation);
 const servicoCurvas = new ServicoCurvas(servicoOpenElevation);
+const servicoPropriedades = new ServicoPropriedades(servicoOpenElevation);
 
 aplicacao.use(cors({ origin: true }));
 aplicacao.use(express.json({ limit: "4mb" }));
@@ -110,6 +112,14 @@ aplicacao.post(
   "/api/elevation/profile",
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoPerfil.analisarPerfil(requisicao.body);
+    resposta.json(resultado);
+  })
+);
+
+aplicacao.post(
+  "/api/properties/analyze",
+  rotaAssincrona(async (requisicao, resposta) => {
+    const resultado = await servicoPropriedades.analisarPropriedade(requisicao.body);
     resposta.json(resultado);
   })
 );

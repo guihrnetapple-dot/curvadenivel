@@ -473,6 +473,117 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
+.cabecalho-propriedade {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--azul) 32%, var(--borda));
+  border-radius: var(--raio);
+  background: var(--superficie-secundaria);
+}
+
+.cabecalho-propriedade strong {
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resumo-propriedade {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  color: var(--texto-suave);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.resumo-propriedade span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabela-propriedades {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie-secundaria);
+}
+
+.linha-propriedade {
+  display: grid;
+  grid-template-columns: minmax(118px, 1.3fr) minmax(86px, 1fr) 58px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--borda) 72%, transparent);
+  border-radius: 0;
+  background: transparent;
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+}
+
+.linha-propriedade:last-child {
+  border-bottom: 0;
+}
+
+.linha-propriedade.cabecalho {
+  min-height: 32px;
+  background: color-mix(in srgb, var(--azul) 12%, var(--superficie));
+  color: var(--texto-suave);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.linha-propriedade:not(.cabecalho):disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.linha-propriedade-clicavel {
+  cursor: pointer;
+}
+
+.linha-propriedade-clicavel:hover {
+  background: color-mix(in srgb, var(--azul) 16%, transparent);
+}
+
+.linha-propriedade span,
+.valor-propriedade {
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.valor-propriedade {
+  color: var(--texto);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.aviso-propriedade,
+.erro-propriedade {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--alerta) 38%, var(--borda));
+  border-radius: var(--raio);
+  background: color-mix(in srgb, var(--alerta) 10%, var(--superficie-secundaria));
+  color: var(--texto);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.erro-propriedade {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--borda));
+  background: color-mix(in srgb, #ef4444 10%, var(--superficie-secundaria));
+}
+
 .aviso-curvas {
   padding: 9px 10px;
   border: 1px solid color-mix(in srgb, var(--alerta) 42%, var(--borda));
