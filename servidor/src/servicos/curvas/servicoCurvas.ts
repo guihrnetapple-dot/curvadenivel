@@ -41,10 +41,7 @@ export class ServicoCurvas {
       modoParametros === "automatico"
         ? automaticos.resolucaoMetros
         : normalizarResolucaoManual(requisicao.resolucaoMetros);
-    const intervaloSolicitado =
-      modoParametros === "automatico"
-        ? automaticos.intervaloMetros
-        : normalizarIntervaloMetros(requisicao.intervaloMetros);
+    const intervaloSolicitado = normalizarIntervaloMetros(requisicao.intervaloMetros);
     const intervaloMetros = Math.max(intervaloSolicitado, obterIntervaloMinimoPorResolucao(resolucaoSolicitada));
     const gradeOriginal = await gerarGradeElevacaoApi(this.provedorElevacao, requisicao.bbox, resolucaoSolicitada);
     const gradeSuavizada = suavizarGrade(gradeOriginal, 1);
@@ -91,7 +88,6 @@ export class ServicoCurvas {
         fonte: "Open-Elevation API",
         metodo: "open_elevation_api_marching_squares_suavizado",
         modoParametros,
-        intervaloAutomatico: modoParametros === "automatico" ? automaticos.intervaloMetros : null,
         resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
         motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
         maiorDimensaoMetros: automaticos.maiorDimensaoMetros,

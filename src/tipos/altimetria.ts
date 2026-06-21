@@ -124,7 +124,6 @@ export interface MetadadosCurvasNivel {
   fonte: "Open-Elevation API";
   metodo: "open_elevation_api_marching_squares_suavizado";
   modoParametros: ModoParametrosCurvas;
-  intervaloAutomatico: number | null;
   resolucaoAutomatica: number | null;
   motivoAjusteAutomatico: string | null;
   maiorDimensaoMetros: number;

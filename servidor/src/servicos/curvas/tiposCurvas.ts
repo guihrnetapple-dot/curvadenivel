@@ -58,7 +58,6 @@ export interface FeatureCollectionCurvas {
     fonte: "Open-Elevation API";
     metodo: "open_elevation_api_marching_squares_suavizado";
     modoParametros: "automatico" | "manual";
-    intervaloAutomatico: number | null;
     resolucaoAutomatica: number | null;
     motivoAjusteAutomatico: string | null;
     maiorDimensaoMetros: number;

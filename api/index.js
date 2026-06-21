@@ -239,14 +239,6 @@ function escolherResolucaoAutomatica(maiorDimensaoMetros) {
   return 500;
 }
 
-function escolherIntervaloAutomatico(maiorDimensaoMetros) {
-  if (maiorDimensaoMetros <= 1000) return 1;
-  if (maiorDimensaoMetros <= 3000) return 2;
-  if (maiorDimensaoMetros <= 8000) return 5;
-  if (maiorDimensaoMetros <= 20000) return 10;
-  return 20;
-}
-
 function intervaloMinimoPorResolucao(resolucaoMetros) {
   return Math.ceil(resolucaoMetros / 100);
 }
@@ -254,18 +246,15 @@ function intervaloMinimoPorResolucao(resolucaoMetros) {
 function calcularParametrosAutomaticos(bbox) {
   const dimensoes = calcularDimensoesMetrosCurvas(bbox);
   const resolucaoOriginal = escolherResolucaoAutomatica(dimensoes.maiorDimensaoMetros);
-  const intervaloOriginal = escolherIntervaloAutomatico(dimensoes.maiorDimensaoMetros);
   let resolucao = resolucaoOriginal;
-  let intervalo = Math.max(intervaloOriginal, intervaloMinimoPorResolucao(resolucao));
   let motivoAjusteAutomatico = null;
   let info = calcularGradeInfo(bbox, resolucao);
   while (info.pontos > LIMITE_PONTOS_API) {
     resolucao *= 1.25;
-    intervalo = Math.max(intervaloMinimoPorResolucao(resolucao), Math.ceil(intervaloOriginal * (resolucao / resolucaoOriginal)));
     motivoAjusteAutomatico = "A resolução foi ajustada automaticamente para evitar excesso de consultas.";
     info = calcularGradeInfo(bbox, resolucao);
   }
-  return { ...dimensoes, resolucaoMetros: resolucao, intervaloMetros: intervalo, motivoAjusteAutomatico };
+  return { ...dimensoes, resolucaoMetros: resolucao, motivoAjusteAutomatico };
 }
 
 async function gerarGrade(bbox, resolucaoMetros) {
@@ -407,7 +396,7 @@ async function gerarCurvas(body) {
   const modoParametros = body?.modoParametros === "manual" ? "manual" : "automatico";
   const automaticos = calcularParametrosAutomaticos(bbox);
   const resolucao = modoParametros === "automatico" ? automaticos.resolucaoMetros : Number(body?.resolucaoMetros ?? 100);
-  const intervaloSolicitado = modoParametros === "automatico" ? automaticos.intervaloMetros : Number(body?.intervaloMetros ?? 5);
+  const intervaloSolicitado = Number(body?.intervaloMetros ?? 5);
   const intervalo = Math.max(intervaloSolicitado, intervaloMinimoPorResolucao(resolucao));
   const grade = await gerarGrade(bbox, resolucao);
   const nos = densificar(suavizar(grade.nos));
@@ -434,7 +423,6 @@ async function gerarCurvas(body) {
       fonte: "Open-Elevation API",
       metodo: "open_elevation_api_marching_squares_suavizado",
       modoParametros,
-      intervaloAutomatico: modoParametros === "automatico" ? automaticos.intervaloMetros : null,
       resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
       motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
       maiorDimensaoMetros: automaticos.maiorDimensaoMetros,

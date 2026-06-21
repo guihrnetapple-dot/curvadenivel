@@ -142,11 +142,11 @@ export function PainelDireito({
   aoExportarKml
 }: PropriedadesPainelDireito) {
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
-  const intervaloMinimoRecomendado = Math.ceil(resolucaoCurvasMetros / 100);
-  const intervaloManualMuitoPequeno =
-    modoParametrosCurvas === "manual" && intervaloCurvasMetros < intervaloMinimoRecomendado;
-  const intervaloAutomaticoExibido = curvasNivel?.metadados.intervaloAutomatico ?? intervaloCurvasMetros;
-  const resolucaoAutomaticaExibida = curvasNivel?.metadados.resolucaoAutomatica ?? resolucaoCurvasMetros;
+  const resolucaoReferenciaIntervalo = curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
+  const intervaloMinimoRecomendado = Math.ceil(resolucaoReferenciaIntervalo / 100);
+  const intervaloMuitoPequeno = intervaloCurvasMetros < intervaloMinimoRecomendado;
+  const resolucaoAutomaticaExibida =
+    curvasNivel?.metadados.resolucaoAutomatica ?? curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
 
   return (
     <aside className="painel-direito">
@@ -310,7 +310,7 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
         <div className="grupo-controles">
-          <span className="rotulo-bloco">Modo</span>
+          <span className="rotulo-bloco">Modo da resolução</span>
           <div className="controle-segmentado">
             <button
               type="button"
@@ -329,54 +329,51 @@ export function PainelDireito({
           </div>
         </div>
 
-        {modoParametrosCurvas === "automatico" ? (
+        <div className="grupo-controles">
+          <span className="rotulo-bloco">Intervalo</span>
+          <select
+            className="seletor-elemento"
+            value={intervaloCurvasMetros}
+            onChange={(evento) => aoAlterarIntervaloCurvas(Number(evento.target.value))}
+          >
+            {[1, 2, 5, 10, 20, 40, 80, 100].map((intervalo) => (
+              <option key={intervalo} value={intervalo}>
+                {intervalo} m
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {modoParametrosCurvas === "automatico" && (
           <div className="estado-vazio">
             {curvasNivel
-              ? `Automático: intervalo ${formatarMetros(intervaloAutomaticoExibido, 0)}, resolução ${formatarMetros(
-                  resolucaoAutomaticaExibida,
-                  0
-                )}`
-              : "Automático: calculado pela área desenhada"}
+              ? `Automático: resolução ${formatarMetros(resolucaoAutomaticaExibida, 0)}`
+              : "Automático: resolução calculada pela área desenhada"}
           </div>
-        ) : (
-          <>
-            <div className="grupo-controles">
-              <span className="rotulo-bloco">Intervalo</span>
-              <select
-                className="seletor-elemento"
-                value={intervaloCurvasMetros}
-                onChange={(evento) => aoAlterarIntervaloCurvas(Number(evento.target.value))}
-              >
-                {[1, 2, 5, 10, 20, 40, 80, 100].map((intervalo) => (
-                  <option key={intervalo} value={intervalo}>
-                    {intervalo} m
-                  </option>
-                ))}
-              </select>
-            </div>
+        )}
 
-            <div className="grupo-controles">
-              <span className="rotulo-bloco">Resolução</span>
-              <div className="controle-segmentado">
-                {[50, 100, 250, 500].map((resolucao) => (
-                  <button
-                    key={resolucao}
-                    type="button"
-                    className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
-                    onClick={() => aoAlterarResolucaoCurvas(resolucao)}
-                  >
-                    {resolucao} m
-                  </button>
-                ))}
-              </div>
+        {modoParametrosCurvas === "manual" && (
+          <div className="grupo-controles">
+            <span className="rotulo-bloco">Resolução</span>
+            <div className="controle-segmentado">
+              {[50, 100, 250, 500].map((resolucao) => (
+                <button
+                  key={resolucao}
+                  type="button"
+                  className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
+                  onClick={() => aoAlterarResolucaoCurvas(resolucao)}
+                >
+                  {resolucao} m
+                </button>
+              ))}
             </div>
+          </div>
+        )}
 
-            {intervaloManualMuitoPequeno && (
-              <div className="estado-vazio">
-                Intervalo muito pequeno para a resolução escolhida. A curva pode ficar artificial.
-              </div>
-            )}
-          </>
+        {intervaloMuitoPequeno && (
+          <div className="estado-vazio">
+            Intervalo muito pequeno para a resolução escolhida. A curva pode ficar artificial.
+          </div>
         )}
 
         <div className="acoes-linha">
