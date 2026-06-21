@@ -253,6 +253,37 @@ select {
   min-height: 0;
 }
 
+.seletor-camada-mapa {
+  top: 12px;
+  right: 12px;
+}
+
+.botao-camada-mapa,
+.menu-camada-mapa {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 23, 21, 0.9);
+  color: #ffffff;
+  box-shadow: 0 14px 34px rgba(21, 23, 21, 0.3);
+}
+
+.botao-camada-mapa {
+  min-width: 88px;
+  padding: 8px 11px;
+  font-size: 0.82rem;
+}
+
+.menu-camada-mapa button {
+  background: transparent;
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
+.menu-camada-mapa button:hover,
+.menu-camada-mapa button.ativo {
+  background: rgba(55, 231, 73, 0.13);
+  color: var(--verde);
+}
+
 .painel-baixo {
   min-height: 0;
   padding: 12px 14px;

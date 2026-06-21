@@ -59,7 +59,7 @@ export function Aplicacao() {
     arquivoCarregado: false
   });
   const [inicializando, setInicializando] = useState(true);
-  const camadaBase: CamadaBase = "mapa";
+  const [camadaBase, setCamadaBase] = useState<CamadaBase>("mapa");
   const camadasVisiveis = camadasIniciais;
   const [historico, setHistorico] = useState<ResultadoAltitude[]>(() =>
     lerLocalStorage<ResultadoAltitude[]>(CHAVE_HISTORICO, [])
@@ -283,6 +283,7 @@ export function Aplicacao() {
           <MapaAltimetria
             tema={tema}
             camadaBase={camadaBase}
+            aoAlterarCamadaBase={setCamadaBase}
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}

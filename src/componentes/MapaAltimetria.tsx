@@ -35,6 +35,7 @@ L.Icon.Default.mergeOptions({
 interface PropriedadesMapaAltimetria {
   tema: TemaVisual;
   camadaBase: CamadaBase;
+  aoAlterarCamadaBase: (camada: CamadaBase) => void;
   camadasVisiveis: CamadasVisiveis;
   camadasImportadas: CamadaImportada[];
   curvasNivel: CurvasNivelGeoJson | null;
@@ -46,6 +47,12 @@ interface PropriedadesMapaAltimetria {
   aoSelecionarElemento: (id: string) => void;
   aoBoundsAlterado: (bounds: BboxCurvasNivel) => void;
 }
+
+const opcoesCamadaBase: Array<{ valor: CamadaBase; rotulo: string }> = [
+  { valor: "mapa", rotulo: "Mapa" },
+  { valor: "satelite", rotulo: "Satélite" },
+  { valor: "terreno", rotulo: "Terreno" }
+];
 
 function configurarTextosDesenho() {
   const local = (L as unknown as { drawLocal?: Record<string, unknown> }).drawLocal;
@@ -202,6 +209,7 @@ function converterCamadaEmElemento(id: string, camada: L.Layer, tipo: string): E
 export function MapaAltimetria({
   tema,
   camadaBase,
+  aoAlterarCamadaBase,
   camadasVisiveis,
   camadasImportadas,
   curvasNivel,
@@ -230,6 +238,8 @@ export function MapaAltimetria({
     aoBoundsAlterado
   });
   const [coordenadasCursor, setCoordenadasCursor] = useState("Lat -, Lng -");
+  const [seletorCamadaAberto, setSeletorCamadaAberto] = useState(false);
+  const camadaBaseAtual = opcoesCamadaBase.find((opcao) => opcao.valor === camadaBase) ?? opcoesCamadaBase[0];
 
   useEffect(() => {
     propsRef.current = {
@@ -495,6 +505,36 @@ export function MapaAltimetria({
   return (
     <section className="mapa-container">
       <div ref={containerRef} className="mapa-altimetria" />
+      <div className="seletor-camada-mapa" onClick={(evento) => evento.stopPropagation()}>
+        <button
+          className="botao-camada-mapa"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={seletorCamadaAberto}
+          onClick={() => setSeletorCamadaAberto((aberto) => !aberto)}
+        >
+          {camadaBaseAtual.rotulo}
+        </button>
+        {seletorCamadaAberto && (
+          <div className="menu-camada-mapa" role="menu">
+            {opcoesCamadaBase.map((opcao) => (
+              <button
+                key={opcao.valor}
+                type="button"
+                role="menuitemradio"
+                aria-checked={opcao.valor === camadaBase}
+                className={opcao.valor === camadaBase ? "ativo" : ""}
+                onClick={() => {
+                  aoAlterarCamadaBase(opcao.valor);
+                  setSeletorCamadaAberto(false);
+                }}
+              >
+                {opcao.rotulo}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="sobreposicao-mapa cursor-mapa">{coordenadasCursor}</div>
     </section>
   );

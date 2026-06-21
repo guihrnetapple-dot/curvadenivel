@@ -283,6 +283,64 @@ button:disabled {
   min-height: 420px;
 }
 
+.seletor-camada-mapa {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 720;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.botao-camada-mapa,
+.menu-camada-mapa button {
+  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
+  background: color-mix(in srgb, var(--superficie) 92%, transparent);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.botao-camada-mapa {
+  min-width: 92px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 10px 24px rgba(25, 39, 34, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.botao-camada-mapa::after {
+  content: "▾";
+  margin-left: 8px;
+  font-size: 0.75rem;
+}
+
+.menu-camada-mapa {
+  display: grid;
+  min-width: 118px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--superficie) 94%, transparent);
+  box-shadow: 0 16px 34px rgba(25, 39, 34, 0.16);
+  backdrop-filter: blur(14px);
+}
+
+.menu-camada-mapa button {
+  border: 0;
+  border-radius: 0;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.menu-camada-mapa button:hover,
+.menu-camada-mapa button.ativo {
+  background: color-mix(in srgb, var(--verde) 14%, transparent);
+  color: var(--verde-escuro);
+}
+
 .sobreposicao-mapa {
   position: absolute;
   z-index: 650;
