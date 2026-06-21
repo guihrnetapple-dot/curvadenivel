@@ -15,10 +15,9 @@ import type {
   ElementoMapa,
   GeometriaProjeto,
   PontoPerfil,
-  ResultadoAltitude,
   TemaVisual
 } from "../tipos/altimetria";
-import { formatarDataHoraIso, formatarMetros, formatarNumero, gerarIdentificador } from "../utilitarios/formatacao";
+import { formatarMetros, formatarNumero, gerarIdentificador } from "../utilitarios/formatacao";
 
 const ZOOM_MAXIMO_MAPA = 24;
 const ZOOM_NATIVO_OSM = 19;
@@ -40,7 +39,6 @@ interface PropriedadesMapaAltimetria {
   camadasImportadas: CamadaImportada[];
   curvasNivel: CurvasNivelGeoJson | null;
   pontoDestacado: PontoPerfil | null;
-  aoConsultarCoordenada: (latitude: number, longitude: number) => Promise<ResultadoAltitude | null>;
   aoElementoCriado: (elemento: ElementoMapa) => void;
   aoElementoAtualizado: (elemento: ElementoMapa) => void;
   aoElementoRemovido: (id: string) => void;
@@ -125,29 +123,6 @@ function criarGradeAltitude(): L.LayerGroup {
   return grupo;
 }
 
-function montarPopup(resultado: ResultadoAltitude): string {
-  const classeStatus = resultado.status === "valido" ? "valido" : "sem-dado";
-  const metodo = resultado.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear";
-  const status = resultado.status === "valido" ? "Válido" : "Água ou sem dado";
-  return `
-    <div class="popup-tecnico">
-      <strong>Consulta altimétrica</strong>
-      <dl>
-        <dt>Latitude</dt><dd>${formatarNumero(resultado.latitude, 6)}</dd>
-        <dt>Longitude</dt><dd>${formatarNumero(resultado.longitude, 6)}</dd>
-        <dt>Altitude</dt><dd>${formatarMetros(resultado.altitude, 2)}</dd>
-        <dt>Método</dt><dd>${metodo}</dd>
-        <dt>Fonte</dt><dd>data10k8b.raw</dd>
-        <dt>Valor bruto</dt><dd>${resultado.valorBruto}</dd>
-        <dt>Bruto interpolado</dt><dd>${formatarNumero(resultado.valorBrutoInterpolado, 4)}</dd>
-        <dt>Status</dt><dd><span class="marcador-status ${classeStatus}">${status}</span></dd>
-        <dt>Observação</dt><dd>${resultado.avisoPrecisao ?? "Estimativa suavizada, baixa resolução real."}</dd>
-        <dt>Data/hora</dt><dd>${formatarDataHoraIso(resultado.consultadoEm)}</dd>
-      </dl>
-    </div>
-  `;
-}
-
 function converterBounds(bounds: L.LatLngBounds): BboxCurvasNivel {
   const sulOeste = bounds.getSouthWest();
   const nordeste = bounds.getNorthEast();
@@ -214,7 +189,6 @@ export function MapaAltimetria({
   camadasImportadas,
   curvasNivel,
   pontoDestacado,
-  aoConsultarCoordenada,
   aoElementoCriado,
   aoElementoAtualizado,
   aoElementoRemovido,
@@ -230,7 +204,6 @@ export function MapaAltimetria({
   const gradeRef = useRef<L.LayerGroup | null>(null);
   const destaqueRef = useRef<L.CircleMarker | null>(null);
   const propsRef = useRef({
-    aoConsultarCoordenada,
     aoElementoCriado,
     aoElementoAtualizado,
     aoElementoRemovido,
@@ -243,7 +216,6 @@ export function MapaAltimetria({
 
   useEffect(() => {
     propsRef.current = {
-      aoConsultarCoordenada,
       aoElementoCriado,
       aoElementoAtualizado,
       aoElementoRemovido,
@@ -251,7 +223,6 @@ export function MapaAltimetria({
       aoBoundsAlterado
     };
   }, [
-    aoConsultarCoordenada,
     aoElementoCriado,
     aoElementoAtualizado,
     aoElementoRemovido,
@@ -346,20 +317,6 @@ export function MapaAltimetria({
 
     mapa.on("moveend zoomend", notificarBounds);
     notificarBounds();
-
-    mapa.on("click", async (evento: L.LeafletMouseEvent) => {
-      const popup = L.popup()
-        .setLatLng(evento.latlng)
-        .setContent('<div class="popup-tecnico"><strong>Consultando altitude...</strong></div>')
-        .openOn(mapa);
-
-      const resultado = await propsRef.current.aoConsultarCoordenada(evento.latlng.lat, evento.latlng.lng);
-      if (resultado) {
-        popup.setContent(montarPopup(resultado));
-      } else {
-        popup.setContent('<div class="popup-tecnico"><strong>Não foi possível consultar este ponto.</strong></div>');
-      }
-    });
 
     return () => {
       mapa.remove();

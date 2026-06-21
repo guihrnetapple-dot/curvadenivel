@@ -288,7 +288,6 @@ export function Aplicacao() {
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
             pontoDestacado={pontoDestacado}
-            aoConsultarCoordenada={consultarCoordenada}
             aoElementoCriado={adicionarElemento}
             aoElementoAtualizado={atualizarElemento}
             aoElementoRemovido={removerElemento}
