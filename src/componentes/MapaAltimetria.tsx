@@ -18,6 +18,11 @@ import type {
 } from "../tipos/altimetria";
 import { formatarDataHoraIso, formatarMetros, formatarNumero, gerarIdentificador } from "../utilitarios/formatacao";
 
+const ZOOM_MAXIMO_MAPA = 24;
+const ZOOM_NATIVO_OSM = 19;
+const ZOOM_NATIVO_ESRI = 19;
+const ZOOM_NATIVO_OPENTOPOMAP = 17;
+
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: iconeMarcador2x,
@@ -64,6 +69,8 @@ function criarCamadaBase(tipo: CamadaBase): L.TileLayer {
     return L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
+        maxZoom: ZOOM_MAXIMO_MAPA,
+        maxNativeZoom: ZOOM_NATIVO_ESRI,
         attribution: "Tiles Esri"
       }
     );
@@ -71,11 +78,15 @@ function criarCamadaBase(tipo: CamadaBase): L.TileLayer {
 
   if (tipo === "terreno") {
     return L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+      maxZoom: ZOOM_MAXIMO_MAPA,
+      maxNativeZoom: ZOOM_NATIVO_OPENTOPOMAP,
       attribution: "OpenTopoMap"
     });
   }
 
   return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: ZOOM_MAXIMO_MAPA,
+    maxNativeZoom: ZOOM_NATIVO_OSM,
     attribution: "OpenStreetMap"
   });
 }
@@ -225,6 +236,7 @@ export function MapaAltimetria({
 
     configurarTextosDesenho();
     const mapa = L.map(containerRef.current, {
+      maxZoom: ZOOM_MAXIMO_MAPA,
       zoomControl: false,
       preferCanvas: true
     }).setView([-16.72, -43.86], 5);
@@ -368,6 +380,8 @@ export function MapaAltimetria({
 
     if (!relevoRef.current) {
       relevoRef.current = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+        maxZoom: ZOOM_MAXIMO_MAPA,
+        maxNativeZoom: ZOOM_NATIVO_OPENTOPOMAP,
         opacity: 0.36,
         attribution: "OpenTopoMap"
       });
