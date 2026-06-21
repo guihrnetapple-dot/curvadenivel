@@ -60,7 +60,7 @@ export function Aplicacao() {
     arquivoCarregado: false
   });
   const [inicializando, setInicializando] = useState(true);
-  const [camadaBase, setCamadaBase] = useState<CamadaBase>("mapa");
+  const [camadaBase, setCamadaBase] = useState<CamadaBase>("satelite");
   const camadasVisiveis = camadasIniciais;
   const [historico, setHistorico] = useState<ResultadoAltitude[]>(() =>
     lerLocalStorage<ResultadoAltitude[]>(CHAVE_HISTORICO, [])
