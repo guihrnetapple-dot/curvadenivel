@@ -4,7 +4,7 @@ export function CarregamentoInicial() {
       <div className="carregamento-painel">
         <div className="linha-carregamento" />
         <strong>Preparando ambiente altimétrico</strong>
-        <span>Validando API Open-Elevation e módulos de mapa.</span>
+        <span>Validando módulos de altimetria e mapa.</span>
       </div>
     </div>
   );

@@ -21,7 +21,7 @@ function TooltipPerfil({ active, payload }: { active?: boolean; payload?: Array<
       <span>Distância: {formatarNumero(ponto.distanciaMetros / 1000, 2)} km</span>
       <span>Lat: {formatarNumero(ponto.latitude, 5)}</span>
       <span>Lng: {formatarNumero(ponto.longitude, 5)}</span>
-      <span>Método: API Open-Elevation</span>
+      <span>Método: consulta altimétrica</span>
     </div>
   );
 }

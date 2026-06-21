@@ -16,7 +16,7 @@ import type { RespostaOpenElevation } from "./tiposElevacao";
 const URL_PADRAO_OPEN_ELEVATION = "https://api.open-elevation.com/api/v1/lookup";
 const STATUS_RETRY = new Set([429, 502, 503, 504]);
 const AVISO_PRECISAO =
-  "Altitude consultada na Open-Elevation. A precisão depende da base DEM usada pelo serviço.";
+  "Altitude consultada. A precisão depende da base altimétrica disponível.";
 const CODIGOS_ERRO_CERTIFICADO = new Set([
   "CERT_HAS_EXPIRED",
   "DEPTH_ZERO_SELF_SIGNED_CERT",
@@ -92,8 +92,8 @@ function criarResultadoOpenElevation(coordenada: Coordenada, altitude: number | 
     avisoPrecisao: AVISO_PRECISAO,
     mensagem:
       altitude === null
-        ? "A Open-Elevation não retornou altitude válida para esse ponto."
-        : "Altitude consultada pela API Open-Elevation.",
+        ? "Não foi retornada altitude válida para esse ponto."
+        : "Altitude consultada com sucesso.",
     consultadoEm: new Date().toISOString()
   };
 }

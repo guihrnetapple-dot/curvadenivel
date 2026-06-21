@@ -65,11 +65,11 @@ function criarResultado(coordenada, altitude) {
     fonte: "open_elevation",
     metodo: "api",
     precisaoReal: "media",
-    avisoPrecisao: "Altitude consultada na Open-Elevation. A precisão depende da base DEM usada pelo serviço.",
+    avisoPrecisao: "Altitude consultada. A precisão depende da base altimétrica disponível.",
     mensagem:
       altitude === null
-        ? "A Open-Elevation não retornou altitude válida para esse ponto."
-        : "Altitude consultada pela API Open-Elevation.",
+        ? "Não foi retornada altitude válida para esse ponto."
+        : "Altitude consultada com sucesso.",
     consultadoEm: new Date().toISOString()
   };
 }

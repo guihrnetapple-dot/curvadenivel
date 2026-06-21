@@ -1315,7 +1315,6 @@ export function MapaAltimetria({
       onEachFeature: (feature, camada) => {
         const elevacao = Number(feature.properties?.elevacao);
         const tipo = String(feature.properties?.tipo ?? "-");
-        const fonte = String(feature.properties?.fonte ?? "Open-Elevation");
         const comprimento = Number(feature.properties?.comprimentoMetros);
         const resolucao = curvasNivel.metadados.resolucaoEfetivaMetros;
         camada.bindPopup(`
@@ -1324,7 +1323,6 @@ export function MapaAltimetria({
             <dl>
               <dt>Tipo</dt><dd>${tipo === "mestra" ? "Mestra" : "Normal"}</dd>
               <dt>Comprimento</dt><dd>${formatarMetros(comprimento, 0)}</dd>
-              <dt>Fonte</dt><dd>${fonte}</dd>
               <dt>Resolução efetiva</dt><dd>${formatarMetros(resolucao, 0)}</dd>
             </dl>
           </div>
