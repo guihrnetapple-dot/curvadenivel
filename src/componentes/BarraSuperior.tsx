@@ -2,20 +2,17 @@ import {
   Database,
   Download,
   Moon,
-  Search,
   Settings,
   Sun,
   Upload,
   Wifi
 } from "lucide-react";
-import { FormEvent, useState } from "react";
 
 import type { StatusApi, TemaVisual } from "../tipos/altimetria";
 
 interface PropriedadesBarraSuperior {
   statusApi: StatusApi;
   tema: TemaVisual;
-  aoBuscarCoordenada: (texto: string) => void;
   aoImportarArquivo: () => void;
   aoExportarRelatorio: () => void;
   aoAlternarTema: () => void;
@@ -25,19 +22,11 @@ interface PropriedadesBarraSuperior {
 export function BarraSuperior({
   statusApi,
   tema,
-  aoBuscarCoordenada,
   aoImportarArquivo,
   aoExportarRelatorio,
   aoAlternarTema,
   aoAbrirConfiguracoes
 }: PropriedadesBarraSuperior) {
-  const [textoBusca, setTextoBusca] = useState("-16.72, -43.86");
-
-  function enviarBusca(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-    aoBuscarCoordenada(textoBusca);
-  }
-
   const statusBackend = statusApi.backendOnline ? "Online" : "Offline";
   const statusArquivo = statusApi.arquivoCarregado ? "RAW carregado" : "RAW pendente";
 
@@ -50,21 +39,6 @@ export function BarraSuperior({
           <span>Topografia, irrigação e engenharia rural</span>
         </div>
       </div>
-
-      <form className="busca-coordenada" onSubmit={enviarBusca}>
-        <label htmlFor="busca-coordenada">Coordenada</label>
-        <div className="campo-busca">
-          <Search size={17} aria-hidden="true" />
-          <input
-            id="busca-coordenada"
-            value={textoBusca}
-            onChange={(evento) => setTextoBusca(evento.target.value)}
-            placeholder="latitude, longitude"
-            autoComplete="off"
-          />
-          <button type="submit">Consultar</button>
-        </div>
-      </form>
 
       <div className="acoes-topo">
         <button className="botao-icone" type="button" onClick={aoImportarArquivo} title="Importar arquivo">

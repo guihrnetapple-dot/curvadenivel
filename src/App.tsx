@@ -48,24 +48,6 @@ function lerLocalStorage<T>(chave: string, fallback: T): T {
   }
 }
 
-function extrairCoordenadas(texto: string): { latitude: number; longitude: number } {
-  const numeros = texto.match(/[+-]?\d+(?:[.,]\d+)?/g) ?? [];
-  if (numeros.length < 2) {
-    throw new Error("Informe latitude e longitude no campo de busca.");
-  }
-
-  const latitudeTexto = numeros[0];
-  const longitudeTexto = numeros[1];
-  if (!latitudeTexto || !longitudeTexto) {
-    throw new Error("Informe latitude e longitude no campo de busca.");
-  }
-
-  return {
-    latitude: Number(latitudeTexto.replace(",", ".")),
-    longitude: Number(longitudeTexto.replace(",", "."))
-  };
-}
-
 export function Aplicacao() {
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
   const [tema, setTema] = useState<TemaVisual>(() => {
@@ -158,18 +140,6 @@ export function Aplicacao() {
     },
     [registrarResultado]
   );
-
-  function buscarTextoCoordenada(texto: string) {
-    try {
-      const coordenada = extrairCoordenadas(texto);
-      consultarCoordenada(coordenada.latitude, coordenada.longitude);
-    } catch (erro) {
-      setAlerta({
-        tipo: "erro",
-        mensagem: erro instanceof Error ? erro.message : "Coordenada inválida."
-      });
-    }
-  }
 
   function alternarCamada(camada: keyof CamadasVisiveis) {
     setCamadasVisiveis((estado) => ({
@@ -306,7 +276,6 @@ export function Aplicacao() {
       <BarraSuperior
         statusApi={statusApi}
         tema={tema}
-        aoBuscarCoordenada={buscarTextoCoordenada}
         aoImportarArquivo={() => inputArquivoRef.current?.click()}
         aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
         aoAlternarTema={() => setTema((valor) => (valor === "claro" ? "escuro" : "claro"))}

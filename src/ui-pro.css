@@ -70,7 +70,7 @@ select {
 }
 
 .barra-superior {
-  grid-template-columns: 282px minmax(360px, 1fr) auto auto;
+  grid-template-columns: minmax(282px, 1fr) auto auto;
   gap: 12px;
   min-height: 70px;
   padding: 10px 16px;
@@ -495,7 +495,7 @@ input[type="checkbox"] {
   }
 
   .barra-superior {
-    grid-template-columns: 250px minmax(300px, 1fr) auto;
+    grid-template-columns: minmax(250px, 1fr) auto;
   }
 
   .status-topo {
