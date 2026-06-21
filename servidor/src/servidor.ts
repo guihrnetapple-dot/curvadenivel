@@ -141,5 +141,5 @@ await servicoAltitude.carregarArquivo().catch((erro) => {
 });
 
 aplicacao.listen(porta, "127.0.0.1", () => {
-  console.log(`API AgroAltimetria Pro disponível em http://127.0.0.1:${porta}`);
+  console.log(`API Curva de Nível disponível em http://127.0.0.1:${porta}`);
 });

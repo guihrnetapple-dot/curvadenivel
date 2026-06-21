@@ -20,9 +20,9 @@ export function BarraSuperior({
   return (
     <header className="barra-superior">
       <div className="marca">
-        <div className="marca-simbolo">AA</div>
+        <div className="marca-simbolo">CN</div>
         <div>
-          <strong>AgroAltimetria Pro</strong>
+          <strong>Curva de Nível</strong>
           <span>Topografia, irrigação e engenharia rural</span>
         </div>
       </div>
