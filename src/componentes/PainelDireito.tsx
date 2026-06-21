@@ -36,7 +36,7 @@ interface PropriedadesSecao {
   children: ReactNode;
 }
 
-function SecaoPainel({ titulo, icone, abertaInicialmente = true, children }: PropriedadesSecao) {
+function SecaoPainel({ titulo, icone, abertaInicialmente = false, children }: PropriedadesSecao) {
   const [aberta, setAberta] = useState(abertaInicialmente);
   return (
     <section className="secao-painel">
