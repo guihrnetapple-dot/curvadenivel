@@ -919,10 +919,8 @@ export function MapaAltimetria({
         )}
       </div>
       <div className="sobreposicao-mapa cursor-mapa barra-informacoes-mapa">
-        <span>Data das imagens: não disponível</span>
         <span>lat {formatarNumero(informacoesCursor.latitude, 6)}°</span>
         <span>lon {formatarNumero(informacoesCursor.longitude, 6)}°</span>
-        <span>altitude do ponto de visão {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
       </div>
     </section>
   );
