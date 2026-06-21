@@ -87,14 +87,12 @@ select {
 }
 
 .marca-simbolo {
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(68, 213, 66, 0.7);
-  border-radius: 4px;
-  background: rgba(68, 213, 66, 0.12);
-  color: var(--verde);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-  font-size: 0.92rem;
+  width: 42px;
+  height: 42px;
+  border-color: rgba(68, 213, 66, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 .marca strong {
