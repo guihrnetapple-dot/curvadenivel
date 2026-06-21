@@ -14,6 +14,7 @@ import type {
   CurvasNivelGeoJson,
   ElementoMapa,
   GeometriaProjeto,
+  LocalizacaoEncontrada,
   PontoPerfil,
   ResultadoAltitude,
   TemaVisual
@@ -38,6 +39,8 @@ L.Icon.Default.mergeOptions({
 interface PropriedadesMapaAltimetria {
   tema: TemaVisual;
   camadaBase: CamadaBase;
+  rotulosMapaAtivos: boolean;
+  localizacaoFocada: LocalizacaoEncontrada | null;
   aoAlterarCamadaBase: (camada: CamadaBase) => void;
   camadasVisiveis: CamadasVisiveis;
   camadasImportadas: CamadaImportada[];
@@ -137,10 +140,19 @@ function criarCamadaBase(tipo: CamadaBase): L.TileLayer {
     });
   }
 
-  return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  return L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png", {
     maxZoom: ZOOM_MAXIMO_MAPA,
     maxNativeZoom: ZOOM_NATIVO_OSM,
-    attribution: "OpenStreetMap"
+    attribution: "Tiles CARTO"
+  });
+}
+
+function criarCamadaRotulos(): L.TileLayer {
+  return L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png", {
+    pane: "rotulos",
+    maxZoom: ZOOM_MAXIMO_MAPA,
+    maxNativeZoom: ZOOM_NATIVO_OSM,
+    attribution: "Labels CARTO"
   });
 }
 
@@ -298,6 +310,8 @@ function alvoInterativo(evento: KeyboardEvent): boolean {
 export function MapaAltimetria({
   tema,
   camadaBase,
+  rotulosMapaAtivos,
+  localizacaoFocada,
   aoAlterarCamadaBase,
   camadasVisiveis,
   camadasImportadas,
@@ -319,6 +333,7 @@ export function MapaAltimetria({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapaRef = useRef<L.Map | null>(null);
   const camadaBaseRef = useRef<L.TileLayer | null>(null);
+  const camadaRotulosRef = useRef<L.TileLayer | null>(null);
   const desenhosRef = useRef<L.FeatureGroup | null>(null);
   const importadosRef = useRef<L.LayerGroup | null>(null);
   const curvasNivelRef = useRef<L.GeoJSON | null>(null);
@@ -462,7 +477,13 @@ export function MapaAltimetria({
 
     mapaRef.current = mapa;
     L.control.attribution({ position: "topright", prefix: false }).addTo(mapa);
+    const painelRotulos = mapa.createPane("rotulos");
+    painelRotulos.style.zIndex = "360";
+    painelRotulos.style.pointerEvents = "none";
     camadaBaseRef.current = criarCamadaBase(camadaBase).addTo(mapa);
+    if (rotulosMapaAtivos) {
+      camadaRotulosRef.current = criarCamadaRotulos().addTo(mapa);
+    }
     desenhosRef.current = L.featureGroup().addTo(mapa);
     importadosRef.current = L.layerGroup().addTo(mapa);
 
@@ -737,6 +758,42 @@ export function MapaAltimetria({
     camadaBaseRef.current = criarCamadaBase(camadaBase).addTo(mapa);
     camadaBaseRef.current.bringToBack();
   }, [camadaBase, tema]);
+
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa) {
+      return;
+    }
+
+    if (camadaRotulosRef.current) {
+      mapa.removeLayer(camadaRotulosRef.current);
+      camadaRotulosRef.current = null;
+    }
+
+    if (rotulosMapaAtivos) {
+      camadaRotulosRef.current = criarCamadaRotulos().addTo(mapa);
+    }
+  }, [rotulosMapaAtivos, camadaBase]);
+
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa || !localizacaoFocada) {
+      return;
+    }
+
+    if (localizacaoFocada.bbox) {
+      mapa.fitBounds(
+        [
+          [localizacaoFocada.bbox.minLat, localizacaoFocada.bbox.minLng],
+          [localizacaoFocada.bbox.maxLat, localizacaoFocada.bbox.maxLng]
+        ],
+        { maxZoom: 15, padding: [36, 36], animate: true }
+      );
+      return;
+    }
+
+    mapa.flyTo([localizacaoFocada.latitude, localizacaoFocada.longitude], 13, { animate: true });
+  }, [localizacaoFocada]);
 
   useEffect(() => {
     const mapa = mapaRef.current;

@@ -100,6 +100,13 @@ export interface BboxCurvasNivel {
   maxLng: number;
 }
 
+export interface LocalizacaoEncontrada {
+  nome: string;
+  latitude: number;
+  longitude: number;
+  bbox?: BboxCurvasNivel;
+}
+
 export interface FeatureCurvaNivel {
   type: "Feature";
   properties: {

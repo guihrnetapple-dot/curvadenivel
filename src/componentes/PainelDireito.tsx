@@ -55,10 +55,16 @@ interface PropriedadesPainelDireito {
   carregandoCurvas: boolean;
   selecionandoAreaCurvas: boolean;
   selecionandoPontoAltitude: boolean;
+  termoLocalizacao: string;
+  carregandoLocalizacao: boolean;
+  rotulosMapaAtivos: boolean;
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
   aoAnalisarPonto: () => void;
+  aoAlterarTermoLocalizacao: (termo: string) => void;
+  aoPesquisarLocalizacao: () => void;
+  aoAlternarRotulosMapa: () => void;
   aoSelecionarElemento: (id: string) => void;
   aoAnalisarPerfil: () => void;
   aoLimparAnalise: () => void;
@@ -105,10 +111,16 @@ export function PainelDireito({
   carregandoCurvas,
   selecionandoAreaCurvas,
   selecionandoPontoAltitude,
+  termoLocalizacao,
+  carregandoLocalizacao,
+  rotulosMapaAtivos,
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
   aoAnalisarPonto,
+  aoAlterarTermoLocalizacao,
+  aoPesquisarLocalizacao,
+  aoAlternarRotulosMapa,
   aoSelecionarElemento,
   aoAnalisarPerfil,
   aoLimparAnalise,
@@ -128,6 +140,32 @@ export function PainelDireito({
 
   return (
     <aside className="painel-direito">
+      <SecaoPainel titulo="Localização" icone={<MapPin size={17} />}>
+        <form
+          className="campo-busca"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            aoPesquisarLocalizacao();
+          }}
+        >
+          <MapPin size={17} aria-hidden="true" />
+          <input
+            type="search"
+            value={termoLocalizacao}
+            onChange={(evento) => aoAlterarTermoLocalizacao(evento.target.value)}
+            placeholder="Cidade, estado, país ou local"
+            aria-label="Pesquisar localização"
+          />
+          <button type="submit" disabled={carregandoLocalizacao}>
+            {carregandoLocalizacao ? "Buscando" : "Buscar"}
+          </button>
+        </form>
+
+        <button className="botao-largo botao-secundario" type="button" onClick={aoAlternarRotulosMapa}>
+          {rotulosMapaAtivos ? "Ocultar nomes e rótulos" : "Mostrar nomes e rótulos"}
+        </button>
+      </SecaoPainel>
+
       <SecaoPainel titulo="Camadas" icone={<Layers size={17} />}>
         <div className="lista-elementos-desenhados">
           {elementos.length === 0 ? (

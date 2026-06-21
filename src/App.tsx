@@ -6,6 +6,7 @@ import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
 import { gerarCurvasNivel } from "./servicos/apiCurvasNivel";
+import { pesquisarLocalizacao } from "./servicos/apiLocalizacao";
 import type {
   AlertaSistema,
   BboxCurvasNivel,
@@ -14,6 +15,7 @@ import type {
   CamadasVisiveis,
   CurvasNivelGeoJson,
   ElementoMapa,
+  LocalizacaoEncontrada,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -77,6 +79,10 @@ export function Aplicacao() {
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(5);
   const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(100);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
+  const [termoLocalizacao, setTermoLocalizacao] = useState("");
+  const [carregandoLocalizacao, setCarregandoLocalizacao] = useState(false);
+  const [localizacaoFocada, setLocalizacaoFocada] = useState<LocalizacaoEncontrada | null>(null);
+  const [rotulosMapaAtivos, setRotulosMapaAtivos] = useState(true);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
 
   useEffect(() => {
@@ -283,6 +289,28 @@ export function Aplicacao() {
     }
   }
 
+  async function buscarLocalizacao() {
+    setCarregandoLocalizacao(true);
+    try {
+      const resultados = await pesquisarLocalizacao(termoLocalizacao);
+      const primeira = resultados[0];
+      if (!primeira) {
+        setAlerta({ tipo: "aviso", mensagem: "Nenhuma localização encontrada." });
+        return;
+      }
+
+      setLocalizacaoFocada(primeira);
+      setAlerta({ tipo: "sucesso", mensagem: `Localização encontrada: ${primeira.nome}` });
+    } catch (erro) {
+      setAlerta({
+        tipo: "erro",
+        mensagem: erro instanceof Error ? erro.message : "Não foi possível pesquisar a localização."
+      });
+    } finally {
+      setCarregandoLocalizacao(false);
+    }
+  }
+
   return (
     <div className="aplicacao">
       {inicializando && <CarregamentoInicial />}
@@ -303,6 +331,8 @@ export function Aplicacao() {
           <MapaAltimetria
             tema={tema}
             camadaBase={camadaBase}
+            rotulosMapaAtivos={rotulosMapaAtivos}
+            localizacaoFocada={localizacaoFocada}
             aoAlterarCamadaBase={setCamadaBase}
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
@@ -333,10 +363,16 @@ export function Aplicacao() {
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
           selecionandoPontoAltitude={selecionandoPontoAltitude}
+          termoLocalizacao={termoLocalizacao}
+          carregandoLocalizacao={carregandoLocalizacao}
+          rotulosMapaAtivos={rotulosMapaAtivos}
           intervaloCurvasMetros={intervaloCurvasMetros}
           resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
           aoAnalisarPonto={iniciarAnalisePonto}
+          aoAlterarTermoLocalizacao={setTermoLocalizacao}
+          aoPesquisarLocalizacao={buscarLocalizacao}
+          aoAlternarRotulosMapa={() => setRotulosMapaAtivos((valor) => !valor)}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
           aoAnalisarPerfil={analisarPerfil}
           aoLimparAnalise={() => {
