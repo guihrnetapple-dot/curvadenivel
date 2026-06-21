@@ -446,18 +446,28 @@ input[type="checkbox"] {
 
 .leaflet-control-zoom a,
 .leaflet-draw-toolbar a {
-  width: 30px !important;
-  height: 30px !important;
-  line-height: 30px !important;
-  background: var(--grafite-profundo) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 34px !important;
+  background-color: #ffffff !important;
+  color: #151715 !important;
+  border-color: rgba(21, 23, 21, 0.14) !important;
+  box-shadow: inset 0 0 0 1px rgba(21, 23, 21, 0.04);
 }
 
 .leaflet-control-zoom a:hover,
 .leaflet-draw-toolbar a:hover {
-  background: var(--verde) !important;
+  background-color: var(--verde) !important;
   color: #111411 !important;
+}
+
+.leaflet-draw-toolbar a {
+  background-image: url("leaflet-draw/dist/images/spritesheet.png") !important;
+}
+
+.leaflet-draw-toolbar a.leaflet-disabled {
+  background-color: #eef1eb !important;
+  opacity: 0.55;
 }
 
 .popup-tecnico {
