@@ -1,3 +1,5 @@
+import { request as requisicaoHttps } from "node:https";
+
 const URL_OPEN_ELEVATION = process.env.OPEN_ELEVATION_API_URL ?? "https://api.open-elevation.com/api/v1/lookup";
 const CACHE_TTL_MS = Number(process.env.OPEN_ELEVATION_CACHE_TTL_MS ?? 24 * 60 * 60 * 1000);
 const CACHE_MAX_ITENS = Number(process.env.OPEN_ELEVATION_CACHE_MAX_ITENS ?? 20000);
@@ -8,6 +10,13 @@ const RESOLUCAO_MINIMA_METROS = 50;
 const RESOLUCAO_PADRAO_METROS = 100;
 const FATOR_DENSIFICACAO = 4;
 const LIMITE_NOS_DENSIFICADOS = 300000;
+const CODIGOS_ERRO_CERTIFICADO = new Set([
+  "CERT_HAS_EXPIRED",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "ERR_TLS_CERT_ALTNAME_INVALID",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+]);
 const cacheElevacao = new Map();
 
 class ErroAplicacao extends Error {
@@ -84,6 +93,89 @@ async function aguardar(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function obterCodigoErro(erro) {
+  const origem = erro?.cause && typeof erro.cause === "object" ? erro.cause : erro;
+  return origem && typeof origem === "object" && "code" in origem ? String(origem.code) : "";
+}
+
+function deveTentarOpenElevationSemValidarCertificado(erro) {
+  let hostname = "";
+  try {
+    hostname = new URL(URL_OPEN_ELEVATION).hostname;
+  } catch {
+    return false;
+  }
+
+  const mensagem = String(erro?.message ?? "").toLowerCase();
+  return (
+    hostname === "api.open-elevation.com" &&
+    (CODIGOS_ERRO_CERTIFICADO.has(obterCodigoErro(erro)) ||
+      mensagem.includes("certificate") ||
+      mensagem.includes("certificado"))
+  );
+}
+
+function consultarOpenElevationSemValidarCertificado(coordenadas) {
+  const url = new URL(URL_OPEN_ELEVATION);
+  const corpoRequisicao = JSON.stringify({ locations: coordenadas });
+
+  return new Promise((resolve, reject) => {
+    const requisicao = requisicaoHttps(
+      {
+        hostname: url.hostname,
+        path: `${url.pathname}${url.search}`,
+        method: "POST",
+        port: url.port || 443,
+        rejectUnauthorized: false,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(corpoRequisicao)
+        },
+        timeout: TIMEOUT_MS
+      },
+      (resposta) => {
+        const partes = [];
+        resposta.on("data", (parte) => partes.push(Buffer.from(parte)));
+        resposta.on("end", () => {
+          let corpo = null;
+          try {
+            const texto = Buffer.concat(partes).toString("utf8");
+            corpo = texto ? JSON.parse(texto) : null;
+          } catch (erro) {
+            reject(new ErroAplicacao("A resposta da Open-Elevation veio em formato inválido.", 502, erro.message));
+            return;
+          }
+
+          const status = resposta.statusCode ?? 502;
+          if (status < 200 || status >= 300) {
+            reject(new ErroAplicacao(`Open-Elevation respondeu com status ${status}.`, status, corpo));
+            return;
+          }
+          if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
+            reject(new ErroAplicacao("A resposta da Open-Elevation veio em formato inesperado.", 502, corpo));
+            return;
+          }
+
+          resolve(
+            corpo.results.map((item, indice) => {
+              const altitude = Number(item.elevation);
+              return criarResultado(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
+            })
+          );
+        });
+      }
+    );
+
+    requisicao.on("timeout", () => {
+      requisicao.destroy(new ErroAplicacao("A consulta à Open-Elevation excedeu o tempo limite.", 504));
+    });
+    requisicao.on("error", reject);
+    requisicao.write(corpoRequisicao);
+    requisicao.end();
+  });
+}
+
 async function consultarOpenElevationLoteUnico(coordenadas) {
   for (let tentativa = 0; tentativa <= 2; tentativa += 1) {
     const controlador = new AbortController();
@@ -111,6 +203,11 @@ async function consultarOpenElevationLoteUnico(coordenadas) {
         const altitude = Number(item.elevation);
         return criarResultado(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
       });
+    } catch (erro) {
+      if (deveTentarOpenElevationSemValidarCertificado(erro)) {
+        return consultarOpenElevationSemValidarCertificado(coordenadas);
+      }
+      throw erro;
     } finally {
       clearTimeout(temporizador);
     }
