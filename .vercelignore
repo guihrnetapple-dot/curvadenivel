@@ -1,0 +1,7 @@
+node_modules
+dist
+.vite
+*.log
+relatorios
+servidor-dev.out.log
+servidor-dev.err.log
