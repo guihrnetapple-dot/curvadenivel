@@ -183,12 +183,6 @@ export function PainelDireito({
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
   const podeAnalisarPerfilLinear = elementoPossuiPerfilLinear(elementoSelecionado);
   const podeAnalisarArea = elementoPossuiArea(elementoSelecionado);
-  const resolucaoReferenciaIntervalo = curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
-  const intervaloMinimoRecomendado = Math.ceil(resolucaoReferenciaIntervalo / 100);
-  const intervaloMuitoPequeno = intervaloCurvasMetros < intervaloMinimoRecomendado;
-  const intervaloBaixaConfiabilidade = intervaloCurvasMetros <= 2;
-  const resolucaoAutomaticaExibida =
-    curvasNivel?.metadados.resolucaoAutomatica ?? curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
   const detalhesResolucaoAutomatica =
     curvasNivel?.metadados.resolucaoPorAreaMetros &&
     curvasNivel.metadados.resolucaoPorIntervaloMetros &&
@@ -471,17 +465,6 @@ export function PainelDireito({
           </select>
         </div>
 
-        {modoParametrosCurvas === "automatico" && (
-          <div className="estado-vazio">
-            {curvasNivel
-              ? `Automático: intervalo ${formatarMetros(curvasNivel.metadados.intervaloMetros, 0)}, resolução ${formatarMetros(
-                  resolucaoAutomaticaExibida,
-                  0
-                )}`
-              : "Automático: resolução calculada pelo intervalo e pela área desenhada"}
-          </div>
-        )}
-
         {modoParametrosCurvas === "manual" && (
           <div className="grupo-controles">
             <span className="rotulo-bloco">Resolução</span>
@@ -497,19 +480,6 @@ export function PainelDireito({
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {intervaloMuitoPequeno && (
-          <div className="estado-vazio">
-            Intervalo muito pequeno para a resolução escolhida. A curva pode ficar artificial.
-          </div>
-        )}
-
-        {intervaloBaixaConfiabilidade && (
-          <div className="estado-vazio">
-            Intervalos muito pequenos podem gerar curvas visualmente detalhadas, mas com baixa confiabilidade usando
-            Open-Elevation.
           </div>
         )}
 
