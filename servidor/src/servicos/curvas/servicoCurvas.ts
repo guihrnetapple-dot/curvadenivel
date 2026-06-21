@@ -36,12 +36,12 @@ export class ServicoCurvas {
     }
 
     const modoParametros = normalizarModoParametros(requisicao.modoParametros);
-    const automaticos = calcularParametrosAutomaticosCurvas(requisicao.bbox);
+    const intervaloSolicitado = normalizarIntervaloMetros(requisicao.intervaloMetros);
+    const automaticos = calcularParametrosAutomaticosCurvas(requisicao.bbox, intervaloSolicitado);
     const resolucaoSolicitada =
       modoParametros === "automatico"
         ? automaticos.resolucaoMetros
         : normalizarResolucaoManual(requisicao.resolucaoMetros);
-    const intervaloSolicitado = normalizarIntervaloMetros(requisicao.intervaloMetros);
     const intervaloMetros = Math.max(intervaloSolicitado, obterIntervaloMinimoPorResolucao(resolucaoSolicitada));
     const gradeOriginal = await gerarGradeElevacaoApi(this.provedorElevacao, requisicao.bbox, resolucaoSolicitada);
     const gradeSuavizada = suavizarGrade(gradeOriginal, 1);
@@ -89,6 +89,11 @@ export class ServicoCurvas {
         metodo: "open_elevation_api_marching_squares_suavizado",
         modoParametros,
         resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
+        resolucaoPorIntervaloMetros: modoParametros === "automatico" ? automaticos.resolucaoPorIntervaloMetros : null,
+        resolucaoPorAreaMetros: modoParametros === "automatico" ? automaticos.resolucaoPorAreaMetros : null,
+        resolucaoOriginalMetros: modoParametros === "automatico" ? automaticos.resolucaoOriginalMetros : null,
+        criterioResolucaoAutomatica:
+          modoParametros === "automatico" ? automaticos.criterioResolucaoAutomatica : null,
         motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
         maiorDimensaoMetros: automaticos.maiorDimensaoMetros,
         areaMetrosQuadrados: automaticos.areaMetrosQuadrados,

@@ -1,4 +1,4 @@
-import type { CamadaImportada, CurvasNivelGeoJson, ElementoMapa, PerfilElevacao } from "../tipos/altimetria";
+import type { CamadaImportada, CurvasNivelGeoJson, ElementoMapa, GeoJsonFeature, PerfilElevacao } from "../tipos/altimetria";
 import { formatarNumero } from "./formatacao";
 
 function baixarArquivo(nomeArquivo: string, conteudo: string, tipoMime: string): void {
@@ -11,6 +11,44 @@ function baixarArquivo(nomeArquivo: string, conteudo: string, tipoMime: string):
   ancora.click();
   ancora.remove();
   URL.revokeObjectURL(url);
+}
+
+function limparNomeArquivo(nome: string): string {
+  return nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+}
+
+function limparTextoXml(texto: string): string {
+  const entidades: Record<string, string> = {
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    "'": "&apos;",
+    '"': "&quot;"
+  };
+  return texto.replace(/[<>&'"]/g, (caractere) => entidades[caractere] ?? "");
+}
+
+function converterElementoParaFeature(elemento: ElementoMapa): GeoJsonFeature {
+  return {
+    type: "Feature",
+    properties: {
+      nome: elemento.nome,
+      tipo: elemento.tipo,
+      origem: elemento.origem,
+      cor: elemento.cor,
+      criadoEm: elemento.criadoEm,
+      raioMetros: elemento.geometria.type === "Circle" ? elemento.geometria.radiusMeters : undefined
+    },
+    geometry:
+      elemento.geometria.type === "Circle"
+        ? { type: "Point", coordinates: elemento.geometria.center }
+        : elemento.geometria
+  };
 }
 
 export function exportarPerfilCsv(perfil: PerfilElevacao | null): void {
@@ -36,25 +74,25 @@ export function exportarPerfilCsv(perfil: PerfilElevacao | null): void {
 
 export function exportarDesenhosGeoJson(elementos: ElementoMapa[], camadas: CamadaImportada[]): void {
   const features = [
-    ...elementos.map((elemento) => ({
-      type: "Feature",
-      properties: {
-        nome: elemento.nome,
-        tipo: elemento.tipo,
-        origem: elemento.origem,
-        criadoEm: elemento.criadoEm
-      },
-      geometry:
-        elemento.geometria.type === "Circle"
-          ? { type: "Point", coordinates: elemento.geometria.center }
-          : elemento.geometria
-    })),
+    ...elementos.map(converterElementoParaFeature),
     ...camadas.flatMap((camada) => camada.geojson.features)
   ];
 
   baixarArquivo(
     "projeto-agroaltimetria.geojson",
     JSON.stringify({ type: "FeatureCollection", features }, null, 2),
+    "application/geo+json;charset=utf-8"
+  );
+}
+
+export function exportarElementoGeoJson(elemento: ElementoMapa | null): void {
+  if (!elemento) {
+    throw new Error("Selecione um elemento para exportar.");
+  }
+
+  baixarArquivo(
+    `${limparNomeArquivo(elemento.nome) || "elemento"}.geojson`,
+    JSON.stringify({ type: "FeatureCollection", features: [converterElementoParaFeature(elemento)] }, null, 2),
     "application/geo+json;charset=utf-8"
   );
 }
@@ -71,40 +109,61 @@ function coordenadasParaKml(coordenadas: number[][]): string {
   return coordenadas.map(([longitude, latitude]) => `${longitude},${latitude},0`).join(" ");
 }
 
+function converterElementoParaPlacemark(elemento: ElementoMapa): string {
+  const nome = limparTextoXml(elemento.nome);
+
+  if (elemento.geometria.type === "Point") {
+    return `<Placemark><name>${nome}</name><Point><coordinates>${coordenadasParaKml([
+      elemento.geometria.coordinates
+    ])}</coordinates></Point></Placemark>`;
+  }
+
+  if (elemento.geometria.type === "LineString") {
+    return `<Placemark><name>${nome}</name><LineString><coordinates>${coordenadasParaKml(
+      elemento.geometria.coordinates
+    )}</coordinates></LineString></Placemark>`;
+  }
+
+  if (elemento.geometria.type === "Polygon") {
+    return `<Placemark><name>${nome}</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coordenadasParaKml(
+      elemento.geometria.coordinates[0] ?? []
+    )}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
+  }
+
+  return `<Placemark><name>${nome}</name><Point><coordinates>${coordenadasParaKml([
+    elemento.geometria.center
+  ])}</coordinates></Point><ExtendedData><Data name="raio_m"><value>${formatarNumero(
+    elemento.geometria.radiusMeters,
+    2
+  )}</value></Data></ExtendedData></Placemark>`;
+}
+
+function montarKml(placemarks: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>${placemarks}</Document></kml>`;
+}
+
 export function exportarDesenhosKml(elementos: ElementoMapa[]): void {
   if (elementos.length === 0) {
     throw new Error("Não há desenhos para exportar em KML.");
   }
 
-  const placemarks = elementos
-    .map((elemento) => {
-      const nome = elemento.nome.replace(/[<>&]/g, "");
-      if (elemento.geometria.type === "Point") {
-        return `<Placemark><name>${nome}</name><Point><coordinates>${coordenadasParaKml([
-          elemento.geometria.coordinates
-        ])}</coordinates></Point></Placemark>`;
-      }
-      if (elemento.geometria.type === "LineString") {
-        return `<Placemark><name>${nome}</name><LineString><coordinates>${coordenadasParaKml(
-          elemento.geometria.coordinates
-        )}</coordinates></LineString></Placemark>`;
-      }
-      if (elemento.geometria.type === "Polygon") {
-        return `<Placemark><name>${nome}</name><Polygon><outerBoundaryIs><LinearRing><coordinates>${coordenadasParaKml(
-          elemento.geometria.coordinates[0] ?? []
-        )}</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`;
-      }
-      return `<Placemark><name>${nome}</name><Point><coordinates>${coordenadasParaKml([
-        elemento.geometria.center
-      ])}</coordinates></Point><ExtendedData><Data name="raio_m"><value>${formatarNumero(
-        elemento.geometria.radiusMeters,
-        2
-      )}</value></Data></ExtendedData></Placemark>`;
-    })
-    .join("");
+  baixarArquivo(
+    "desenhos-agroaltimetria.kml",
+    montarKml(elementos.map(converterElementoParaPlacemark).join("")),
+    "application/vnd.google-earth.kml+xml;charset=utf-8"
+  );
+}
 
-  const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>${placemarks}</Document></kml>`;
-  baixarArquivo("desenhos-agroaltimetria.kml", kml, "application/vnd.google-earth.kml+xml;charset=utf-8");
+export function exportarElementoKml(elemento: ElementoMapa | null): void {
+  if (!elemento) {
+    throw new Error("Selecione um elemento para exportar.");
+  }
+
+  baixarArquivo(
+    `${limparNomeArquivo(elemento.nome) || "elemento"}.kml`,
+    montarKml(converterElementoParaPlacemark(elemento)),
+    "application/vnd.google-earth.kml+xml;charset=utf-8"
+  );
 }
 
 export function exportarRelatorioHtml(perfil: PerfilElevacao | null): void {

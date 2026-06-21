@@ -26,6 +26,8 @@ import type {
 import {
   exportarDesenhosGeoJson,
   exportarDesenhosKml,
+  exportarElementoGeoJson,
+  exportarElementoKml,
   exportarPerfilCsv,
   exportarRelatorioHtml
 } from "./utilitarios/exportacao";
@@ -37,7 +39,7 @@ import {
 import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
-const CHAVE_TEMA = "agroaltimetria.tema";
+const TEMA_PADRAO: TemaVisual = "escuro";
 
 const camadasIniciais: CamadasVisiveis = {
   gradeAltitude: true,
@@ -56,10 +58,10 @@ function lerLocalStorage<T>(chave: string, fallback: T): T {
 
 export function Aplicacao() {
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
-  const [tema, setTema] = useState<TemaVisual>(() => {
-    const temaSalvo = localStorage.getItem(CHAVE_TEMA);
-    return temaSalvo === "escuro" ? "escuro" : "claro";
-  });
+  const elementosRef = useRef<ElementoMapa[]>([]);
+  const historicoElementosRef = useRef<ElementoMapa[][]>([]);
+  const refazimentoElementosRef = useRef<ElementoMapa[][]>([]);
+  const tema = TEMA_PADRAO;
   const [, setStatusApi] = useState<StatusApi>({
     carregando: true,
     backendOnline: false
@@ -94,12 +96,15 @@ export function Aplicacao() {
 
   useEffect(() => {
     document.documentElement.dataset.tema = tema;
-    localStorage.setItem(CHAVE_TEMA, tema);
   }, [tema]);
 
   useEffect(() => {
     localStorage.setItem(CHAVE_HISTORICO, JSON.stringify(historico.slice(0, 80)));
   }, [historico]);
+
+  useEffect(() => {
+    elementosRef.current = elementos;
+  }, [elementos]);
 
   const verificarStatus = useCallback(async () => {
     try {
@@ -163,12 +168,76 @@ export function Aplicacao() {
     await consultarCoordenada(latitude, longitude);
   }
 
+  function alterarElementosComHistorico(obterProximoEstado: (itens: ElementoMapa[]) => ElementoMapa[]) {
+    setElementos((itens) => {
+      const proximoEstado = obterProximoEstado(itens);
+      historicoElementosRef.current = [...historicoElementosRef.current.slice(-79), itens];
+      refazimentoElementosRef.current = [];
+      return proximoEstado;
+    });
+  }
+
+  function limparSelecaoElemento() {
+    setElementoSelecionadoId(null);
+  }
+
+  function desfazerElementos() {
+    const estadoAnterior = historicoElementosRef.current.at(-1);
+    if (!estadoAnterior) {
+      return;
+    }
+
+    historicoElementosRef.current = historicoElementosRef.current.slice(0, -1);
+    refazimentoElementosRef.current = [...refazimentoElementosRef.current, elementosRef.current];
+    setElementos(estadoAnterior);
+    setElementoSelecionadoId(null);
+    setPerfil(null);
+    setPontoDestacado(null);
+  }
+
+  function refazerElementos() {
+    const proximoEstado = refazimentoElementosRef.current.at(-1);
+    if (!proximoEstado) {
+      return;
+    }
+
+    refazimentoElementosRef.current = refazimentoElementosRef.current.slice(0, -1);
+    historicoElementosRef.current = [...historicoElementosRef.current, elementosRef.current];
+    setElementos(proximoEstado);
+    setElementoSelecionadoId(null);
+    setPerfil(null);
+    setPontoDestacado(null);
+  }
+
+  useEffect(() => {
+    function aoPressionarAtalho(evento: KeyboardEvent) {
+      const alvo = evento.target;
+      const alvoEditavel =
+        alvo instanceof HTMLElement &&
+        (["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName) || alvo.isContentEditable);
+
+      if (alvoEditavel || !evento.ctrlKey || evento.altKey || evento.key.toLowerCase() !== "z") {
+        return;
+      }
+
+      evento.preventDefault();
+      if (evento.shiftKey) {
+        refazerElementos();
+      } else {
+        desfazerElementos();
+      }
+    }
+
+    window.addEventListener("keydown", aoPressionarAtalho);
+    return () => window.removeEventListener("keydown", aoPressionarAtalho);
+  }, []);
+
   function adicionarElemento(elemento: ElementoMapa) {
-    setElementos((itens) => [elemento, ...itens]);
+    alterarElementosComHistorico((itens) => [elemento, ...itens]);
   }
 
   function atualizarElemento(elementoAtualizado: ElementoMapa) {
-    setElementos((itens) =>
+    alterarElementosComHistorico((itens) =>
       itens.map((item) =>
         item.id === elementoAtualizado.id
           ? {
@@ -182,7 +251,7 @@ export function Aplicacao() {
   }
 
   function removerElemento(id: string) {
-    setElementos((itens) => itens.filter((item) => item.id !== id));
+    alterarElementosComHistorico((itens) => itens.filter((item) => item.id !== id));
     if (elementoSelecionadoId === id) {
       setElementoSelecionadoId(null);
       setPerfil(null);
@@ -298,6 +367,10 @@ export function Aplicacao() {
     }
   }
 
+  function obterElementoSelecionado(): ElementoMapa | null {
+    return elementos.find((item) => item.id === elementoSelecionadoId) ?? null;
+  }
+
   async function buscarLocalizacao() {
     setCarregandoLocalizacao(true);
     try {
@@ -325,8 +398,6 @@ export function Aplicacao() {
       {inicializando && <CarregamentoInicial />}
 
       <BarraSuperior
-        tema={tema}
-        aoAlternarTema={() => setTema((valor) => (valor === "claro" ? "escuro" : "claro"))}
         aoAbrirConfiguracoes={() =>
           setAlerta({
             tipo: "aviso",
@@ -344,6 +415,7 @@ export function Aplicacao() {
             localizacaoFocada={localizacaoFocada}
             aoAlterarCamadaBase={setCamadaBase}
             camadasVisiveis={camadasVisiveis}
+            elementos={elementos}
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
             visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
@@ -355,6 +427,7 @@ export function Aplicacao() {
             aoElementoAtualizado={atualizarElemento}
             aoElementoRemovido={removerElemento}
             aoSelecionarElemento={setElementoSelecionadoId}
+            aoLimparSelecao={limparSelecaoElemento}
             aoBoundsAlterado={setBoundsMapa}
             aoAreaCurvasSelecionada={gerarCurvasDaAreaSelecionada}
             aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
@@ -405,6 +478,8 @@ export function Aplicacao() {
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
           aoExportarCsv={() => executarExportacao(() => exportarPerfilCsv(perfil))}
           aoExportarGeoJson={() => executarExportacao(() => exportarDesenhosGeoJson(elementos, camadasImportadas))}
+          aoExportarElementoGeoJson={() => executarExportacao(() => exportarElementoGeoJson(obterElementoSelecionado()))}
+          aoExportarElementoKml={() => executarExportacao(() => exportarElementoKml(obterElementoSelecionado()))}
           aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
           aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
           aoExportarCurvasDxf={() => executarExportacao(() => exportarCurvasNivelDxf(curvasNivel))}

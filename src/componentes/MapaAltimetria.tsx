@@ -2,8 +2,6 @@
 import "leaflet-draw";
 import { useEffect, useRef, useState } from "react";
 
-import iconeMarcador2x from "leaflet/dist/images/marker-icon-2x.png";
-import iconeMarcador from "leaflet/dist/images/marker-icon.png";
 import sombraMarcador from "leaflet/dist/images/marker-shadow.png";
 
 import type {
@@ -28,11 +26,26 @@ const ZOOM_NATIVO_ESRI = 17;
 const ZOOM_NATIVO_OPENTOPOMAP = 17;
 const ATRASO_CONSULTA_CURSOR_MS = 420;
 const CASAS_CACHE_CURSOR = 4;
+const SVG_MARCADOR_VERMELHO = encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41">
+  <path fill="#dc2626" stroke="#991b1b" stroke-width="1.5" d="M12.5 1.25c-6.08 0-11 4.92-11 11 0 8.25 11 27.5 11 27.5s11-19.25 11-27.5c0-6.08-4.92-11-11-11Z"/>
+  <circle cx="12.5" cy="12.25" r="4.1" fill="#fee2e2"/>
+</svg>
+`);
+const URL_ICONE_MARCADOR_VERMELHO = `data:image/svg+xml;charset=UTF-8,${SVG_MARCADOR_VERMELHO}`;
+const iconeMarcadorVermelho = L.icon({
+  iconUrl: URL_ICONE_MARCADOR_VERMELHO,
+  shadowUrl: sombraMarcador,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: iconeMarcador2x,
-  iconUrl: iconeMarcador,
+  iconRetinaUrl: URL_ICONE_MARCADOR_VERMELHO,
+  iconUrl: URL_ICONE_MARCADOR_VERMELHO,
   shadowUrl: sombraMarcador
 });
 
@@ -43,6 +56,7 @@ interface PropriedadesMapaAltimetria {
   localizacaoFocada: LocalizacaoEncontrada | null;
   aoAlterarCamadaBase: (camada: CamadaBase) => void;
   camadasVisiveis: CamadasVisiveis;
+  elementos: ElementoMapa[];
   camadasImportadas: CamadaImportada[];
   curvasNivel: CurvasNivelGeoJson | null;
   visibilidadeCamadaCurvasNivel: boolean;
@@ -54,6 +68,7 @@ interface PropriedadesMapaAltimetria {
   aoElementoAtualizado: (elemento: ElementoMapa) => void;
   aoElementoRemovido: (id: string) => void;
   aoSelecionarElemento: (id: string) => void;
+  aoLimparSelecao: () => void;
   aoBoundsAlterado: (bounds: BboxCurvasNivel) => void;
   aoAreaCurvasSelecionada: (bounds: BboxCurvasNivel) => void;
   aoCancelarSelecaoAreaCurvas: () => void;
@@ -90,7 +105,23 @@ interface EstadoDesenhoAreaCurvas {
 type CamadaDesenho = L.Layer & {
   idElemento?: string;
   tipoElemento?: string;
+  editing?: {
+    enable: () => void;
+    disable: () => void;
+  };
+  dragging?: {
+    enable: () => void;
+    disable: () => void;
+  };
 };
+
+interface EstadoArrasteCamada {
+  id: string;
+  camada: L.Layer;
+  tipo: string;
+  ultimoPonto: L.LatLng;
+  moveu: boolean;
+}
 
 const informacoesCursorIniciais: InformacoesCursor = {
   latitude: null,
@@ -299,6 +330,88 @@ function obterEstiloDesenho(tipo?: string, selecionado = false): L.PathOptions {
   return { color: "#2f6f4e", fillColor: "#2f6f4e", fillOpacity: 0.12, opacity: 1, weight: 2 };
 }
 
+function obterTipoDesenhoPorElemento(elemento: ElementoMapa): string {
+  if (elemento.geometria.type === "Point") {
+    return "marker";
+  }
+  if (elemento.geometria.type === "LineString") {
+    return "polyline";
+  }
+  if (elemento.geometria.type === "Circle") {
+    return "circle";
+  }
+  return elemento.tipo.toLowerCase().includes("retângulo") ? "rectangle" : "polygon";
+}
+
+function criarCamadaPorElemento(elemento: ElementoMapa): L.Layer {
+  if (elemento.geometria.type === "Point") {
+    const [longitude, latitude] = elemento.geometria.coordinates;
+    return L.marker([latitude, longitude], { icon: iconeMarcadorVermelho });
+  }
+
+  if (elemento.geometria.type === "LineString") {
+    return L.polyline(
+      elemento.geometria.coordinates.map(([longitude, latitude]) => [latitude, longitude] as L.LatLngTuple),
+      obterEstiloDesenho("polyline")
+    );
+  }
+
+  if (elemento.geometria.type === "Polygon") {
+    const aneis = elemento.geometria.coordinates.map((anel) =>
+      anel.map(([longitude, latitude]) => [latitude, longitude] as L.LatLngTuple)
+    );
+    return L.polygon(
+      aneis,
+      obterEstiloDesenho(obterTipoDesenhoPorElemento(elemento))
+    );
+  }
+
+  const [longitude, latitude] = elemento.geometria.center;
+  return L.circle([latitude, longitude], {
+    ...obterEstiloDesenho("circle"),
+    radius: elemento.geometria.radiusMeters
+  });
+}
+
+function deslocarLatLng(latLng: L.LatLng, deltaLatitude: number, deltaLongitude: number): L.LatLng {
+  return L.latLng(latLng.lat + deltaLatitude, latLng.lng + deltaLongitude);
+}
+
+function deslocarEstruturaLatLngs(valor: unknown, deltaLatitude: number, deltaLongitude: number): unknown {
+  if (valor instanceof L.LatLng) {
+    return deslocarLatLng(valor, deltaLatitude, deltaLongitude);
+  }
+
+  if (Array.isArray(valor)) {
+    return valor.map((item) => deslocarEstruturaLatLngs(item, deltaLatitude, deltaLongitude));
+  }
+
+  return valor;
+}
+
+function moverCamada(camada: L.Layer, deltaLatitude: number, deltaLongitude: number): void {
+  if (camada instanceof L.Circle) {
+    camada.setLatLng(deslocarLatLng(camada.getLatLng(), deltaLatitude, deltaLongitude));
+    return;
+  }
+
+  if (camada instanceof L.Marker) {
+    camada.setLatLng(deslocarLatLng(camada.getLatLng(), deltaLatitude, deltaLongitude));
+    return;
+  }
+
+  const camadaComLatLngs = camada as L.Polyline | L.Polygon;
+  if ("getLatLngs" in camadaComLatLngs && "setLatLngs" in camadaComLatLngs) {
+    camadaComLatLngs.setLatLngs(
+      deslocarEstruturaLatLngs(camadaComLatLngs.getLatLngs(), deltaLatitude, deltaLongitude) as L.LatLngExpression[]
+    );
+  }
+}
+
+function elementoEdicaoLeaflet(alvo: EventTarget | null): boolean {
+  return alvo instanceof HTMLElement && Boolean(alvo.closest(".leaflet-editing-icon"));
+}
+
 function alvoInterativo(evento: KeyboardEvent): boolean {
   const alvo = evento.target;
   if (!(alvo instanceof HTMLElement)) {
@@ -315,6 +428,7 @@ export function MapaAltimetria({
   localizacaoFocada,
   aoAlterarCamadaBase,
   camadasVisiveis,
+  elementos,
   camadasImportadas,
   curvasNivel,
   visibilidadeCamadaCurvasNivel,
@@ -326,6 +440,7 @@ export function MapaAltimetria({
   aoElementoAtualizado,
   aoElementoRemovido,
   aoSelecionarElemento,
+  aoLimparSelecao,
   aoBoundsAlterado,
   aoAreaCurvasSelecionada,
   aoCancelarSelecaoAreaCurvas,
@@ -346,6 +461,8 @@ export function MapaAltimetria({
   const elementoSelecionadoIdRef = useRef(elementoSelecionadoId);
   const selecaoAreaCurvasAtivaRef = useRef(selecaoAreaCurvasAtiva);
   const selecaoPontoAltitudeAtivaRef = useRef(selecaoPontoAltitudeAtiva);
+  const arrasteCamadaRef = useRef<EstadoArrasteCamada | null>(null);
+  const temporizadorEdicaoRef = useRef<number | null>(null);
   const cacheAltitudeCursorRef = useRef(new Map<string, AltitudeCacheCursor>());
   const temporizadorCursorRef = useRef<number | null>(null);
   const chaveCursorAtivaRef = useRef<string | null>(null);
@@ -354,6 +471,7 @@ export function MapaAltimetria({
     aoElementoAtualizado,
     aoElementoRemovido,
     aoSelecionarElemento,
+    aoLimparSelecao,
     aoBoundsAlterado,
     aoAreaCurvasSelecionada,
     aoCancelarSelecaoAreaCurvas,
@@ -364,12 +482,87 @@ export function MapaAltimetria({
   const [seletorCamadaAberto, setSeletorCamadaAberto] = useState(false);
   const camadaBaseAtual = opcoesCamadaBase.find((opcao) => opcao.valor === camadaBase) ?? opcoesCamadaBase[0];
 
+  function salvarCamadaAtualizada(camada: L.Layer, id: string, tipo: string) {
+    propsRef.current.aoElementoAtualizado(converterCamadaEmElemento(id, camada, tipo));
+  }
+
+  function salvarCamadaAtualizadaComEspera(camada: L.Layer, id: string, tipo: string) {
+    if (temporizadorEdicaoRef.current) {
+      window.clearTimeout(temporizadorEdicaoRef.current);
+    }
+
+    temporizadorEdicaoRef.current = window.setTimeout(() => {
+      salvarCamadaAtualizada(camada, id, tipo);
+      temporizadorEdicaoRef.current = null;
+    }, 250);
+  }
+
+  function aplicarEdicaoCamada(camada: L.Layer, selecionada: boolean) {
+    const camadaDesenho = camada as CamadaDesenho;
+
+    if (selecionada) {
+      camadaDesenho.editing?.enable();
+      return;
+    }
+
+    camadaDesenho.editing?.disable();
+    camadaDesenho.dragging?.disable();
+  }
+
+  function registrarCamadaDesenho(camada: L.Layer, id: string) {
+    if (camada instanceof L.Path) {
+      const tipo = (camada as CamadaDesenho).tipoElemento;
+      camada.setStyle(obterEstiloDesenho(tipo));
+    }
+
+    camada.on("click", (evento: L.LeafletMouseEvent) => {
+      L.DomEvent.stopPropagation(evento);
+      propsRef.current.aoSelecionarElemento(id);
+    });
+
+    camada.on("contextmenu", (evento: L.LeafletMouseEvent) => {
+      L.DomEvent.stopPropagation(evento);
+      propsRef.current.aoSelecionarElemento(id);
+    });
+
+    camada.on("mousedown", (evento: L.LeafletMouseEvent) => {
+      const camadaDesenho = camada as CamadaDesenho;
+      const tipo = camadaDesenho.tipoElemento ?? "elemento";
+
+      if (
+        evento.originalEvent.button !== 0 ||
+        elementoEdicaoLeaflet(evento.originalEvent.target) ||
+        selecaoAreaCurvasAtivaRef.current ||
+        selecaoPontoAltitudeAtivaRef.current ||
+        elementoSelecionadoIdRef.current !== id
+      ) {
+        return;
+      }
+
+      L.DomEvent.stopPropagation(evento);
+      mapaRef.current?.dragging.disable();
+      arrasteCamadaRef.current = {
+        id,
+        camada,
+        tipo,
+        ultimoPonto: evento.latlng,
+        moveu: false
+      };
+    });
+
+    camada.on("edit", () => {
+      const tipo = (camada as CamadaDesenho).tipoElemento ?? "elemento";
+      salvarCamadaAtualizadaComEspera(camada, id, tipo);
+    });
+  }
+
   useEffect(() => {
     propsRef.current = {
       aoElementoCriado,
       aoElementoAtualizado,
       aoElementoRemovido,
       aoSelecionarElemento,
+      aoLimparSelecao,
       aoBoundsAlterado,
       aoAreaCurvasSelecionada,
       aoCancelarSelecaoAreaCurvas,
@@ -381,6 +574,7 @@ export function MapaAltimetria({
     aoElementoAtualizado,
     aoElementoRemovido,
     aoSelecionarElemento,
+    aoLimparSelecao,
     aoBoundsAlterado,
     aoAreaCurvasSelecionada,
     aoCancelarSelecaoAreaCurvas,
@@ -409,6 +603,7 @@ export function MapaAltimetria({
     grupoDesenhos.eachLayer((camada) => {
       const camadaDesenho = camada as CamadaDesenho;
       const selecionado = Boolean(camadaDesenho.idElemento && camadaDesenho.idElemento === elementoSelecionadoId);
+      aplicarEdicaoCamada(camada, selecionado);
 
       if (camada instanceof L.Path) {
         camada.setStyle(obterEstiloDesenho(camadaDesenho.tipoElemento, selecionado));
@@ -425,6 +620,44 @@ export function MapaAltimetria({
   }, [elementoSelecionadoId]);
 
   useEffect(() => {
+    const grupoDesenhos = desenhosRef.current;
+    if (!grupoDesenhos) {
+      return;
+    }
+
+    grupoDesenhos.clearLayers();
+    elementos.forEach((elemento) => {
+      const camada = criarCamadaPorElemento(elemento) as CamadaDesenho;
+      camada.idElemento = elemento.id;
+      camada.tipoElemento = obterTipoDesenhoPorElemento(elemento);
+      grupoDesenhos.addLayer(camada);
+      registrarCamadaDesenho(camada, elemento.id);
+
+      const selecionado = elemento.id === elementoSelecionadoIdRef.current;
+      aplicarEdicaoCamada(camada, selecionado);
+      if (camada instanceof L.Path) {
+        camada.setStyle(obterEstiloDesenho((camada as CamadaDesenho).tipoElemento, selecionado));
+        if (selecionado) {
+          camada.bringToFront();
+        }
+      }
+      if (camada instanceof L.Marker) {
+        camada.setZIndexOffset(selecionado ? 1000 : 0);
+        camada.setOpacity(selecionado ? 1 : 0.85);
+      }
+    });
+  }, [elementos]);
+
+  useEffect(() => {
+    function cancelarFerramentaDesenhoAtiva() {
+      const mapa = mapaRef.current;
+      const container = mapa?.getContainer().parentElement ?? document;
+      const acoes = Array.from(container.querySelectorAll<HTMLAnchorElement>(".leaflet-draw-actions a"));
+      const acaoCancelar =
+        acoes.find((acao) => /cancel|cancelar/i.test(`${acao.title} ${acao.textContent}`)) ?? acoes[0] ?? null;
+      acaoCancelar?.click();
+    }
+
     function removerCamadaSelecionada() {
       const idSelecionado = elementoSelecionadoIdRef.current;
       const grupoDesenhos = desenhosRef.current;
@@ -448,16 +681,27 @@ export function MapaAltimetria({
     }
 
     function aoPressionarTecla(evento: KeyboardEvent) {
-      if ((evento.key !== "Delete" && evento.key !== "Backspace") || alvoInterativo(evento)) {
+      if (evento.key === "Escape") {
+        evento.preventDefault();
+        cancelarFerramentaDesenhoAtiva();
+        propsRef.current.aoLimparSelecao();
+        propsRef.current.aoCancelarSelecaoAreaCurvas();
+        propsRef.current.aoCancelarSelecaoPontoAltitude();
         return;
       }
 
-      if (!elementoSelecionadoIdRef.current) {
+      if (alvoInterativo(evento)) {
         return;
       }
 
-      evento.preventDefault();
-      removerCamadaSelecionada();
+      if (evento.key === "Delete" || evento.key === "Backspace") {
+        if (!elementoSelecionadoIdRef.current) {
+          return;
+        }
+
+        evento.preventDefault();
+        removerCamadaSelecionada();
+      }
     }
 
     window.addEventListener("keydown", aoPressionarTecla);
@@ -500,7 +744,7 @@ export function MapaAltimetria({
         polygon: { allowIntersection: false, shapeOptions: { color: "#2f6f4e", weight: 2 } },
         rectangle: { shapeOptions: { color: "#1f6f8b", weight: 2 } },
         circle: { shapeOptions: { color: "#c47a25", weight: 2 } },
-        marker: true
+        marker: { icon: iconeMarcadorVermelho }
       },
       edit: {
         featureGroup: desenhosRef.current
@@ -508,20 +752,17 @@ export function MapaAltimetria({
     });
     mapa.addControl(controleDesenho);
 
-    function registrarCamada(camada: L.Layer, id: string) {
-      if (camada instanceof L.Path) {
-        const tipo = (camada as CamadaDesenho).tipoElemento;
-        camada.setStyle(obterEstiloDesenho(tipo));
+    mapa.on("click", (evento: L.LeafletMouseEvent) => {
+      if (selecaoAreaCurvasAtivaRef.current) {
+        return;
       }
 
-      camada.on("click", (evento: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(evento);
-        propsRef.current.aoSelecionarElemento(id);
-      });
-    }
+      if (document.querySelector(".leaflet-draw-toolbar-button-enabled")) {
+        return;
+      }
 
-    mapa.on("click", (evento: L.LeafletMouseEvent) => {
-      if (!selecaoPontoAltitudeAtivaRef.current || selecaoAreaCurvasAtivaRef.current) {
+      if (!selecaoPontoAltitudeAtivaRef.current) {
+        propsRef.current.aoLimparSelecao();
         return;
       }
 
@@ -534,8 +775,6 @@ export function MapaAltimetria({
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).idElemento = id;
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).tipoElemento =
         eventoCriacao.layerType;
-      desenhosRef.current?.addLayer(eventoCriacao.layer);
-      registrarCamada(eventoCriacao.layer, id);
       propsRef.current.aoElementoCriado(converterCamadaEmElemento(id, eventoCriacao.layer, eventoCriacao.layerType));
       propsRef.current.aoSelecionarElemento(id);
     });
@@ -563,6 +802,16 @@ export function MapaAltimetria({
     });
 
     mapa.on("mousemove", (evento: L.LeafletMouseEvent) => {
+      const arrasteCamada = arrasteCamadaRef.current;
+      if (arrasteCamada) {
+        const deltaLatitude = evento.latlng.lat - arrasteCamada.ultimoPonto.lat;
+        const deltaLongitude = evento.latlng.lng - arrasteCamada.ultimoPonto.lng;
+        moverCamada(arrasteCamada.camada, deltaLatitude, deltaLongitude);
+        arrasteCamada.ultimoPonto = evento.latlng;
+        arrasteCamada.moveu = true;
+        return;
+      }
+
       if (selecaoAreaCurvasAtivaRef.current) {
         return;
       }
@@ -620,6 +869,20 @@ export function MapaAltimetria({
       }, ATRASO_CONSULTA_CURSOR_MS);
     });
 
+    mapa.on("mouseup", () => {
+      const arrasteCamada = arrasteCamadaRef.current;
+      if (!arrasteCamada) {
+        return;
+      }
+
+      mapa.dragging.enable();
+      arrasteCamadaRef.current = null;
+
+      if (arrasteCamada.moveu) {
+        salvarCamadaAtualizada(arrasteCamada.camada, arrasteCamada.id, arrasteCamada.tipo);
+      }
+    });
+
     function notificarBounds() {
       propsRef.current.aoBoundsAlterado(converterBounds(mapa.getBounds()));
     }
@@ -643,9 +906,10 @@ export function MapaAltimetria({
       return;
     }
     const mapaAtual = mapa;
+    const containerMapa = mapaAtual.getContainer();
 
     if (!selecaoAreaCurvasAtiva) {
-      mapaAtual.getContainer().classList.remove("modo-desenho-area-curvas");
+      containerMapa.classList.remove("modo-desenho-area-curvas");
       if (desenhoAreaCurvasRef.current) {
         desenhoAreaCurvasRef.current.retangulo.removeFrom(mapaAtual);
         desenhoAreaCurvasRef.current = null;
@@ -662,38 +926,60 @@ export function MapaAltimetria({
       dashArray: "6 4"
     };
 
-    mapaAtual.getContainer().classList.add("modo-desenho-area-curvas");
+    containerMapa.classList.add("modo-desenho-area-curvas");
     mapaAtual.dragging.disable();
 
-    function iniciarDesenho(evento: L.LeafletMouseEvent) {
+    function obterLatLngDoPonteiro(evento: PointerEvent): L.LatLng {
+      const pontoContainer = mapaAtual.mouseEventToContainerPoint(evento);
+      return mapaAtual.containerPointToLatLng(pontoContainer);
+    }
+
+    function iniciarDesenho(evento: PointerEvent) {
+      if (evento.button !== 0) {
+        return;
+      }
+
+      evento.preventDefault();
+      evento.stopPropagation();
+      containerMapa.setPointerCapture(evento.pointerId);
+
       if (areaCurvasRef.current) {
         areaCurvasRef.current.removeFrom(mapaAtual);
         areaCurvasRef.current = null;
       }
 
-      const retangulo = L.rectangle(L.latLngBounds(evento.latlng, evento.latlng), estiloAreaTemporaria).addTo(mapaAtual);
+      const latLngInicial = obterLatLngDoPonteiro(evento);
+      const retangulo = L.rectangle(L.latLngBounds(latLngInicial, latLngInicial), estiloAreaTemporaria).addTo(mapaAtual);
       desenhoAreaCurvasRef.current = {
-        inicio: evento.latlng,
+        inicio: latLngInicial,
         retangulo
       };
     }
 
-    function atualizarDesenho(evento: L.LeafletMouseEvent) {
+    function atualizarDesenho(evento: PointerEvent) {
       const desenhoArea = desenhoAreaCurvasRef.current;
       if (!desenhoArea) {
         return;
       }
 
-      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, evento.latlng));
+      evento.preventDefault();
+      evento.stopPropagation();
+      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, obterLatLngDoPonteiro(evento)));
     }
 
-    function finalizarDesenho(evento: L.LeafletMouseEvent) {
+    function finalizarDesenho(evento: PointerEvent) {
       const desenhoArea = desenhoAreaCurvasRef.current;
       if (!desenhoArea) {
         return;
       }
 
-      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, evento.latlng));
+      evento.preventDefault();
+      evento.stopPropagation();
+      if (containerMapa.hasPointerCapture(evento.pointerId)) {
+        containerMapa.releasePointerCapture(evento.pointerId);
+      }
+
+      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, obterLatLngDoPonteiro(evento)));
       const bounds = desenhoArea.retangulo.getBounds();
       const areaValida =
         Math.abs(bounds.getNorth() - bounds.getSouth()) > 0.000001 &&
@@ -718,15 +1004,17 @@ export function MapaAltimetria({
       propsRef.current.aoAreaCurvasSelecionada(converterBounds(bounds));
     }
 
-    mapaAtual.on("mousedown", iniciarDesenho);
-    mapaAtual.on("mousemove", atualizarDesenho);
-    mapaAtual.on("mouseup", finalizarDesenho);
+    containerMapa.addEventListener("pointerdown", iniciarDesenho);
+    containerMapa.addEventListener("pointermove", atualizarDesenho);
+    containerMapa.addEventListener("pointerup", finalizarDesenho);
+    containerMapa.addEventListener("pointercancel", finalizarDesenho);
 
     return () => {
-      mapaAtual.off("mousedown", iniciarDesenho);
-      mapaAtual.off("mousemove", atualizarDesenho);
-      mapaAtual.off("mouseup", finalizarDesenho);
-      mapaAtual.getContainer().classList.remove("modo-desenho-area-curvas");
+      containerMapa.removeEventListener("pointerdown", iniciarDesenho);
+      containerMapa.removeEventListener("pointermove", atualizarDesenho);
+      containerMapa.removeEventListener("pointerup", finalizarDesenho);
+      containerMapa.removeEventListener("pointercancel", finalizarDesenho);
+      containerMapa.classList.remove("modo-desenho-area-curvas");
       mapaAtual.dragging.enable();
     };
   }, [selecaoAreaCurvasAtiva]);

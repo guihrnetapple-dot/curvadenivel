@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   font-family:
     "Outfit",
     "Segoe UI",
@@ -7,36 +7,36 @@
     -apple-system,
     BlinkMacSystemFont,
     sans-serif;
-  --fundo: #f5f7f2;
-  --superficie: #ffffff;
-  --superficie-secundaria: #eef3ec;
-  --texto: #1d2b27;
-  --texto-suave: #5b6a64;
-  --borda: #d7dfd9;
-  --verde: #2f6f4e;
-  --verde-escuro: #244d39;
-  --azul: #1f6f8b;
-  --grafite: #23302d;
+  --fundo: #0f1115;
+  --superficie: #171a21;
+  --superficie-secundaria: #1e222b;
+  --texto: #e8eaed;
+  --texto-suave: #a8afbd;
+  --borda: #2a2f3a;
+  --verde: #3b82f6;
+  --verde-escuro: #2563eb;
+  --azul: #3b82f6;
+  --grafite: #e8eaed;
   --alerta: #c47a25;
   --erro: #b4473f;
-  --sombra: 0 18px 40px rgba(31, 48, 42, 0.12);
+  --sombra: 0 18px 42px rgba(2, 6, 23, 0.34);
 }
 
 :root[data-tema="escuro"] {
   color-scheme: dark;
-  --fundo: #101614;
-  --superficie: #18211e;
-  --superficie-secundaria: #202c27;
-  --texto: #edf3ee;
-  --texto-suave: #a8b8af;
-  --borda: #314139;
-  --verde: #70b58a;
-  --verde-escuro: #90caa4;
-  --azul: #68a9bf;
-  --grafite: #dce7e0;
+  --fundo: #0f1115;
+  --superficie: #171a21;
+  --superficie-secundaria: #1e222b;
+  --texto: #e8eaed;
+  --texto-suave: #a8afbd;
+  --borda: #2a2f3a;
+  --verde: #3b82f6;
+  --verde-escuro: #2563eb;
+  --azul: #3b82f6;
+  --grafite: #e8eaed;
   --alerta: #e2a45e;
   --erro: #dc7770;
-  --sombra: 0 18px 40px rgba(0, 0, 0, 0.32);
+  --sombra: 0 18px 42px rgba(2, 6, 23, 0.38);
 }
 
 * {
@@ -76,7 +76,7 @@ button:disabled {
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 100dvh;
   background:
-    linear-gradient(135deg, rgba(47, 111, 78, 0.08), transparent 34%),
+    linear-gradient(135deg, rgba(59, 130, 246, 0.06), transparent 34%),
     var(--fundo);
 }
 
@@ -105,7 +105,7 @@ button:disabled {
   height: 44px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--verde) 24%, transparent);
-  border-radius: 999px;
+  border-radius: 2px;
   background: color-mix(in srgb, var(--superficie) 80%, transparent);
 }
 
@@ -148,7 +148,7 @@ button:disabled {
   align-items: center;
   height: 40px;
   border: 1px solid var(--borda);
-  border-radius: 8px;
+  border-radius: 2px;
   background: var(--superficie);
   color: var(--texto-suave);
   overflow: hidden;
@@ -175,7 +175,7 @@ button:disabled {
 .formulario-coordenadas button,
 .grade-exportacao button {
   min-height: 36px;
-  border-radius: 8px;
+  border-radius: 2px;
   background: var(--verde);
   color: #ffffff;
   font-weight: 750;
@@ -989,6 +989,11 @@ input[type="checkbox"] {
 .modo-selecao-ponto-altitude,
 .modo-selecao-ponto-altitude .leaflet-interactive {
   cursor: crosshair !important;
+}
+
+.modo-desenho-area-curvas {
+  touch-action: none;
+  user-select: none;
 }
 
 @keyframes brilho {

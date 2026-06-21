@@ -329,7 +329,22 @@ function calcularDimensoesMetrosCurvas(bbox) {
   };
 }
 
-function escolherResolucaoAutomatica(maiorDimensaoMetros) {
+function normalizarIntervaloCurvas(intervaloMetros) {
+  const valor = Number(intervaloMetros ?? 5);
+  return Number.isFinite(valor) && valor > 0 ? valor : 5;
+}
+
+function escolherResolucaoPorIntervalo(intervaloMetros) {
+  const intervalo = normalizarIntervaloCurvas(intervaloMetros);
+  if (intervalo <= 5) return 50;
+  if (intervalo <= 10) return 75;
+  if (intervalo <= 20) return 100;
+  if (intervalo <= 40) return 150;
+  if (intervalo <= 80) return 250;
+  return 300;
+}
+
+function escolherResolucaoPorArea(maiorDimensaoMetros) {
   if (maiorDimensaoMetros <= 1000) return 50;
   if (maiorDimensaoMetros <= 3000) return 100;
   if (maiorDimensaoMetros <= 8000) return 250;
@@ -340,9 +355,11 @@ function intervaloMinimoPorResolucao(resolucaoMetros) {
   return Math.ceil(resolucaoMetros / 100);
 }
 
-function calcularParametrosAutomaticos(bbox) {
+function calcularParametrosAutomaticos(bbox, intervaloMetrosEntrada = 5) {
   const dimensoes = calcularDimensoesMetrosCurvas(bbox);
-  const resolucaoOriginal = escolherResolucaoAutomatica(dimensoes.maiorDimensaoMetros);
+  const resolucaoPorIntervaloMetros = escolherResolucaoPorIntervalo(intervaloMetrosEntrada);
+  const resolucaoPorAreaMetros = escolherResolucaoPorArea(dimensoes.maiorDimensaoMetros);
+  const resolucaoOriginal = Math.max(resolucaoPorIntervaloMetros, resolucaoPorAreaMetros);
   let resolucao = resolucaoOriginal;
   let motivoAjusteAutomatico = null;
   let info = calcularGradeInfo(bbox, resolucao);
@@ -351,7 +368,16 @@ function calcularParametrosAutomaticos(bbox) {
     motivoAjusteAutomatico = "A resolução foi ajustada automaticamente para evitar excesso de consultas.";
     info = calcularGradeInfo(bbox, resolucao);
   }
-  return { ...dimensoes, resolucaoMetros: resolucao, motivoAjusteAutomatico };
+  return {
+    ...dimensoes,
+    resolucaoMetros: resolucao,
+    resolucaoPorIntervaloMetros,
+    resolucaoPorAreaMetros,
+    resolucaoOriginalMetros: resolucaoOriginal,
+    criterioResolucaoAutomatica:
+      "Resolução escolhida combinando intervalo das curvas, tamanho da área e limite de pontos da API.",
+    motivoAjusteAutomatico
+  };
 }
 
 async function gerarGrade(bbox, resolucaoMetros) {
@@ -491,9 +517,9 @@ function comprimentoLinha(linha) {
 async function gerarCurvas(body) {
   const bbox = validarBbox(body?.bbox);
   const modoParametros = body?.modoParametros === "manual" ? "manual" : "automatico";
-  const automaticos = calcularParametrosAutomaticos(bbox);
+  const intervaloSolicitado = normalizarIntervaloCurvas(body?.intervaloMetros);
+  const automaticos = calcularParametrosAutomaticos(bbox, intervaloSolicitado);
   const resolucao = modoParametros === "automatico" ? automaticos.resolucaoMetros : Number(body?.resolucaoMetros ?? 100);
-  const intervaloSolicitado = Number(body?.intervaloMetros ?? 5);
   const intervalo = Math.max(intervaloSolicitado, intervaloMinimoPorResolucao(resolucao));
   const grade = await gerarGrade(bbox, resolucao);
   const nos = densificar(suavizar(grade.nos));
@@ -521,6 +547,11 @@ async function gerarCurvas(body) {
       metodo: "open_elevation_api_marching_squares_suavizado",
       modoParametros,
       resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
+      resolucaoPorIntervaloMetros: modoParametros === "automatico" ? automaticos.resolucaoPorIntervaloMetros : null,
+      resolucaoPorAreaMetros: modoParametros === "automatico" ? automaticos.resolucaoPorAreaMetros : null,
+      resolucaoOriginalMetros: modoParametros === "automatico" ? automaticos.resolucaoOriginalMetros : null,
+      criterioResolucaoAutomatica:
+        modoParametros === "automatico" ? automaticos.criterioResolucaoAutomatica : null,
       motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
       maiorDimensaoMetros: automaticos.maiorDimensaoMetros,
       areaMetrosQuadrados: automaticos.areaMetrosQuadrados,

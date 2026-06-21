@@ -3,6 +3,7 @@ import {
   Circle,
   Crosshair,
   FileDown,
+  Info,
   Layers,
   LineChart,
   MapPin,
@@ -82,6 +83,8 @@ interface PropriedadesPainelDireito {
   aoExportarRelatorio: () => void;
   aoExportarCsv: () => void;
   aoExportarGeoJson: () => void;
+  aoExportarElementoGeoJson: () => void;
+  aoExportarElementoKml: () => void;
   aoExportarCurvasKml: () => void;
   aoExportarCurvasKmz: () => void;
   aoExportarCurvasDxf: () => void;
@@ -106,6 +109,31 @@ function obterIconeElemento(tipo: string): ReactNode {
     return <MapPin size={15} aria-hidden="true" />;
   }
   return <Layers size={15} aria-hidden="true" />;
+}
+
+function elementoPossuiArea(elemento: ElementoMapa | null): boolean {
+  return elemento?.geometria.type === "Polygon" || elemento?.geometria.type === "Circle";
+}
+
+function elementoPossuiPerfilLinear(elemento: ElementoMapa | null): boolean {
+  return elemento?.geometria.type === "LineString";
+}
+
+function descreverGeometria(elemento: ElementoMapa | null): string {
+  if (!elemento) {
+    return "Clique com o botão direito em um desenho no mapa ou selecione um item em Camadas.";
+  }
+
+  if (elemento.geometria.type === "Point") {
+    return "Marcador pontual";
+  }
+  if (elemento.geometria.type === "LineString") {
+    return `${elemento.geometria.coordinates.length} ponto(s) na linha`;
+  }
+  if (elemento.geometria.type === "Polygon") {
+    return `${elemento.geometria.coordinates[0]?.length ?? 0} vértice(s) no polígono`;
+  }
+  return `Raio ${formatarMetros(elemento.geometria.radiusMeters, 0)}`;
 }
 
 export function PainelDireito({
@@ -144,6 +172,8 @@ export function PainelDireito({
   aoExportarRelatorio,
   aoExportarCsv,
   aoExportarGeoJson,
+  aoExportarElementoGeoJson,
+  aoExportarElementoKml,
   aoExportarCurvasKml,
   aoExportarCurvasKmz,
   aoExportarCurvasDxf,
@@ -151,11 +181,23 @@ export function PainelDireito({
 }: PropriedadesPainelDireito) {
   const [menuExportacaoCurvasAberto, setMenuExportacaoCurvasAberto] = useState(false);
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
+  const podeAnalisarPerfilLinear = elementoPossuiPerfilLinear(elementoSelecionado);
+  const podeAnalisarArea = elementoPossuiArea(elementoSelecionado);
   const resolucaoReferenciaIntervalo = curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
   const intervaloMinimoRecomendado = Math.ceil(resolucaoReferenciaIntervalo / 100);
   const intervaloMuitoPequeno = intervaloCurvasMetros < intervaloMinimoRecomendado;
+  const intervaloBaixaConfiabilidade = intervaloCurvasMetros <= 2;
   const resolucaoAutomaticaExibida =
     curvasNivel?.metadados.resolucaoAutomatica ?? curvasNivel?.metadados.resolucaoEfetivaMetros ?? resolucaoCurvasMetros;
+  const detalhesResolucaoAutomatica =
+    curvasNivel?.metadados.resolucaoPorAreaMetros &&
+    curvasNivel.metadados.resolucaoPorIntervaloMetros &&
+    curvasNivel.metadados.resolucaoEfetivaMetros
+      ? `Área recomendou ${formatarMetros(curvasNivel.metadados.resolucaoPorAreaMetros, 0)}, intervalo recomendou ${formatarMetros(
+          curvasNivel.metadados.resolucaoPorIntervaloMetros,
+          0
+        )}, usado ${formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}.`
+      : null;
 
   return (
     <aside className="painel-direito">
@@ -245,6 +287,50 @@ export function PainelDireito({
             ))
           )}
         </div>
+      </SecaoPainel>
+
+      <SecaoPainel titulo="Propriedade" icone={<Info size={17} />} abertaInicialmente>
+        {elementoSelecionado ? (
+          <>
+            <div className="resultado-atual propriedade-selecionada">
+              <span>Elemento selecionado</span>
+              <strong>{elementoSelecionado.nome}</strong>
+              <small>
+                {elementoSelecionado.tipo} · {descreverGeometria(elementoSelecionado)}
+              </small>
+            </div>
+
+            <div className="acoes-linha">
+              <button
+                type="button"
+                onClick={aoAnalisarPerfil}
+                disabled={!podeAnalisarPerfilLinear || carregandoPerfil}
+                title={!podeAnalisarPerfilLinear ? "Use uma linha para analisar perfil linear." : undefined}
+              >
+                {carregandoPerfil ? "Analisando" : "Analisar perfil"}
+              </button>
+              <button
+                type="button"
+                onClick={aoAnalisarPerfil}
+                disabled={!podeAnalisarArea || carregandoPerfil}
+                title={!podeAnalisarArea ? "Use polígono, retângulo ou círculo para analisar área." : undefined}
+              >
+                {carregandoPerfil ? "Analisando" : "Analisar área"}
+              </button>
+            </div>
+
+            <div className="grade-exportacao">
+              <button type="button" onClick={aoExportarElementoGeoJson}>
+                GeoJSON
+              </button>
+              <button type="button" onClick={aoExportarElementoKml}>
+                KML
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="estado-vazio">{descreverGeometria(null)}</div>
+        )}
       </SecaoPainel>
 
       <SecaoPainel titulo="Importação" icone={<UploadCloud size={17} />}>
@@ -388,8 +474,11 @@ export function PainelDireito({
         {modoParametrosCurvas === "automatico" && (
           <div className="estado-vazio">
             {curvasNivel
-              ? `Automático: resolução ${formatarMetros(resolucaoAutomaticaExibida, 0)}`
-              : "Automático: resolução calculada pela área desenhada"}
+              ? `Automático: intervalo ${formatarMetros(curvasNivel.metadados.intervaloMetros, 0)}, resolução ${formatarMetros(
+                  resolucaoAutomaticaExibida,
+                  0
+                )}`
+              : "Automático: resolução calculada pelo intervalo e pela área desenhada"}
           </div>
         )}
 
@@ -414,6 +503,13 @@ export function PainelDireito({
         {intervaloMuitoPequeno && (
           <div className="estado-vazio">
             Intervalo muito pequeno para a resolução escolhida. A curva pode ficar artificial.
+          </div>
+        )}
+
+        {intervaloBaixaConfiabilidade && (
+          <div className="estado-vazio">
+            Intervalos muito pequenos podem gerar curvas visualmente detalhadas, mas com baixa confiabilidade usando
+            Open-Elevation.
           </div>
         )}
 
@@ -495,6 +591,8 @@ export function PainelDireito({
             {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}
           </div>
         )}
+
+        {detalhesResolucaoAutomatica && <div className="estado-vazio">{detalhesResolucaoAutomatica}</div>}
 
         {curvasNivel?.metadados.resolucaoAjustada && (
           <div className="estado-vazio">

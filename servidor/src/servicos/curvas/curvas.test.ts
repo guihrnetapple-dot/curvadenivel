@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { CacheElevacao } from "../elevacao/cacheElevacao";
 import { gerarSegmentosMarchingSquares } from "./marchingSquares";
+import { calcularParametrosAutomaticosCurvas } from "./parametrosAutomaticosCurvas";
 import { prepararLinhaCurva, suavizarLinhaChaikin } from "./suavizarLinhas";
 import type { GradeCurvas, NoGradeCurvas, SegmentoCurva } from "./tiposCurvas";
 import { unirSegmentos } from "./unirSegmentos";
@@ -32,6 +33,16 @@ function criarGrade(altitudes: number[][]): GradeCurvas {
 }
 
 describe("curvas de nível", () => {
+  it("combina intervalo e área na resolução automática", () => {
+    const areaPequena = { minLat: -23, minLng: -47, maxLat: -22.995, maxLng: -46.995 };
+    const areaGrande = { minLat: -23, minLng: -47, maxLat: -22.9, maxLng: -46.9 };
+
+    expect(calcularParametrosAutomaticosCurvas(areaPequena, 5).resolucaoOriginalMetros).toBe(50);
+    expect(calcularParametrosAutomaticosCurvas(areaPequena, 40).resolucaoOriginalMetros).toBe(150);
+    expect(calcularParametrosAutomaticosCurvas(areaPequena, 80).resolucaoOriginalMetros).toBe(250);
+    expect(calcularParametrosAutomaticosCurvas(areaGrande, 5).resolucaoOriginalMetros).toBeGreaterThanOrEqual(500);
+  });
+
   it("gera segmentos em um plano inclinado", () => {
     const grade = criarGrade([
       [30, 40, 50],

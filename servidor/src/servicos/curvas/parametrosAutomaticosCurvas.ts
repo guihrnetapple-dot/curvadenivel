@@ -7,6 +7,9 @@ const METROS_POR_GRAU_LATITUDE = 111320;
 export interface ParametrosAutomaticosCurvas {
   resolucaoMetros: number;
   resolucaoOriginalMetros: number;
+  resolucaoPorIntervaloMetros: number;
+  resolucaoPorAreaMetros: number;
+  criterioResolucaoAutomatica: string;
   motivoAjusteAutomatico: string | null;
   maiorDimensaoMetros: number;
   areaMetrosQuadrados: number;
@@ -25,7 +28,31 @@ function calcularDimensoesMetros(bbox: BboxCurvas) {
   };
 }
 
-function escolherResolucao(maiorDimensaoMetros: number): number {
+function normalizarIntervaloMetros(intervaloMetros: number): number {
+  return Number.isFinite(intervaloMetros) && intervaloMetros > 0 ? intervaloMetros : 5;
+}
+
+export function escolherResolucaoPorIntervalo(intervaloMetros: number): number {
+  const intervalo = normalizarIntervaloMetros(intervaloMetros);
+  if (intervalo <= 5) {
+    return 50;
+  }
+  if (intervalo <= 10) {
+    return 75;
+  }
+  if (intervalo <= 20) {
+    return 100;
+  }
+  if (intervalo <= 40) {
+    return 150;
+  }
+  if (intervalo <= 80) {
+    return 250;
+  }
+  return 300;
+}
+
+export function escolherResolucaoPorArea(maiorDimensaoMetros: number): number {
   if (maiorDimensaoMetros <= 1000) {
     return 50;
   }
@@ -42,10 +69,15 @@ export function obterIntervaloMinimoPorResolucao(resolucaoMetros: number): numbe
   return Math.ceil(resolucaoMetros / 100);
 }
 
-export function calcularParametrosAutomaticosCurvas(bboxEntrada: BboxCurvas): ParametrosAutomaticosCurvas {
+export function calcularParametrosAutomaticosCurvas(
+  bboxEntrada: BboxCurvas,
+  intervaloMetrosEntrada = 5
+): ParametrosAutomaticosCurvas {
   const bbox = validarBbox(bboxEntrada);
   const dimensoes = calcularDimensoesMetros(bbox);
-  const resolucaoOriginalMetros = escolherResolucao(dimensoes.maiorDimensaoMetros);
+  const resolucaoPorIntervaloMetros = escolherResolucaoPorIntervalo(intervaloMetrosEntrada);
+  const resolucaoPorAreaMetros = escolherResolucaoPorArea(dimensoes.maiorDimensaoMetros);
+  const resolucaoOriginalMetros = Math.max(resolucaoPorIntervaloMetros, resolucaoPorAreaMetros);
   let resolucaoMetros = resolucaoOriginalMetros;
   let motivoAjusteAutomatico: string | null = null;
   let dimensoesGrade = calcularDimensoesGrade(bbox, resolucaoMetros);
@@ -59,6 +91,10 @@ export function calcularParametrosAutomaticosCurvas(bboxEntrada: BboxCurvas): Pa
   return {
     resolucaoMetros,
     resolucaoOriginalMetros,
+    resolucaoPorIntervaloMetros,
+    resolucaoPorAreaMetros,
+    criterioResolucaoAutomatica:
+      "Resolução escolhida combinando intervalo das curvas, tamanho da área e limite de pontos da API.",
     motivoAjusteAutomatico,
     maiorDimensaoMetros: dimensoes.maiorDimensaoMetros,
     areaMetrosQuadrados: dimensoes.areaMetrosQuadrados
