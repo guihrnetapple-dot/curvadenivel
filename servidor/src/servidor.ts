@@ -11,6 +11,7 @@ import {
   obterPortaServidor
 } from "./configuracao";
 import { ServicoAltitude } from "./servicos/servicoAltitude";
+import { ServicoCurvasRaw } from "./servicos/curvas/servicoCurvasRaw";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
 import { ErroAplicacao } from "./utilitarios/erros";
@@ -19,6 +20,7 @@ const aplicacao = express();
 const porta = obterPortaServidor();
 const servicoAltitude = new ServicoAltitude(obterCaminhoArquivoAltitude());
 const servicoPerfil = new ServicoPerfil(servicoAltitude);
+const servicoCurvasRaw = new ServicoCurvasRaw(servicoAltitude);
 
 aplicacao.use(cors({ origin: true }));
 aplicacao.use(express.json({ limit: "4mb" }));
@@ -100,6 +102,14 @@ aplicacao.post(
   "/api/elevation/profile",
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoPerfil.analisarPerfil(requisicao.body);
+    resposta.json(resultado);
+  })
+);
+
+aplicacao.post(
+  "/api/contours/raw",
+  rotaAssincrona(async (requisicao, resposta) => {
+    const resultado = await servicoCurvasRaw.gerarCurvas(requisicao.body);
     resposta.json(resultado);
   })
 );

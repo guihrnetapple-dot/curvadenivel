@@ -21,6 +21,7 @@ import type {
   CamadaBase,
   CamadaImportada,
   CamadasVisiveis,
+  CurvasNivelGeoJson,
   ElementoMapa,
   PerfilElevacao,
   ResultadoAltitude
@@ -60,6 +61,10 @@ interface PropriedadesPainelDireito {
   elementoSelecionadoId: string | null;
   perfil: PerfilElevacao | null;
   carregandoPerfil: boolean;
+  curvasNivel: CurvasNivelGeoJson | null;
+  carregandoCurvas: boolean;
+  intervaloCurvasMetros: number;
+  resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
   aoAlterarCamadaBase: (camada: CamadaBase) => void;
   aoAlternarCamada: (camada: keyof CamadasVisiveis) => void;
@@ -67,11 +72,16 @@ interface PropriedadesPainelDireito {
   aoSelecionarElemento: (id: string) => void;
   aoAnalisarPerfil: () => void;
   aoLimparAnalise: () => void;
+  aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
+  aoAlterarResolucaoCurvas: (resolucaoMetros: number) => void;
+  aoGerarCurvas: () => void;
+  aoLimparCurvas: () => void;
   aoImportarArquivo: () => void;
   aoAlternarCamadaImportada: (id: string) => void;
   aoExportarRelatorio: () => void;
   aoExportarCsv: () => void;
   aoExportarGeoJson: () => void;
+  aoExportarCurvasGeoJson: () => void;
   aoExportarKml: () => void;
 }
 
@@ -97,6 +107,10 @@ export function PainelDireito({
   elementoSelecionadoId,
   perfil,
   carregandoPerfil,
+  curvasNivel,
+  carregandoCurvas,
+  intervaloCurvasMetros,
+  resolucaoCurvasMetros,
   camadasImportadas,
   aoAlterarCamadaBase,
   aoAlternarCamada,
@@ -104,11 +118,16 @@ export function PainelDireito({
   aoSelecionarElemento,
   aoAnalisarPerfil,
   aoLimparAnalise,
+  aoAlterarIntervaloCurvas,
+  aoAlterarResolucaoCurvas,
+  aoGerarCurvas,
+  aoLimparCurvas,
   aoImportarArquivo,
   aoAlternarCamadaImportada,
   aoExportarRelatorio,
   aoExportarCsv,
   aoExportarGeoJson,
+  aoExportarCurvasGeoJson,
   aoExportarKml
 }: PropriedadesPainelDireito) {
   const [latitude, setLatitude] = useState("-16.72");
@@ -306,6 +325,85 @@ export function PainelDireito({
         </div>
         {perfil?.estatisticas.avisoAmostragem && (
           <div className="estado-vazio">{perfil.estatisticas.avisoAmostragem}</div>
+        )}
+      </SecaoPainel>
+
+      <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
+        <div className="aviso-curvas">
+          Curvas provisórias geradas por interpolação do RAW global. Não usar como levantamento topográfico final.
+        </div>
+
+        <div className="grupo-controles">
+          <span className="rotulo-bloco">Intervalo</span>
+          <div className="controle-segmentado">
+            {[20, 40, 60, 100].map((intervalo) => (
+              <button
+                key={intervalo}
+                type="button"
+                className={intervaloCurvasMetros === intervalo ? "ativo" : ""}
+                onClick={() => aoAlterarIntervaloCurvas(intervalo)}
+              >
+                {intervalo} m
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grupo-controles">
+          <span className="rotulo-bloco">Resolução</span>
+          <div className="controle-segmentado">
+            {[100, 250, 500, 1000].map((resolucao) => (
+              <button
+                key={resolucao}
+                type="button"
+                className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
+                onClick={() => aoAlterarResolucaoCurvas(resolucao)}
+              >
+                {resolucao} m
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="acoes-linha">
+          <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas}>
+            {carregandoCurvas ? "Gerando" : "Gerar da área visível"}
+          </button>
+          <button type="button" className="botao-secundario" onClick={aoLimparCurvas}>
+            Limpar
+          </button>
+        </div>
+
+        <button
+          className="botao-largo"
+          type="button"
+          onClick={aoExportarCurvasGeoJson}
+          disabled={!curvasNivel || curvasNivel.features.length === 0}
+        >
+          Exportar GeoJSON
+        </button>
+
+        <div className="grade-metricas">
+          <div>
+            <span>Curvas</span>
+            <strong>{formatarNumero(curvasNivel?.features.length, 0)}</strong>
+          </div>
+          <div>
+            <span>Mínima</span>
+            <strong>{formatarMetros(curvasNivel?.metadados.altitudeMinima, 0)}</strong>
+          </div>
+          <div>
+            <span>Máxima</span>
+            <strong>{formatarMetros(curvasNivel?.metadados.altitudeMaxima, 0)}</strong>
+          </div>
+          <div>
+            <span>Fonte</span>
+            <strong>RAW</strong>
+          </div>
+        </div>
+
+        {curvasNivel?.metadados.avisoPrecisao && (
+          <div className="estado-vazio">{curvasNivel.metadados.avisoPrecisao}</div>
         )}
       </SecaoPainel>
 

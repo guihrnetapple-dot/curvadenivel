@@ -1,4 +1,4 @@
-import type { CamadaImportada, ElementoMapa, PerfilElevacao } from "../tipos/altimetria";
+import type { CamadaImportada, CurvasNivelGeoJson, ElementoMapa, PerfilElevacao } from "../tipos/altimetria";
 import { formatarNumero } from "./formatacao";
 
 function baixarArquivo(nomeArquivo: string, conteudo: string, tipoMime: string): void {
@@ -54,6 +54,18 @@ export function exportarDesenhosGeoJson(elementos: ElementoMapa[], camadas: Cama
   baixarArquivo(
     "projeto-agroaltimetria.geojson",
     JSON.stringify({ type: "FeatureCollection", features }, null, 2),
+    "application/geo+json;charset=utf-8"
+  );
+}
+
+export function exportarCurvasNivelGeoJson(curvasNivel: CurvasNivelGeoJson | null): void {
+  if (!curvasNivel || curvasNivel.features.length === 0) {
+    throw new Error("Gere curvas de nível antes de exportar GeoJSON.");
+  }
+
+  baixarArquivo(
+    "curvas-nivel-raw.geojson",
+    JSON.stringify(curvasNivel, null, 2),
     "application/geo+json;charset=utf-8"
   );
 }

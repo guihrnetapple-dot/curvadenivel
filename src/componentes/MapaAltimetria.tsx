@@ -10,6 +10,8 @@ import type {
   CamadaBase,
   CamadaImportada,
   CamadasVisiveis,
+  BboxCurvasNivel,
+  CurvasNivelGeoJson,
   ElementoMapa,
   GeometriaProjeto,
   PontoPerfil,
@@ -35,12 +37,14 @@ interface PropriedadesMapaAltimetria {
   camadaBase: CamadaBase;
   camadasVisiveis: CamadasVisiveis;
   camadasImportadas: CamadaImportada[];
+  curvasNivel: CurvasNivelGeoJson | null;
   pontoDestacado: PontoPerfil | null;
   aoConsultarCoordenada: (latitude: number, longitude: number) => Promise<ResultadoAltitude | null>;
   aoElementoCriado: (elemento: ElementoMapa) => void;
   aoElementoAtualizado: (elemento: ElementoMapa) => void;
   aoElementoRemovido: (id: string) => void;
   aoSelecionarElemento: (id: string) => void;
+  aoBoundsAlterado: (bounds: BboxCurvasNivel) => void;
 }
 
 function configurarTextosDesenho() {
@@ -137,6 +141,17 @@ function montarPopup(resultado: ResultadoAltitude): string {
   `;
 }
 
+function converterBounds(bounds: L.LatLngBounds): BboxCurvasNivel {
+  const sulOeste = bounds.getSouthWest();
+  const nordeste = bounds.getNorthEast();
+  return {
+    minLat: sulOeste.lat,
+    minLng: sulOeste.lng,
+    maxLat: nordeste.lat,
+    maxLng: nordeste.lng
+  };
+}
+
 function traduzirTipo(tipo: string): string {
   const nomes: Record<string, string> = {
     marker: "Marcador",
@@ -189,18 +204,21 @@ export function MapaAltimetria({
   camadaBase,
   camadasVisiveis,
   camadasImportadas,
+  curvasNivel,
   pontoDestacado,
   aoConsultarCoordenada,
   aoElementoCriado,
   aoElementoAtualizado,
   aoElementoRemovido,
-  aoSelecionarElemento
+  aoSelecionarElemento,
+  aoBoundsAlterado
 }: PropriedadesMapaAltimetria) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapaRef = useRef<L.Map | null>(null);
   const camadaBaseRef = useRef<L.TileLayer | null>(null);
   const desenhosRef = useRef<L.FeatureGroup | null>(null);
   const importadosRef = useRef<L.LayerGroup | null>(null);
+  const curvasNivelRef = useRef<L.GeoJSON | null>(null);
   const gradeRef = useRef<L.LayerGroup | null>(null);
   const relevoRef = useRef<L.TileLayer | null>(null);
   const destaqueRef = useRef<L.CircleMarker | null>(null);
@@ -209,7 +227,8 @@ export function MapaAltimetria({
     aoElementoCriado,
     aoElementoAtualizado,
     aoElementoRemovido,
-    aoSelecionarElemento
+    aoSelecionarElemento,
+    aoBoundsAlterado
   });
   const [coordenadasCursor, setCoordenadasCursor] = useState("Lat -, Lng -");
 
@@ -219,14 +238,16 @@ export function MapaAltimetria({
       aoElementoCriado,
       aoElementoAtualizado,
       aoElementoRemovido,
-      aoSelecionarElemento
+      aoSelecionarElemento,
+      aoBoundsAlterado
     };
   }, [
     aoConsultarCoordenada,
     aoElementoCriado,
     aoElementoAtualizado,
     aoElementoRemovido,
-    aoSelecionarElemento
+    aoSelecionarElemento,
+    aoBoundsAlterado
   ]);
 
   useEffect(() => {
@@ -309,6 +330,13 @@ export function MapaAltimetria({
         `Lat ${formatarNumero(evento.latlng.lat, 5)}, Lng ${formatarNumero(evento.latlng.lng, 5)}`
       );
     });
+
+    function notificarBounds() {
+      propsRef.current.aoBoundsAlterado(converterBounds(mapa.getBounds()));
+    }
+
+    mapa.on("moveend zoomend", notificarBounds);
+    notificarBounds();
 
     mapa.on("click", async (evento: L.LeafletMouseEvent) => {
       const popup = L.popup()
@@ -424,6 +452,45 @@ export function MapaAltimetria({
       }).addTo(grupoImportados);
     }
   }, [camadasImportadas, camadasVisiveis.importados]);
+
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa) {
+      return;
+    }
+
+    if (curvasNivelRef.current) {
+      curvasNivelRef.current.removeFrom(mapa);
+      curvasNivelRef.current = null;
+    }
+
+    if (!curvasNivel || curvasNivel.features.length === 0) {
+      return;
+    }
+
+    curvasNivelRef.current = L.geoJSON(curvasNivel as unknown as GeoJSON.GeoJsonObject, {
+      style: (feature) => {
+        const tipo = feature?.properties?.tipo;
+        return tipo === "mestra"
+          ? { color: "#5f452a", weight: 2, opacity: 0.9, interactive: true }
+          : { color: "#8a6f4d", weight: 1, opacity: 0.65, interactive: true };
+      },
+      onEachFeature: (feature, camada) => {
+        const elevacao = Number(feature.properties?.elevacao);
+        camada.bindPopup(`
+          <div class="popup-tecnico">
+            <strong>Curva de nível: ${formatarMetros(elevacao, 0)}</strong>
+            <dl>
+              <dt>Fonte</dt><dd>RAW interpolado</dd>
+            </dl>
+          </div>
+        `);
+        camada.on("click", (evento) => {
+          L.DomEvent.stopPropagation(evento);
+        });
+      }
+    }).addTo(mapa);
+  }, [curvasNivel]);
 
   useEffect(() => {
     const mapa = mapaRef.current;

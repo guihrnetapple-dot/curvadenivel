@@ -6,11 +6,14 @@ import { GraficoPerfil } from "./componentes/GraficoPerfil";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
+import { gerarCurvasRaw } from "./servicos/apiCurvasNivel";
 import type {
   AlertaSistema,
+  BboxCurvasNivel,
   CamadaBase,
   CamadaImportada,
   CamadasVisiveis,
+  CurvasNivelGeoJson,
   ElementoMapa,
   PerfilElevacao,
   PontoPerfil,
@@ -19,6 +22,7 @@ import type {
   TemaVisual
 } from "./tipos/altimetria";
 import {
+  exportarCurvasNivelGeoJson,
   exportarDesenhosGeoJson,
   exportarDesenhosKml,
   exportarPerfilCsv,
@@ -86,6 +90,11 @@ export function Aplicacao() {
   const [camadasImportadas, setCamadasImportadas] = useState<CamadaImportada[]>([]);
   const [perfil, setPerfil] = useState<PerfilElevacao | null>(null);
   const [carregandoPerfil, setCarregandoPerfil] = useState(false);
+  const [curvasNivel, setCurvasNivel] = useState<CurvasNivelGeoJson | null>(null);
+  const [carregandoCurvas, setCarregandoCurvas] = useState(false);
+  const [boundsMapa, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
+  const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(20);
+  const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(250);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
 
@@ -252,6 +261,33 @@ export function Aplicacao() {
     }
   }
 
+  async function gerarCurvasDaAreaVisivel() {
+    if (!boundsMapa) {
+      setAlerta({ tipo: "aviso", mensagem: "Aguarde o mapa carregar para gerar curvas de nível." });
+      return;
+    }
+
+    setCarregandoCurvas(true);
+    try {
+      const resultado = await gerarCurvasRaw(boundsMapa, intervaloCurvasMetros, resolucaoCurvasMetros);
+      setCurvasNivel(resultado);
+      setAlerta({
+        tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
+        mensagem:
+          resultado.features.length > 0
+            ? `${resultado.features.length} curva(s) de nível gerada(s) para a área visível.`
+            : "Nenhuma curva de nível encontrada nessa área com os parâmetros atuais."
+      });
+    } catch (erro) {
+      setAlerta({
+        tipo: "erro",
+        mensagem: erro instanceof Error ? erro.message : "Não foi possível gerar curvas de nível."
+      });
+    } finally {
+      setCarregandoCurvas(false);
+    }
+  }
+
   function executarExportacao(acao: () => void) {
     try {
       acao();
@@ -290,12 +326,14 @@ export function Aplicacao() {
             camadaBase={camadaBase}
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
+            curvasNivel={curvasNivel}
             pontoDestacado={pontoDestacado}
             aoConsultarCoordenada={consultarCoordenada}
             aoElementoCriado={adicionarElemento}
             aoElementoAtualizado={atualizarElemento}
             aoElementoRemovido={removerElemento}
             aoSelecionarElemento={setElementoSelecionadoId}
+            aoBoundsAlterado={setBoundsMapa}
           />
           <GraficoPerfil
             perfil={perfil}
@@ -313,6 +351,10 @@ export function Aplicacao() {
           elementoSelecionadoId={elementoSelecionadoId}
           perfil={perfil}
           carregandoPerfil={carregandoPerfil}
+          curvasNivel={curvasNivel}
+          carregandoCurvas={carregandoCurvas}
+          intervaloCurvasMetros={intervaloCurvasMetros}
+          resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
           aoAlterarCamadaBase={setCamadaBase}
           aoAlternarCamada={alternarCamada}
@@ -323,11 +365,16 @@ export function Aplicacao() {
             setPerfil(null);
             setPontoDestacado(null);
           }}
+          aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
+          aoAlterarResolucaoCurvas={setResolucaoCurvasMetros}
+          aoGerarCurvas={gerarCurvasDaAreaVisivel}
+          aoLimparCurvas={() => setCurvasNivel(null)}
           aoImportarArquivo={() => inputArquivoRef.current?.click()}
           aoAlternarCamadaImportada={alternarCamadaImportada}
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
           aoExportarCsv={() => executarExportacao(() => exportarPerfilCsv(perfil))}
           aoExportarGeoJson={() => executarExportacao(() => exportarDesenhosGeoJson(elementos, camadasImportadas))}
+          aoExportarCurvasGeoJson={() => executarExportacao(() => exportarCurvasNivelGeoJson(curvasNivel))}
           aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
         />
       </main>

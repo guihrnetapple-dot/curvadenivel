@@ -279,4 +279,8 @@ export class ServicoAltitude {
   consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude> {
     return this.provedor.consultarPonto(coordenada);
   }
+
+  consultarPontoInterpolado(coordenada: Coordenada): Promise<ResultadoAltitude> {
+    return this.provedor.consultarPonto(coordenada);
+  }
 }

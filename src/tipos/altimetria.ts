@@ -90,6 +90,39 @@ export interface GeoJsonFeatureCollection {
   features: GeoJsonFeature[];
 }
 
+export interface BboxCurvasNivel {
+  minLat: number;
+  minLng: number;
+  maxLat: number;
+  maxLng: number;
+}
+
+export interface FeatureCurvaNivel {
+  type: "Feature";
+  properties: {
+    elevacao: number;
+    tipo: "mestra" | "normal";
+    fonte: "RAW interpolado";
+  };
+  geometry: GeometriaLinha;
+}
+
+export interface MetadadosCurvasNivel {
+  fonte: "data10k8b.raw interpolado";
+  metodo: "interpolacao_bilinear_marching_squares";
+  intervaloMetros: number;
+  resolucaoMetros: number;
+  altitudeMinima: number | null;
+  altitudeMaxima: number | null;
+  avisoPrecisao: string;
+}
+
+export interface CurvasNivelGeoJson {
+  type: "FeatureCollection";
+  features: FeatureCurvaNivel[];
+  metadados: MetadadosCurvasNivel;
+}
+
 export interface CamadaImportada {
   id: string;
   nome: string;

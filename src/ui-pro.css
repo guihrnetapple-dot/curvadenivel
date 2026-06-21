@@ -373,6 +373,16 @@ input[type="checkbox"] {
   letter-spacing: -0.035em;
 }
 
+.aviso-curvas {
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--alerta) 42%, var(--borda));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--alerta) 10%, var(--superficie-secundaria));
+  color: var(--texto);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .tabela-compacta table {
   font-size: 0.74rem;
 }

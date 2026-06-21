@@ -14,6 +14,12 @@ const GRAUS_POR_RADIANO = 180 / Math.PI;
 const INTERVALO_PADRAO_METROS = Number(process.env.PERFIL_INTERVALO_PADRAO_METROS ?? 50);
 const INTERVALO_MINIMO_METROS = Number(process.env.PERFIL_INTERVALO_MINIMO_METROS ?? 5);
 const LIMITE_AMOSTRAS = Number(process.env.PERFIL_LIMITE_AMOSTRAS ?? 3000);
+const CURVAS_MIN_RESOLUCAO_METROS = 100;
+const CURVAS_MAX_CELULAS_GRADE = 80000;
+const CURVAS_INTERVALO_MINIMO_METROS = 20;
+const METROS_POR_GRAU_LATITUDE = 111320;
+const AVISO_PRECISAO_CURVAS =
+  "Curvas aproximadas geradas a partir de grade RAW global de baixa resolução. Não usar como curva de nível topográfica final.";
 const MENSAGEM_INTERPOLACAO =
   "Altitude estimada com interpolação bilinear a partir da grade data10k8b.raw. A fonte original possui baixa resolução espacial, portanto os decimais representam suavização matemática, não precisão topográfica real.";
 
@@ -453,6 +459,213 @@ async function analisarPerfil(requisicao) {
   };
 }
 
+function normalizarBboxCurvas(bbox) {
+  const normalizado = {
+    minLat: Number(bbox?.minLat),
+    minLng: Number(bbox?.minLng),
+    maxLat: Number(bbox?.maxLat),
+    maxLng: Number(bbox?.maxLng)
+  };
+
+  if (Object.values(normalizado).some((valor) => !Number.isFinite(valor))) {
+    throw new ErroAplicacao("Informe um bbox válido para gerar curvas de nível.");
+  }
+  if (normalizado.minLat < -90 || normalizado.maxLat > 90) {
+    throw new ErroAplicacao("O bbox precisa manter latitudes entre -90 e 90.");
+  }
+  if (normalizado.minLng < -180 || normalizado.maxLng > 180) {
+    throw new ErroAplicacao("O bbox precisa manter longitudes entre -180 e 180.");
+  }
+  if (normalizado.minLat >= normalizado.maxLat || normalizado.minLng >= normalizado.maxLng) {
+    throw new ErroAplicacao("O bbox precisa ter área válida.");
+  }
+
+  return normalizado;
+}
+
+function normalizarResolucaoCurvas(resolucaoMetros) {
+  const valor = Number(resolucaoMetros ?? 250);
+  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, CURVAS_MIN_RESOLUCAO_METROS) : 250;
+}
+
+function normalizarIntervaloCurvas(intervaloMetros) {
+  const valor = Number(intervaloMetros ?? 20);
+  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, CURVAS_INTERVALO_MINIMO_METROS) : 20;
+}
+
+async function gerarGradeRawInterpoladaCurvas(bboxEntrada, resolucaoEntradaMetros) {
+  const bbox = normalizarBboxCurvas(bboxEntrada);
+  const resolucaoMetros = normalizarResolucaoCurvas(resolucaoEntradaMetros);
+  const latitudeMediaRad = ((bbox.minLat + bbox.maxLat) / 2) * RADIANOS_POR_GRAU;
+  const fatorLongitude = Math.max(Math.abs(Math.cos(latitudeMediaRad)), 0.01);
+  const grausLat = resolucaoMetros / METROS_POR_GRAU_LATITUDE;
+  const grausLng = resolucaoMetros / (METROS_POR_GRAU_LATITUDE * fatorLongitude);
+  const deltaLat = bbox.maxLat - bbox.minLat;
+  const deltaLng = bbox.maxLng - bbox.minLng;
+  const linhas = Math.max(2, Math.ceil(deltaLat / grausLat) + 1);
+  const colunas = Math.max(2, Math.ceil(deltaLng / grausLng) + 1);
+
+  if (linhas * colunas > CURVAS_MAX_CELULAS_GRADE) {
+    throw new ErroAplicacao("Área muito grande para gerar curvas. Aproxime o mapa ou aumente a resolução.");
+  }
+
+  await carregarArquivo();
+  let altitudeMinima = null;
+  let altitudeMaxima = null;
+  const nos = [];
+
+  for (let linha = 0; linha < linhas; linha += 1) {
+    const latitude = bbox.maxLat - Math.min(linha * grausLat, deltaLat);
+    const linhaNos = [];
+    for (let coluna = 0; coluna < colunas; coluna += 1) {
+      const longitude = bbox.minLng + Math.min(coluna * grausLng, deltaLng);
+      const amostra = amostrarGradeInterpolada(latitude, longitude);
+      const altitude = amostra.status === "valido" ? amostra.altitude : null;
+      if (altitude !== null) {
+        altitudeMinima = altitudeMinima === null ? altitude : Math.min(altitudeMinima, altitude);
+        altitudeMaxima = altitudeMaxima === null ? altitude : Math.max(altitudeMaxima, altitude);
+      }
+      linhaNos.push({ latitude, longitude, altitude });
+    }
+    nos.push(linhaNos);
+  }
+
+  return { bbox, linhas, colunas, resolucaoMetros, nos, altitudeMinima, altitudeMaxima };
+}
+
+function cruzaNivel(a, b, nivel) {
+  return (a < nivel && b >= nivel) || (b < nivel && a >= nivel);
+}
+
+function interpolarBordaCurva(a, b, nivel) {
+  const denominador = b.altitude - a.altitude;
+  const fracao = denominador === 0 ? 0.5 : (nivel - a.altitude) / denominador;
+  return [
+    a.longitude + (b.longitude - a.longitude) * fracao,
+    a.latitude + (b.latitude - a.latitude) * fracao
+  ];
+}
+
+function gerarSegmentosMarchingSquares(grade, nivel) {
+  const segmentos = [];
+  for (let linha = 0; linha < grade.linhas - 1; linha += 1) {
+    for (let coluna = 0; coluna < grade.colunas - 1; coluna += 1) {
+      const superiorEsquerdo = grade.nos[linha][coluna];
+      const superiorDireito = grade.nos[linha][coluna + 1];
+      const inferiorDireito = grade.nos[linha + 1][coluna + 1];
+      const inferiorEsquerdo = grade.nos[linha + 1][coluna];
+      const cantos = [superiorEsquerdo, superiorDireito, inferiorDireito, inferiorEsquerdo];
+      if (cantos.some((canto) => canto.altitude === null)) continue;
+
+      const intersecoes = [];
+      const bordas = [
+        [superiorEsquerdo, superiorDireito],
+        [superiorDireito, inferiorDireito],
+        [inferiorDireito, inferiorEsquerdo],
+        [inferiorEsquerdo, superiorEsquerdo]
+      ];
+
+      for (const [inicio, fim] of bordas) {
+        if (cruzaNivel(inicio.altitude, fim.altitude, nivel)) {
+          intersecoes.push(interpolarBordaCurva(inicio, fim, nivel));
+        }
+      }
+
+      if (intersecoes.length === 2) {
+        segmentos.push([intersecoes[0], intersecoes[1]]);
+      } else if (intersecoes.length === 4) {
+        segmentos.push([intersecoes[0], intersecoes[1]], [intersecoes[2], intersecoes[3]]);
+      }
+    }
+  }
+  return segmentos;
+}
+
+function chaveCurva(coordenada) {
+  return `${coordenada[0].toFixed(7)},${coordenada[1].toFixed(7)}`;
+}
+
+function unirSegmentosCurvas(segmentos) {
+  const pendentes = segmentos.map((segmento) => [segmento[0], segmento[1]]);
+  const linhas = [];
+
+  while (pendentes.length > 0) {
+    const linha = pendentes.pop();
+    let alterou = true;
+    while (alterou) {
+      alterou = false;
+      const inicio = chaveCurva(linha[0]);
+      const fim = chaveCurva(linha[linha.length - 1]);
+
+      for (let indice = pendentes.length - 1; indice >= 0; indice -= 1) {
+        const segmento = pendentes[indice];
+        const segmentoInicio = chaveCurva(segmento[0]);
+        const segmentoFim = chaveCurva(segmento[segmento.length - 1]);
+
+        if (fim === segmentoInicio) {
+          linha.push(...segmento.slice(1));
+        } else if (fim === segmentoFim) {
+          linha.push(...[...segmento].reverse().slice(1));
+        } else if (inicio === segmentoFim) {
+          linha.unshift(...segmento.slice(0, -1));
+        } else if (inicio === segmentoInicio) {
+          linha.unshift(...[...segmento].reverse().slice(0, -1));
+        } else {
+          continue;
+        }
+
+        pendentes.splice(indice, 1);
+        alterou = true;
+        break;
+      }
+    }
+    if (linha.length >= 2) linhas.push(linha);
+  }
+
+  return linhas;
+}
+
+async function gerarCurvasRaw(requisicao) {
+  if (!requisicao || typeof requisicao !== "object") {
+    throw new ErroAplicacao("Informe os parâmetros para gerar curvas de nível.");
+  }
+
+  const intervaloMetros = normalizarIntervaloCurvas(requisicao.intervaloMetros);
+  const grade = await gerarGradeRawInterpoladaCurvas(requisicao.bbox, requisicao.resolucaoMetros);
+  const features = [];
+
+  if (grade.altitudeMinima !== null && grade.altitudeMaxima !== null) {
+    const nivelInicial = Math.ceil(grade.altitudeMinima / intervaloMetros) * intervaloMetros;
+    const nivelFinal = Math.floor(grade.altitudeMaxima / intervaloMetros) * intervaloMetros;
+
+    for (let nivel = nivelInicial; nivel <= nivelFinal; nivel += intervaloMetros) {
+      const tipo = nivel % (intervaloMetros * 5) === 0 ? "mestra" : "normal";
+      const linhas = unirSegmentosCurvas(gerarSegmentosMarchingSquares(grade, nivel));
+      for (const linha of linhas) {
+        features.push({
+          type: "Feature",
+          properties: { elevacao: nivel, tipo, fonte: "RAW interpolado" },
+          geometry: { type: "LineString", coordinates: linha }
+        });
+      }
+    }
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+    metadados: {
+      fonte: "data10k8b.raw interpolado",
+      metodo: "interpolacao_bilinear_marching_squares",
+      intervaloMetros,
+      resolucaoMetros: grade.resolucaoMetros,
+      altitudeMinima: grade.altitudeMinima,
+      altitudeMaxima: grade.altitudeMaxima,
+      avisoPrecisao: AVISO_PRECISAO_CURVAS
+    }
+  };
+}
+
 function normalizarCoordenadaEntrada(entrada) {
   if (!entrada || typeof entrada !== "object") {
     throw new ErroAplicacao("Cada coordenada precisa ser um objeto com latitude e longitude.");
@@ -539,6 +752,11 @@ async function manipularRota(requisicao, resposta) {
 
   if (requisicao.method === "POST" && caminho === "/api/elevation/profile") {
     resposta.status(200).json(await analisarPerfil(lerCorpo(requisicao)));
+    return;
+  }
+
+  if (requisicao.method === "POST" && caminho === "/api/contours/raw") {
+    resposta.status(200).json(await gerarCurvasRaw(lerCorpo(requisicao)));
     return;
   }
 
