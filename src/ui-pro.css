@@ -486,11 +486,14 @@ input[type="checkbox"] {
 }
 
 .barra-informacoes-mapa {
-  left: 12px;
   right: 12px;
-  padding: 8px 12px;
-  color: rgba(255, 255, 255, 0.86);
+  left: auto;
+  padding: 7px 11px;
+  background: rgba(21, 23, 21, 0.48);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
   font-size: 0.74rem;
+  box-shadow: 0 10px 24px rgba(21, 23, 21, 0.18);
 }
 
 .barra-informacoes-mapa span {
