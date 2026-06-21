@@ -121,7 +121,7 @@ function elementoPossuiPerfilLinear(elemento: ElementoMapa | null): boolean {
 
 function descreverGeometria(elemento: ElementoMapa | null): string {
   if (!elemento) {
-    return "Clique com o botão direito em um desenho no mapa ou selecione um item em Camadas.";
+    return "";
   }
 
   if (elemento.geometria.type === "Point") {
@@ -322,9 +322,7 @@ export function PainelDireito({
               </button>
             </div>
           </>
-        ) : (
-          <div className="estado-vazio">{descreverGeometria(null)}</div>
-        )}
+        ) : null}
       </SecaoPainel>
 
       <SecaoPainel titulo="Importação" icone={<UploadCloud size={17} />}>
