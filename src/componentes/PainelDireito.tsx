@@ -17,7 +17,6 @@ import type {
   CamadaImportada,
   CurvasNivelGeoJson,
   ElementoMapa,
-  FonteElevacao,
   PerfilElevacao,
   ResultadoAltitude
 } from "../tipos/altimetria";
@@ -56,7 +55,6 @@ interface PropriedadesPainelDireito {
   carregandoCurvas: boolean;
   selecionandoAreaCurvas: boolean;
   selecionandoPontoAltitude: boolean;
-  fonteElevacao: FonteElevacao;
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
@@ -107,7 +105,6 @@ export function PainelDireito({
   carregandoCurvas,
   selecionandoAreaCurvas,
   selecionandoPontoAltitude,
-  fonteElevacao,
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
@@ -196,8 +193,7 @@ export function PainelDireito({
           <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 2) : "-"}</strong>
           {resultadoAtual && (
             <small>
-              Método: {fonteElevacao === "open_elevation" ? "Open-Elevation" : resultadoAtual.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"} · Fonte:
-              {fonteElevacao === "open_elevation" ? " Open-Elevation" : " data10k8b.raw"}
+              Método: API · Fonte: Open-Elevation
             </small>
           )}
           <small>
@@ -276,7 +272,7 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
         <div className="aviso-curvas">
-          Curvas provisórias geradas a partir da fonte selecionada. Não usar como levantamento topográfico final.
+          Curvas geradas a partir de amostras consultadas na Open-Elevation e suavizadas matematicamente. A suavização melhora a representação visual, mas não aumenta a precisão da fonte.
         </div>
 
         <div className="grupo-controles">
@@ -297,7 +293,7 @@ export function PainelDireito({
         <div className="grupo-controles">
           <span className="rotulo-bloco">Resolução</span>
           <div className="controle-segmentado">
-            {[100, 250, 500, 1000].map((resolucao) => (
+            {[50, 100, 250, 500].map((resolucao) => (
               <button
                 key={resolucao}
                 type="button"
@@ -331,7 +327,7 @@ export function PainelDireito({
         <div className="grade-metricas">
           <div>
             <span>Curvas</span>
-            <strong>{formatarNumero(curvasNivel?.features.length, 0)}</strong>
+            <strong>{formatarNumero(curvasNivel?.metadados.quantidadeCurvas ?? curvasNivel?.features.length, 0)}</strong>
           </div>
           <div>
             <span>Mínima</span>
@@ -342,10 +338,25 @@ export function PainelDireito({
             <strong>{formatarMetros(curvasNivel?.metadados.altitudeMaxima, 0)}</strong>
           </div>
           <div>
-            <span>Fonte</span>
-            <strong>{curvasNivel?.metadados.fonte ?? (fonteElevacao === "open_elevation" ? "Open-Elevation" : "RAW")}</strong>
+            <span>Resolução efetiva</span>
+            <strong>{formatarMetros(curvasNivel?.metadados.resolucaoEfetivaMetros, 0)}</strong>
+          </div>
+          <div>
+            <span>Pontos</span>
+            <strong>{formatarNumero(curvasNivel?.metadados.pontosConsultados, 0)}</strong>
+          </div>
+          <div>
+            <span>Cache</span>
+            <strong>{curvasNivel?.metadados.cacheAtivo ? "Ativo" : "-"}</strong>
           </div>
         </div>
+
+        {curvasNivel?.metadados.resolucaoAjustada && (
+          <div className="estado-vazio">
+            Resolução ajustada automaticamente de {formatarMetros(curvasNivel.metadados.resolucaoSolicitadaMetros, 0)} para{" "}
+            {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}.
+          </div>
+        )}
 
         {curvasNivel?.metadados.avisoPrecisao && (
           <div className="estado-vazio">{curvasNivel.metadados.avisoPrecisao}</div>

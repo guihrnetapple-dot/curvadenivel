@@ -2,29 +2,25 @@ import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 
 import {
-  obterCaminhoArquivoAltitude,
-  obterFonteElevacao,
-  obterMetodoInterpolacao,
+  CURVAS_FATOR_DENSIFICACAO,
+  CURVAS_LIMITE_PONTOS_API,
+  CURVAS_RESOLUCAO_MINIMA_METROS,
   obterPerfilIntervaloMinimoMetros,
   obterPerfilIntervaloPadraoMetros,
   obterPerfilLimiteAmostras,
   obterPortaServidor
 } from "./configuracao";
-import { ServicoAltitude } from "./servicos/servicoAltitude";
-import { ServicoOpenElevation } from "./servicos/servicoOpenElevation";
-import { ServicoCurvasOpenElevation } from "./servicos/curvas/servicoCurvasOpenElevation";
-import { ServicoCurvasRaw } from "./servicos/curvas/servicoCurvasRaw";
+import { ServicoCurvas } from "./servicos/curvas/servicoCurvas";
+import { ServicoOpenElevation } from "./servicos/elevacao/servicoOpenElevation";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
 import { ErroAplicacao } from "./utilitarios/erros";
 
 const aplicacao = express();
 const porta = obterPortaServidor();
-const servicoAltitude = new ServicoAltitude(obterCaminhoArquivoAltitude());
 const servicoOpenElevation = new ServicoOpenElevation();
-const servicoPerfil = new ServicoPerfil(servicoAltitude);
-const servicoCurvasRaw = new ServicoCurvasRaw(servicoAltitude);
-const servicoCurvasOpenElevation = new ServicoCurvasOpenElevation(servicoOpenElevation);
+const servicoPerfil = new ServicoPerfil(servicoOpenElevation);
+const servicoCurvas = new ServicoCurvas(servicoOpenElevation);
 
 aplicacao.use(cors({ origin: true }));
 aplicacao.use(express.json({ limit: "4mb" }));
@@ -59,31 +55,33 @@ function normalizarCoordenadaEntrada(entrada: unknown): Coordenada {
 aplicacao.get(
   "/api/status",
   rotaAssincrona(async (_requisicao, resposta) => {
+    const statusElevacao = servicoOpenElevation.obterStatus();
     resposta.json({
       backendOnline: true,
       dataHora: new Date().toISOString(),
-      configuracao: {
-        fonteElevacao: obterFonteElevacao(),
-        metodoInterpolacao: obterMetodoInterpolacao(),
-        perfilIntervaloPadraoMetros: obterPerfilIntervaloPadraoMetros(),
-        perfilIntervaloMinimoMetros: obterPerfilIntervaloMinimoMetros(),
-        perfilLimiteAmostras: obterPerfilLimiteAmostras()
+      elevacao: {
+        fonte: statusElevacao.fonte,
+        configurada: statusElevacao.configurada,
+        tamanhoLote: statusElevacao.tamanhoLote,
+        timeoutMs: statusElevacao.timeoutMs,
+        cacheAtivo: statusElevacao.cacheAtivo
       },
-      altitude: servicoAltitude.obterStatus()
+      curvas: {
+        limitePontosApi: CURVAS_LIMITE_PONTOS_API,
+        resolucaoMinimaMetros: CURVAS_RESOLUCAO_MINIMA_METROS,
+        fatorDensificacao: CURVAS_FATOR_DENSIFICACAO
+      },
+      perfil: {
+        intervaloPadraoMetros: obterPerfilIntervaloPadraoMetros(),
+        intervaloMinimoMetros: obterPerfilIntervaloMinimoMetros(),
+        limiteAmostras: obterPerfilLimiteAmostras()
+      }
     });
   })
 );
 
 aplicacao.get(
   "/api/elevation",
-  rotaAssincrona(async (requisicao, resposta) => {
-    const resultado = await servicoAltitude.consultarPonto(lerCoordenadaDaQuery(requisicao));
-    resposta.json(resultado);
-  })
-);
-
-aplicacao.get(
-  "/api/elevation/open-elevation",
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoOpenElevation.consultarPonto(lerCoordenadaDaQuery(requisicao));
     resposta.json(resultado);
@@ -97,15 +95,11 @@ aplicacao.post(
     if (!Array.isArray(coordenadas)) {
       throw new ErroAplicacao("Envie uma lista no campo coordenadas.");
     }
-    if (coordenadas.length > 1000) {
-      throw new ErroAplicacao("A consulta em lote aceita até 1000 pontos por requisição.");
+    if (coordenadas.length > 5000) {
+      throw new ErroAplicacao("A consulta em lote aceita até 5000 pontos por requisição.");
     }
 
-    const resultados = await Promise.all(
-      coordenadas.map((coordenada) =>
-        servicoAltitude.consultarPonto(normalizarCoordenadaEntrada(coordenada))
-      )
-    );
+    const resultados = await servicoOpenElevation.consultarLote(coordenadas.map(normalizarCoordenadaEntrada));
     resposta.json({ resultados });
   })
 );
@@ -119,17 +113,9 @@ aplicacao.post(
 );
 
 aplicacao.post(
-  "/api/contours/raw",
+  "/api/contours",
   rotaAssincrona(async (requisicao, resposta) => {
-    const resultado = await servicoCurvasRaw.gerarCurvas(requisicao.body);
-    resposta.json(resultado);
-  })
-);
-
-aplicacao.post(
-  "/api/contours/open-elevation",
-  rotaAssincrona(async (requisicao, resposta) => {
-    const resultado = await servicoCurvasOpenElevation.gerarCurvas(requisicao.body);
+    const resultado = await servicoCurvas.gerarCurvas(requisicao.body);
     resposta.json(resultado);
   })
 );
@@ -153,11 +139,6 @@ aplicacao.use((erro: unknown, _requisicao: Request, resposta: Response, _proximo
     erro: "Erro interno na API de altimetria.",
     detalhes: mensagem
   });
-});
-
-await servicoAltitude.carregarArquivo().catch((erro) => {
-  const mensagem = erro instanceof Error ? erro.message : String(erro);
-  console.error(`API iniciada, mas o arquivo RAW ainda não foi carregado: ${mensagem}`);
 });
 
 aplicacao.listen(porta, "127.0.0.1", () => {

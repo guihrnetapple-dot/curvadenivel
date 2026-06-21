@@ -1,4 +1,4 @@
-import type { FonteElevacao, GeometriaProjeto, PerfilElevacao, ResultadoAltitude, StatusApi } from "../tipos/altimetria";
+import type { GeometriaProjeto, PerfilElevacao, ResultadoAltitude, StatusApi } from "../tipos/altimetria";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -17,46 +17,20 @@ async function lerRespostaJson<T>(resposta: Response): Promise<T> {
 
 export async function consultarStatusApi(): Promise<StatusApi> {
   const resposta = await fetch(`${API_BASE}/api/status`);
-  const dados = await lerRespostaJson<{
-    backendOnline: boolean;
-    configuracao?: {
-      fonteElevacao: string;
-      metodoInterpolacao: string;
-      perfilIntervaloPadraoMetros: number;
-      perfilIntervaloMinimoMetros: number;
-      perfilLimiteAmostras: number;
-    };
-    altitude: {
-      arquivoCarregado: boolean;
-      caminhoArquivo: string;
-      tamanhoEsperado: number;
-      tamanhoCarregado: number;
-      erro: string | null;
-    };
-  }>(resposta);
+  const dados = await lerRespostaJson<Omit<StatusApi, "carregando">>(resposta);
 
   return {
     carregando: false,
-    backendOnline: dados.backendOnline,
-    arquivoCarregado: dados.altitude.arquivoCarregado,
-    caminhoArquivo: dados.altitude.caminhoArquivo,
-    tamanhoEsperado: dados.altitude.tamanhoEsperado,
-    tamanhoCarregado: dados.altitude.tamanhoCarregado,
-    erro: dados.altitude.erro
+    ...dados
   };
 }
 
-export async function consultarAltitude(
-  latitude: number,
-  longitude: number,
-  fonte: FonteElevacao = "raw"
-): Promise<ResultadoAltitude> {
+export async function consultarAltitude(latitude: number, longitude: number): Promise<ResultadoAltitude> {
   const parametros = new URLSearchParams({
     lat: String(latitude),
     lng: String(longitude)
   });
-  const rota = fonte === "open_elevation" ? "/api/elevation/open-elevation" : "/api/elevation";
-  const resposta = await fetch(`${API_BASE}${rota}?${parametros.toString()}`);
+  const resposta = await fetch(`${API_BASE}/api/elevation?${parametros.toString()}`);
   return lerRespostaJson<ResultadoAltitude>(resposta);
 }
 

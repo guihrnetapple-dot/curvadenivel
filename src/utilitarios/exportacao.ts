@@ -18,7 +18,7 @@ export function exportarPerfilCsv(perfil: PerfilElevacao | null): void {
     throw new Error("Calcule um perfil de elevação antes de exportar CSV.");
   }
 
-  const cabecalho = "distancia_m,latitude,longitude,altitude_m,status,valor_bruto";
+  const cabecalho = "distancia_m,latitude,longitude,altitude_m,status,fonte,metodo";
   const linhas = perfil.pontos.map((ponto) =>
     [
       ponto.distanciaMetros.toFixed(2),
@@ -26,7 +26,8 @@ export function exportarPerfilCsv(perfil: PerfilElevacao | null): void {
       ponto.longitude.toFixed(6),
       ponto.altitude ?? "",
       ponto.status,
-      ponto.valorBruto
+      ponto.fonte,
+      ponto.metodo
     ].join(",")
   );
 
@@ -63,11 +64,7 @@ export function exportarCurvasNivelGeoJson(curvasNivel: CurvasNivelGeoJson | nul
     throw new Error("Gere curvas de nível antes de exportar GeoJSON.");
   }
 
-  baixarArquivo(
-    "curvas-nivel-raw.geojson",
-    JSON.stringify(curvasNivel, null, 2),
-    "application/geo+json;charset=utf-8"
-  );
+  baixarArquivo("curvas-nivel.geojson", JSON.stringify(curvasNivel, null, 2), "application/geo+json;charset=utf-8");
 }
 
 function coordenadasParaKml(coordenadas: number[][]): string {

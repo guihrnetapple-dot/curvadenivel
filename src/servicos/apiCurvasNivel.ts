@@ -1,4 +1,4 @@
-import type { BboxCurvasNivel, CurvasNivelGeoJson, FonteElevacao } from "../tipos/altimetria";
+import type { BboxCurvasNivel, CurvasNivelGeoJson } from "../tipos/altimetria";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -15,22 +15,12 @@ async function lerRespostaJson<T>(resposta: Response): Promise<T> {
   return corpo as T;
 }
 
-export async function gerarCurvasRaw(
-  bbox: BboxCurvasNivel,
-  intervaloMetros = 20,
-  resolucaoMetros = 250
-): Promise<CurvasNivelGeoJson> {
-  return gerarCurvasNivel("raw", bbox, intervaloMetros, resolucaoMetros);
-}
-
 export async function gerarCurvasNivel(
-  fonte: FonteElevacao,
   bbox: BboxCurvasNivel,
-  intervaloMetros = 20,
-  resolucaoMetros = 250
+  intervaloMetros = 5,
+  resolucaoMetros = 100
 ): Promise<CurvasNivelGeoJson> {
-  const rota = fonte === "open_elevation" ? "open-elevation" : "raw";
-  const resposta = await fetch(`${API_BASE}/api/contours/${rota}`, {
+  const resposta = await fetch(`${API_BASE}/api/contours`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

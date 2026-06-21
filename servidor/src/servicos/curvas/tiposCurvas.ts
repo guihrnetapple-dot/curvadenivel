@@ -7,7 +7,7 @@ export interface BboxCurvas {
   maxLng: number;
 }
 
-export interface RequisicaoCurvasRaw {
+export interface RequisicaoCurvas {
   bbox: BboxCurvas;
   intervaloMetros?: number;
   resolucaoMetros?: number;
@@ -22,6 +22,9 @@ export interface GradeCurvas {
   linhas: number;
   colunas: number;
   resolucaoMetros: number;
+  resolucaoSolicitadaMetros: number;
+  resolucaoAjustada: boolean;
+  pontosConsultados: number;
   nos: NoGradeCurvas[][];
   altitudeMinima: number | null;
   altitudeMaxima: number | null;
@@ -33,7 +36,9 @@ export type SegmentoCurva = [CoordenadaLinhaCurva, CoordenadaLinhaCurva];
 export interface PropriedadesCurva {
   elevacao: number;
   tipo: "mestra" | "normal";
-  fonte: "RAW interpolado" | "Open-Elevation";
+  fonte: "Open-Elevation";
+  comprimentoMetros: number;
+  fechada: boolean;
 }
 
 export interface FeatureCurva {
@@ -49,10 +54,20 @@ export interface FeatureCollectionCurvas {
   type: "FeatureCollection";
   features: FeatureCurva[];
   metadados: {
-    fonte: "data10k8b.raw interpolado" | "Open-Elevation API";
-    metodo: "interpolacao_bilinear_marching_squares" | "open_elevation_marching_squares";
+    fonte: "Open-Elevation API";
+    metodo: "open_elevation_api_marching_squares_suavizado";
     intervaloMetros: number;
-    resolucaoMetros: number;
+    resolucaoSolicitadaMetros: number;
+    resolucaoEfetivaMetros: number;
+    resolucaoAjustada: boolean;
+    pontosConsultados: number;
+    linhasGrade: number;
+    colunasGrade: number;
+    fatorDensificacao: number;
+    iteracoesSuavizacaoGrade: number;
+    iteracoesSuavizacaoLinhas: number;
+    quantidadeCurvas: number;
+    cacheAtivo: boolean;
     altitudeMinima: number | null;
     altitudeMaxima: number | null;
     avisoPrecisao: string;

@@ -14,7 +14,6 @@ import type {
   CamadasVisiveis,
   CurvasNivelGeoJson,
   ElementoMapa,
-  FonteElevacao,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -56,8 +55,7 @@ export function Aplicacao() {
   });
   const [, setStatusApi] = useState<StatusApi>({
     carregando: true,
-    backendOnline: false,
-    arquivoCarregado: false
+    backendOnline: false
   });
   const [inicializando, setInicializando] = useState(true);
   const [camadaBase, setCamadaBase] = useState<CamadaBase>("satelite");
@@ -76,9 +74,8 @@ export function Aplicacao() {
   const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
   const [selecionandoPontoAltitude, setSelecionandoPontoAltitude] = useState(false);
-  const [fonteElevacao, setFonteElevacao] = useState<FonteElevacao>("raw");
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(5);
-  const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(250);
+  const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(100);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
 
@@ -100,7 +97,6 @@ export function Aplicacao() {
       setStatusApi({
         carregando: false,
         backendOnline: false,
-        arquivoCarregado: false,
         erro: mensagem
       });
     }
@@ -128,7 +124,7 @@ export function Aplicacao() {
   const consultarCoordenada = useCallback(
     async (latitude: number, longitude: number): Promise<ResultadoAltitude | null> => {
       try {
-        const resultado = await consultarAltitude(latitude, longitude, fonteElevacao);
+        const resultado = await consultarAltitude(latitude, longitude);
         registrarResultado(resultado);
         setAlerta({
           tipo: resultado.status === "valido" ? "sucesso" : "aviso",
@@ -141,7 +137,7 @@ export function Aplicacao() {
         return null;
       }
     },
-    [fonteElevacao, registrarResultado]
+    [registrarResultado]
   );
 
   function iniciarAnalisePonto() {
@@ -256,12 +252,7 @@ export function Aplicacao() {
     setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
-      const resultado = await gerarCurvasNivel(
-        fonteElevacao,
-        boundsSelecionado,
-        intervaloCurvasMetros,
-        resolucaoCurvasMetros
-      );
+      const resultado = await gerarCurvasNivel(boundsSelecionado, intervaloCurvasMetros, resolucaoCurvasMetros);
       setCurvasNivel(resultado);
       setAlerta({
         tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
@@ -298,15 +289,13 @@ export function Aplicacao() {
 
       <BarraSuperior
         tema={tema}
-        fonteElevacao={fonteElevacao}
         aoAlternarTema={() => setTema((valor) => (valor === "claro" ? "escuro" : "claro"))}
         aoAbrirConfiguracoes={() =>
           setAlerta({
             tipo: "aviso",
-            mensagem: "Configurações técnicas preservadas: cálculo no backend e RAW carregado uma única vez."
+            mensagem: "Configurações técnicas preservadas: cálculo no backend com Open-Elevation."
           })
         }
-        aoAlterarFonteElevacao={setFonteElevacao}
       />
 
       <main className="area-trabalho">
@@ -318,7 +307,6 @@ export function Aplicacao() {
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
-            fonteElevacao={fonteElevacao}
             pontoDestacado={pontoDestacado}
             elementoSelecionadoId={elementoSelecionadoId}
             selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
@@ -345,7 +333,6 @@ export function Aplicacao() {
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
           selecionandoPontoAltitude={selecionandoPontoAltitude}
-          fonteElevacao={fonteElevacao}
           intervaloCurvasMetros={intervaloCurvasMetros}
           resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}

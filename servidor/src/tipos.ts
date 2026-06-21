@@ -5,23 +5,19 @@ export interface Coordenada {
   longitude: number;
 }
 
-export type MetodoInterpolacao = "celula" | "bilinear" | "bilinear_parcial";
-export type PrecisaoReal = "baixa" | "media" | "alta";
+export type FonteAltitude = "open_elevation";
+export type MetodoAltitude = "api";
+export type PrecisaoReal = "media";
 
 export interface ResultadoAltitude {
   latitude: number;
   longitude: number;
-  coluna: number;
-  linha: number;
-  indice: number;
-  valorBruto: number;
-  valorBrutoInterpolado?: number;
-  metodo?: MetodoInterpolacao;
-  resolucaoFonteMetrosAproximada?: number;
-  precisaoReal?: PrecisaoReal;
   avisoPrecisao?: string;
   altitude: number | null;
   status: StatusAltitude;
+  fonte: FonteAltitude;
+  metodo: MetodoAltitude;
+  precisaoReal: PrecisaoReal;
   mensagem: string;
   consultadoEm: string;
 }
@@ -91,4 +87,5 @@ export interface ResultadoPerfil {
 
 export interface ProvedorElevacao {
   consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude>;
+  consultarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]>;
 }

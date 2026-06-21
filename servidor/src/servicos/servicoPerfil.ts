@@ -1,18 +1,19 @@
+import {
+  obterPerfilIntervaloMinimoMetros,
+  obterPerfilIntervaloPadraoMetros,
+  obterPerfilLimiteAmostras
+} from "../configuracao";
 import type {
   Coordenada,
   CoordenadaComDistancia,
   EstatisticasPerfil,
   GeometriaPerfil,
   PontoPerfil,
+  ProvedorElevacao,
   RequisicaoPerfil,
   ResultadoPerfil
 } from "../tipos";
 import { ErroAplicacao } from "../utilitarios/erros";
-import {
-  obterPerfilIntervaloMinimoMetros,
-  obterPerfilIntervaloPadraoMetros,
-  obterPerfilLimiteAmostras
-} from "../configuracao";
 import {
   calcularAreaAproximadaPoligono,
   calcularComprimento,
@@ -22,7 +23,6 @@ import {
   fecharLinha,
   interpolarCoordenada
 } from "../utilitarios/geometria";
-import { ServicoAltitude } from "./servicoAltitude";
 
 interface CaminhoNormalizado {
   tipo: GeometriaPerfil["type"];
@@ -38,7 +38,7 @@ interface AmostragemPerfil {
 }
 
 export class ServicoPerfil {
-  constructor(private readonly servicoAltitude: ServicoAltitude) {}
+  constructor(private readonly provedorElevacao: ProvedorElevacao) {}
 
   async analisarPerfil(requisicao: RequisicaoPerfil): Promise<ResultadoPerfil> {
     if (!requisicao?.geometria) {
@@ -54,21 +54,12 @@ export class ServicoPerfil {
       ? Math.max(intervaloSolicitado, intervaloMinimo)
       : intervaloPadrao;
 
-    const amostragem = this.amostrarCaminho(
-      caminho.coordenadas,
-      comprimentoTotal,
-      intervaloSeguro
-    );
-
-    const pontos = await Promise.all(
-      amostragem.amostras.map(async (amostra) => {
-        const resultado = await this.servicoAltitude.consultarPonto(amostra);
-        return {
-          ...resultado,
-          distanciaMetros: amostra.distanciaMetros
-        };
-      })
-    );
+    const amostragem = this.amostrarCaminho(caminho.coordenadas, comprimentoTotal, intervaloSeguro);
+    const resultados = await this.provedorElevacao.consultarLote(amostragem.amostras);
+    const pontos = resultados.map((resultado, indice) => ({
+      ...resultado,
+      distanciaMetros: amostragem.amostras[indice].distanciaMetros
+    }));
 
     return {
       tipo: caminho.tipo,
@@ -148,10 +139,7 @@ export class ServicoPerfil {
 
     const limiteAmostras = obterPerfilLimiteAmostras();
     const quantidadeIdeal = Math.max(2, Math.ceil(comprimentoTotal / intervaloMetros) + 1);
-    const quantidade = Math.min(
-      limiteAmostras,
-      quantidadeIdeal
-    );
+    const quantidade = Math.min(limiteAmostras, quantidadeIdeal);
     const passo = comprimentoTotal / (quantidade - 1);
     const limiteAmostrasAtingido = quantidadeIdeal > limiteAmostras;
     const segmentos = coordenadas.slice(1).map((fim, indice) => {
@@ -227,16 +215,14 @@ export class ServicoPerfil {
     const altitudeMinima = Math.min(...altitudesValidas);
     const altitudeMaxima = Math.max(...altitudesValidas);
     const diferencaNivel = altitudeMaxima - altitudeMinima;
-    const altitudeMedia =
-      altitudesValidas.reduce((soma, altitude) => soma + altitude, 0) / altitudesValidas.length;
+    const altitudeMedia = altitudesValidas.reduce((soma, altitude) => soma + altitude, 0) / altitudesValidas.length;
 
     return {
       altitudeMinima,
       altitudeMaxima,
       altitudeMedia,
       diferencaNivel,
-      inclinacaoMediaPercentual:
-        comprimentoTotalMetros > 0 ? (diferencaNivel / comprimentoTotalMetros) * 100 : null,
+      inclinacaoMediaPercentual: comprimentoTotalMetros > 0 ? (diferencaNivel / comprimentoTotalMetros) * 100 : null,
       comprimentoTotalMetros,
       areaMetrosQuadrados,
       quantidadePontos: pontos.length,

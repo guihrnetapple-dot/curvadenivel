@@ -6,10 +6,5 @@
       "source": "/api/(.*)",
       "destination": "/api/index"
     }
-  ],
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "servidor/dados/data10k8b.raw"
-    }
-  }
+  ]
 }

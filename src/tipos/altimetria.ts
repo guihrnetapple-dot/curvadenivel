@@ -1,24 +1,19 @@
 export type TemaVisual = "claro" | "escuro";
 export type CamadaBase = "mapa" | "satelite" | "terreno";
 export type StatusAltitude = "valido" | "sem_dado";
-export type MetodoInterpolacao = "celula" | "bilinear" | "bilinear_parcial";
-export type FonteElevacao = "raw" | "open_elevation";
-export type PrecisaoReal = "baixa" | "media" | "alta";
+export type FonteAltitude = "open_elevation";
+export type MetodoAltitude = "api";
+export type PrecisaoReal = "media";
 
 export interface ResultadoAltitude {
   latitude: number;
   longitude: number;
-  coluna: number;
-  linha: number;
-  indice: number;
-  valorBruto: number;
-  valorBrutoInterpolado?: number;
-  metodo?: MetodoInterpolacao;
-  resolucaoFonteMetrosAproximada?: number;
   precisaoReal?: PrecisaoReal;
   avisoPrecisao?: string;
   altitude: number | null;
   status: StatusAltitude;
+  fonte: FonteAltitude;
+  metodo: MetodoAltitude;
   mensagem: string;
   consultadoEm: string;
 }
@@ -26,10 +21,18 @@ export interface ResultadoAltitude {
 export interface StatusApi {
   carregando: boolean;
   backendOnline: boolean;
-  arquivoCarregado: boolean;
-  caminhoArquivo?: string;
-  tamanhoCarregado?: number;
-  tamanhoEsperado?: number;
+  elevacao?: {
+    fonte: string;
+    configurada: boolean;
+    tamanhoLote: number;
+    timeoutMs: number;
+    cacheAtivo: boolean;
+  };
+  curvas?: {
+    limitePontosApi: number;
+    resolucaoMinimaMetros: number;
+    fatorDensificacao: number;
+  };
   erro?: string | null;
 }
 
@@ -102,16 +105,28 @@ export interface FeatureCurvaNivel {
   properties: {
     elevacao: number;
     tipo: "mestra" | "normal";
-    fonte: "RAW interpolado" | "Open-Elevation";
+    fonte: "Open-Elevation";
+    comprimentoMetros: number;
+    fechada: boolean;
   };
   geometry: GeometriaLinha;
 }
 
 export interface MetadadosCurvasNivel {
-  fonte: "data10k8b.raw interpolado" | "Open-Elevation API";
-  metodo: "interpolacao_bilinear_marching_squares" | "open_elevation_marching_squares";
+  fonte: "Open-Elevation API";
+  metodo: "open_elevation_api_marching_squares_suavizado";
   intervaloMetros: number;
-  resolucaoMetros: number;
+  resolucaoSolicitadaMetros: number;
+  resolucaoEfetivaMetros: number;
+  resolucaoAjustada: boolean;
+  pontosConsultados: number;
+  linhasGrade: number;
+  colunasGrade: number;
+  fatorDensificacao: number;
+  iteracoesSuavizacaoGrade: number;
+  iteracoesSuavizacaoLinhas: number;
+  quantidadeCurvas: number;
+  cacheAtivo: boolean;
   altitudeMinima: number | null;
   altitudeMaxima: number | null;
   avisoPrecisao: string;

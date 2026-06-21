@@ -1,12 +1,4 @@
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { PerfilElevacao, PontoPerfil } from "../tipos/altimetria";
 import { formatarMetros, formatarNumero } from "../utilitarios/formatacao";
@@ -17,13 +9,7 @@ interface PropriedadesGraficoPerfil {
   aoSelecionarPonto: (ponto: PontoPerfil) => void;
 }
 
-function TooltipPerfil({
-  active,
-  payload
-}: {
-  active?: boolean;
-  payload?: Array<{ payload: PontoPerfil }>;
-}) {
+function TooltipPerfil({ active, payload }: { active?: boolean; payload?: Array<{ payload: PontoPerfil }> }) {
   if (!active || !payload?.[0]) {
     return null;
   }
@@ -35,7 +21,7 @@ function TooltipPerfil({
       <span>Distância: {formatarNumero(ponto.distanciaMetros / 1000, 2)} km</span>
       <span>Lat: {formatarNumero(ponto.latitude, 5)}</span>
       <span>Lng: {formatarNumero(ponto.longitude, 5)}</span>
-      <span>Método: {ponto.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"}</span>
+      <span>Método: API Open-Elevation</span>
     </div>
   );
 }

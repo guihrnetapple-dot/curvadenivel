@@ -1,15 +1,40 @@
 import type { CoordenadaLinhaCurva, SegmentoCurva } from "./tiposCurvas";
+import { limitar } from "./validacaoGradeCurvas";
 
-function chave(coordenada: CoordenadaLinhaCurva): string {
-  return `${coordenada[0].toFixed(7)},${coordenada[1].toFixed(7)}`;
+const METROS_POR_GRAU = 111320;
+
+interface PontoProjetado {
+  x: number;
+  y: number;
 }
 
-function inverter<T>(itens: T[]): T[] {
-  return [...itens].reverse();
+function latitudeMedia(segmentos: SegmentoCurva[]): number {
+  const pontos = segmentos.flat();
+  return pontos.reduce((soma, ponto) => soma + ponto[1], 0) / Math.max(1, pontos.length);
 }
 
-export function unirSegmentos(segmentos: SegmentoCurva[]): CoordenadaLinhaCurva[][] {
-  const pendentes = segmentos.map((segmento) => [segmento[0], segmento[1]]);
+function projetar(ponto: CoordenadaLinhaCurva, latitudeReferencia: number): PontoProjetado {
+  const fatorLng = Math.cos((latitudeReferencia * Math.PI) / 180);
+  return {
+    x: ponto[0] * METROS_POR_GRAU * fatorLng,
+    y: ponto[1] * METROS_POR_GRAU
+  };
+}
+
+function distanciaMetros(a: CoordenadaLinhaCurva, b: CoordenadaLinhaCurva, latitudeReferencia: number): number {
+  const pa = projetar(a, latitudeReferencia);
+  const pb = projetar(b, latitudeReferencia);
+  return Math.hypot(pa.x - pb.x, pa.y - pb.y);
+}
+
+function pontosIguais(a: CoordenadaLinhaCurva, b: CoordenadaLinhaCurva, latitudeReferencia: number, tolerancia: number): boolean {
+  return distanciaMetros(a, b, latitudeReferencia) <= tolerancia;
+}
+
+export function unirSegmentos(segmentos: SegmentoCurva[], resolucaoEfetivaMetros: number): CoordenadaLinhaCurva[][] {
+  const tolerancia = limitar(resolucaoEfetivaMetros * 0.01, 0.25, 2);
+  const latRef = latitudeMedia(segmentos);
+  const pendentes = segmentos.map((segmento) => [segmento[0], segmento[1]] as CoordenadaLinhaCurva[]);
   const linhas: CoordenadaLinhaCurva[][] = [];
 
   while (pendentes.length > 0) {
@@ -18,22 +43,22 @@ export function unirSegmentos(segmentos: SegmentoCurva[]): CoordenadaLinhaCurva[
 
     while (alterou) {
       alterou = false;
-      const inicio = chave(linha[0]);
-      const fim = chave(linha[linha.length - 1]);
 
       for (let indice = pendentes.length - 1; indice >= 0; indice -= 1) {
         const segmento = pendentes[indice];
-        const segmentoInicio = chave(segmento[0]);
-        const segmentoFim = chave(segmento[segmento.length - 1]);
+        const inicioLinha = linha[0];
+        const fimLinha = linha[linha.length - 1];
+        const inicioSegmento = segmento[0];
+        const fimSegmento = segmento[segmento.length - 1];
 
-        if (fim === segmentoInicio) {
+        if (pontosIguais(fimLinha, inicioSegmento, latRef, tolerancia)) {
           linha.push(...segmento.slice(1));
-        } else if (fim === segmentoFim) {
-          linha.push(...inverter(segmento).slice(1));
-        } else if (inicio === segmentoFim) {
+        } else if (pontosIguais(fimLinha, fimSegmento, latRef, tolerancia)) {
+          linha.push(...segmento.slice(0, -1).reverse());
+        } else if (pontosIguais(inicioLinha, fimSegmento, latRef, tolerancia)) {
           linha.unshift(...segmento.slice(0, -1));
-        } else if (inicio === segmentoInicio) {
-          linha.unshift(...inverter(segmento).slice(0, -1));
+        } else if (pontosIguais(inicioLinha, inicioSegmento, latRef, tolerancia)) {
+          linha.unshift(...segmento.slice(1).reverse());
         } else {
           continue;
         }
@@ -45,6 +70,11 @@ export function unirSegmentos(segmentos: SegmentoCurva[]): CoordenadaLinhaCurva[
     }
 
     if (linha.length >= 2) {
+      const inicio = linha[0];
+      const fim = linha[linha.length - 1];
+      if (linha.length > 2 && pontosIguais(inicio, fim, latRef, tolerancia)) {
+        linha[linha.length - 1] = inicio;
+      }
       linhas.push(linha);
     }
   }

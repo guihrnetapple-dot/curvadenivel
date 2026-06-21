@@ -1,4 +1,4 @@
-import L from "leaflet";
+﻿import L from "leaflet";
 import "leaflet-draw";
 import { useEffect, useRef, useState } from "react";
 
@@ -13,7 +13,6 @@ import type {
   BboxCurvasNivel,
   CurvasNivelGeoJson,
   ElementoMapa,
-  FonteElevacao,
   GeometriaProjeto,
   PontoPerfil,
   ResultadoAltitude,
@@ -39,7 +38,6 @@ L.Icon.Default.mergeOptions({
 interface PropriedadesMapaAltimetria {
   tema: TemaVisual;
   camadaBase: CamadaBase;
-  fonteElevacao: FonteElevacao;
   aoAlterarCamadaBase: (camada: CamadaBase) => void;
   camadasVisiveis: CamadasVisiveis;
   camadasImportadas: CamadaImportada[];
@@ -61,7 +59,7 @@ interface PropriedadesMapaAltimetria {
 
 const opcoesCamadaBase: Array<{ valor: CamadaBase; rotulo: string }> = [
   { valor: "mapa", rotulo: "Mapa" },
-  { valor: "satelite", rotulo: "Satélite" },
+  { valor: "satelite", rotulo: "SatÃ©lite" },
   { valor: "terreno", rotulo: "Terreno" }
 ];
 
@@ -113,9 +111,9 @@ function configurarTextosDesenho() {
   };
 
   drawLocal.draw.toolbar.buttons.polyline = "Desenhar linha";
-  drawLocal.draw.toolbar.buttons.polygon = "Desenhar polígono";
-  drawLocal.draw.toolbar.buttons.rectangle = "Desenhar retângulo";
-  drawLocal.draw.toolbar.buttons.circle = "Desenhar círculo";
+  drawLocal.draw.toolbar.buttons.polygon = "Desenhar polÃ­gono";
+  drawLocal.draw.toolbar.buttons.rectangle = "Desenhar retÃ¢ngulo";
+  drawLocal.draw.toolbar.buttons.circle = "Desenhar cÃ­rculo";
   drawLocal.draw.toolbar.buttons.marker = "Adicionar marcador";
 }
 
@@ -223,9 +221,9 @@ function traduzirTipo(tipo: string): string {
   const nomes: Record<string, string> = {
     marker: "Marcador",
     polyline: "Linha",
-    polygon: "Polígono",
-    rectangle: "Retângulo",
-    circle: "Círculo"
+    polygon: "PolÃ­gono",
+    rectangle: "RetÃ¢ngulo",
+    circle: "CÃ­rculo"
   };
   return nomes[tipo] ?? "Elemento";
 }
@@ -300,7 +298,6 @@ function alvoInterativo(evento: KeyboardEvent): boolean {
 export function MapaAltimetria({
   tema,
   camadaBase,
-  fonteElevacao,
   aoAlterarCamadaBase,
   camadasVisiveis,
   camadasImportadas,
@@ -332,7 +329,6 @@ export function MapaAltimetria({
   const elementoSelecionadoIdRef = useRef(elementoSelecionadoId);
   const selecaoAreaCurvasAtivaRef = useRef(selecaoAreaCurvasAtiva);
   const selecaoPontoAltitudeAtivaRef = useRef(selecaoPontoAltitudeAtiva);
-  const fonteElevacaoRef = useRef(fonteElevacao);
   const cacheAltitudeCursorRef = useRef(new Map<string, AltitudeCacheCursor>());
   const temporizadorCursorRef = useRef<number | null>(null);
   const chaveCursorAtivaRef = useRef<string | null>(null);
@@ -374,11 +370,6 @@ export function MapaAltimetria({
     aoPontoAltitudeSelecionado,
     aoCancelarSelecaoPontoAltitude
   ]);
-
-  useEffect(() => {
-    fonteElevacaoRef.current = fonteElevacao;
-    cacheAltitudeCursorRef.current.clear();
-  }, [fonteElevacao]);
 
   useEffect(() => {
     selecaoAreaCurvasAtivaRef.current = selecaoAreaCurvasAtiva;
@@ -577,7 +568,7 @@ export function MapaAltimetria({
       chaveCursorAtivaRef.current = chaveCursor;
       temporizadorCursorRef.current = window.setTimeout(async () => {
         try {
-          const resultado = await consultarAltitude(latitude, longitude, fonteElevacaoRef.current);
+          const resultado = await consultarAltitude(latitude, longitude);
           const altitudeNormalizada = normalizarAltitudeCursor(resultado);
           cacheAltitudeCursorRef.current.set(chaveCursor, altitudeNormalizada);
 
@@ -826,17 +817,41 @@ export function MapaAltimetria({
       style: (feature) => {
         const tipo = feature?.properties?.tipo;
         return tipo === "mestra"
-          ? { color: "#ffdd57", weight: 4, opacity: 1, interactive: true, className: "curva-nivel-mestra" }
-          : { color: "#00e5ff", weight: 2.4, opacity: 0.92, interactive: true, className: "curva-nivel-normal" };
+          ? {
+              color: "#5f3d22",
+              weight: 2.4,
+              opacity: 0.95,
+              lineCap: "round",
+              lineJoin: "round",
+              smoothFactor: 0.2,
+              interactive: true,
+              className: "curva-nivel-mestra"
+            }
+          : {
+              color: "#9a7448",
+              weight: 1.4,
+              opacity: 0.78,
+              lineCap: "round",
+              lineJoin: "round",
+              smoothFactor: 0.2,
+              interactive: true,
+              className: "curva-nivel-normal"
+            };
       },
       onEachFeature: (feature, camada) => {
         const elevacao = Number(feature.properties?.elevacao);
-        const fonte = String(feature.properties?.fonte ?? "Fonte selecionada");
+        const tipo = String(feature.properties?.tipo ?? "-");
+        const fonte = String(feature.properties?.fonte ?? "Open-Elevation");
+        const comprimento = Number(feature.properties?.comprimentoMetros);
+        const resolucao = curvasNivel.metadados.resolucaoEfetivaMetros;
         camada.bindPopup(`
           <div class="popup-tecnico">
             <strong>Curva de nível: ${formatarMetros(elevacao, 0)}</strong>
             <dl>
+              <dt>Tipo</dt><dd>${tipo === "mestra" ? "Mestra" : "Normal"}</dd>
+              <dt>Comprimento</dt><dd>${formatarMetros(comprimento, 0)}</dd>
               <dt>Fonte</dt><dd>${fonte}</dd>
+              <dt>Resolução efetiva</dt><dd>${formatarMetros(resolucao, 0)}</dd>
             </dl>
           </div>
         `);
@@ -904,11 +919,12 @@ export function MapaAltimetria({
         )}
       </div>
       <div className="sobreposicao-mapa cursor-mapa barra-informacoes-mapa">
-        <span>Data das imagens: não disponível</span>
-        <span>lat {formatarNumero(informacoesCursor.latitude, 6)}°</span>
-        <span>lon {formatarNumero(informacoesCursor.longitude, 6)}°</span>
-        <span>altitude do ponto de visão {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
+        <span>Data das imagens: nÃ£o disponÃ­vel</span>
+        <span>lat {formatarNumero(informacoesCursor.latitude, 6)}Â°</span>
+        <span>lon {formatarNumero(informacoesCursor.longitude, 6)}Â°</span>
+        <span>altitude do ponto de visÃ£o {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
       </div>
     </section>
   );
 }
+
