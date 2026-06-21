@@ -267,8 +267,6 @@ export function Aplicacao() {
 
       <BarraSuperior
         tema={tema}
-        aoImportarArquivo={() => inputArquivoRef.current?.click()}
-        aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
         aoAlternarTema={() => setTema((valor) => (valor === "claro" ? "escuro" : "claro"))}
         aoAbrirConfiguracoes={() =>
           setAlerta({

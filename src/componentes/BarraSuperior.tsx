@@ -1,19 +1,15 @@
-import { Download, Moon, Settings, Sun, Upload } from "lucide-react";
+import { Moon, Settings, Sun } from "lucide-react";
 
 import type { TemaVisual } from "../tipos/altimetria";
 
 interface PropriedadesBarraSuperior {
   tema: TemaVisual;
-  aoImportarArquivo: () => void;
-  aoExportarRelatorio: () => void;
   aoAlternarTema: () => void;
   aoAbrirConfiguracoes: () => void;
 }
 
 export function BarraSuperior({
   tema,
-  aoImportarArquivo,
-  aoExportarRelatorio,
   aoAlternarTema,
   aoAbrirConfiguracoes
 }: PropriedadesBarraSuperior) {
@@ -28,14 +24,6 @@ export function BarraSuperior({
       </div>
 
       <div className="acoes-topo">
-        <button className="botao-icone" type="button" onClick={aoImportarArquivo} title="Importar arquivo">
-          <Upload size={18} aria-hidden="true" />
-          <span>Importar</span>
-        </button>
-        <button className="botao-icone" type="button" onClick={aoExportarRelatorio} title="Exportar relatório">
-          <Download size={18} aria-hidden="true" />
-          <span>Relatório</span>
-        </button>
         <button className="botao-quadrado" type="button" onClick={aoAlternarTema} title="Alternar tema">
           {tema === "claro" ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}
         </button>
