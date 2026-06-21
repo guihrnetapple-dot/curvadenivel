@@ -306,12 +306,14 @@ export function MapaAltimetria({
 
     configurarTextosDesenho();
     const mapa = L.map(containerRef.current, {
+      attributionControl: false,
       maxZoom: ZOOM_MAXIMO_MAPA,
       zoomControl: false,
       preferCanvas: true
     }).setView([-16.72, -43.86], 5);
 
     mapaRef.current = mapa;
+    L.control.attribution({ position: "topright", prefix: false }).addTo(mapa);
     camadaBaseRef.current = criarCamadaBase(camadaBase).addTo(mapa);
     desenhosRef.current = L.featureGroup().addTo(mapa);
     importadosRef.current = L.layerGroup().addTo(mapa);

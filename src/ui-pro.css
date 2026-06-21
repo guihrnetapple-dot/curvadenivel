@@ -284,6 +284,18 @@ select {
   color: var(--verde);
 }
 
+.leaflet-top.leaflet-right .leaflet-control-attribution {
+  margin-top: 56px;
+  margin-right: 12px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 23, 21, 0.72);
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.leaflet-top.leaflet-right .leaflet-control-attribution a {
+  color: rgba(255, 255, 255, 0.74);
+}
+
 .painel-baixo {
   min-height: 0;
   padding: 12px 14px;
