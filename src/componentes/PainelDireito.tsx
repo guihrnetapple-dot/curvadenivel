@@ -282,7 +282,7 @@ export function PainelDireito({
         <div className="grupo-controles">
           <span className="rotulo-bloco">Intervalo</span>
           <div className="controle-segmentado">
-            {[20, 40, 60, 100].map((intervalo) => (
+            {[5, 10, 20, 40].map((intervalo) => (
               <button
                 key={intervalo}
                 type="button"
