@@ -832,10 +832,12 @@ input[type="checkbox"] {
 
 .alerta-sistema {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 900;
-  max-width: min(420px, calc(100vw - 36px));
+  width: fit-content;
+  max-width: min(520px, calc(100vw - 40px));
   padding: 13px 15px;
   border: 1px solid var(--borda);
   border-radius: 8px;
@@ -843,6 +845,7 @@ input[type="checkbox"] {
   box-shadow: var(--sombra);
   color: var(--texto);
   font-weight: 750;
+  text-align: center;
 }
 
 .alerta-sistema.sucesso {
