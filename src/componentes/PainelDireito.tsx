@@ -16,10 +16,9 @@ import { ReactNode, useState } from "react";
 import type {
   CamadaImportada,
   CurvasNivelGeoJson,
-  ElementoMapa,
-  PerfilElevacao
+  ElementoMapa
 } from "../tipos/altimetria";
-import { formatarArea, formatarMetros, formatarNumero } from "../utilitarios/formatacao";
+import { formatarMetros, formatarNumero } from "../utilitarios/formatacao";
 
 interface PropriedadesSecao {
   titulo: string;
@@ -47,8 +46,6 @@ function SecaoPainel({ titulo, icone, abertaInicialmente = false, children }: Pr
 interface PropriedadesPainelDireito {
   elementos: ElementoMapa[];
   elementoSelecionadoId: string | null;
-  perfil: PerfilElevacao | null;
-  carregandoPerfil: boolean;
   curvasNivel: CurvasNivelGeoJson | null;
   visibilidadeCamadaCurvasNivel: boolean;
   carregandoCurvas: boolean;
@@ -62,8 +59,6 @@ interface PropriedadesPainelDireito {
   aoPesquisarLocalizacao: () => void;
   aoAlternarRotulosMapa: () => void;
   aoSelecionarElemento: (id: string) => void;
-  aoAnalisarPerfil: () => void;
-  aoLimparAnalise: () => void;
   aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
   aoGerarCurvas: () => void;
   aoLimparCurvas: () => void;
@@ -101,14 +96,6 @@ function obterIconeElemento(tipo: string): ReactNode {
   return <Layers size={15} aria-hidden="true" />;
 }
 
-function elementoPossuiArea(elemento: ElementoMapa | null): boolean {
-  return elemento?.geometria.type === "Polygon" || elemento?.geometria.type === "Circle";
-}
-
-function elementoPossuiPerfilLinear(elemento: ElementoMapa | null): boolean {
-  return elemento?.geometria.type === "LineString";
-}
-
 function descreverGeometria(elemento: ElementoMapa | null): string {
   if (!elemento) {
     return "";
@@ -129,8 +116,6 @@ function descreverGeometria(elemento: ElementoMapa | null): string {
 export function PainelDireito({
   elementos,
   elementoSelecionadoId,
-  perfil,
-  carregandoPerfil,
   curvasNivel,
   visibilidadeCamadaCurvasNivel,
   carregandoCurvas,
@@ -144,8 +129,6 @@ export function PainelDireito({
   aoPesquisarLocalizacao,
   aoAlternarRotulosMapa,
   aoSelecionarElemento,
-  aoAnalisarPerfil,
-  aoLimparAnalise,
   aoAlterarIntervaloCurvas,
   aoGerarCurvas,
   aoLimparCurvas,
@@ -164,8 +147,6 @@ export function PainelDireito({
 }: PropriedadesPainelDireito) {
   const [menuExportacaoCurvasAberto, setMenuExportacaoCurvasAberto] = useState(false);
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
-  const podeAnalisarPerfilLinear = elementoPossuiPerfilLinear(elementoSelecionado);
-  const podeAnalisarArea = elementoPossuiArea(elementoSelecionado);
 
   return (
     <aside className="painel-direito">
@@ -268,25 +249,6 @@ export function PainelDireito({
               </small>
             </div>
 
-            <div className="acoes-linha">
-              <button
-                type="button"
-                onClick={aoAnalisarPerfil}
-                disabled={!podeAnalisarPerfilLinear || carregandoPerfil}
-                title={!podeAnalisarPerfilLinear ? "Use uma linha para analisar perfil linear." : undefined}
-              >
-                {carregandoPerfil ? "Analisando" : "Analisar perfil"}
-              </button>
-              <button
-                type="button"
-                onClick={aoAnalisarPerfil}
-                disabled={!podeAnalisarArea || carregandoPerfil}
-                title={!podeAnalisarArea ? "Use polígono, retângulo ou círculo para analisar área." : undefined}
-              >
-                {carregandoPerfil ? "Analisando" : "Analisar área"}
-              </button>
-            </div>
-
             <div className="grade-exportacao">
               <button type="button" onClick={aoExportarElementoGeoJson}>
                 GeoJSON
@@ -321,72 +283,6 @@ export function PainelDireito({
               </label>
             ))}
           </div>
-        )}
-      </SecaoPainel>
-
-      <SecaoPainel titulo="Perfil de elevação" icone={<LineChart size={17} />}>
-        {elementos.length === 0 ? (
-          <div className="estado-vazio">Nenhum desenho disponível.</div>
-        ) : (
-          <select
-            className="seletor-elemento"
-            value={elementoSelecionadoId ?? ""}
-            onChange={(evento) => aoSelecionarElemento(evento.target.value)}
-          >
-            <option value="">Selecionar elemento</option>
-            {elementos.map((elemento) => (
-              <option key={elemento.id} value={elemento.id}>
-                {elemento.nome}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <div className="acoes-linha">
-          <button type="button" onClick={aoAnalisarPerfil} disabled={!elementoSelecionado || carregandoPerfil}>
-            {carregandoPerfil ? "Analisando" : "Analisar perfil"}
-          </button>
-          <button type="button" className="botao-secundario" onClick={aoLimparAnalise}>
-            Limpar
-          </button>
-        </div>
-
-        <div className="grade-metricas">
-          <div>
-            <span>Mínima</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMinima, 2)}</strong>
-          </div>
-          <div>
-            <span>Máxima</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMaxima, 2)}</strong>
-          </div>
-          <div>
-            <span>Média</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMedia, 2)}</strong>
-          </div>
-          <div>
-            <span>Desnível</span>
-            <strong>{formatarMetros(perfil?.estatisticas.diferencaNivel, 2)}</strong>
-          </div>
-          <div>
-            <span>Inclinação</span>
-            <strong>{formatarNumero(perfil?.estatisticas.inclinacaoMediaPercentual, 2)}%</strong>
-          </div>
-          <div>
-            <span>Comprimento</span>
-            <strong>{formatarMetros(perfil?.estatisticas.comprimentoTotalMetros, 0)}</strong>
-          </div>
-          <div>
-            <span>Área</span>
-            <strong>{formatarArea(perfil?.estatisticas.areaMetrosQuadrados)}</strong>
-          </div>
-          <div>
-            <span>Sem dado</span>
-            <strong>{formatarNumero(perfil?.estatisticas.pontosSemDado, 0)}</strong>
-          </div>
-        </div>
-        {perfil?.estatisticas.avisoAmostragem && (
-          <div className="estado-vazio">{perfil.estatisticas.avisoAmostragem}</div>
         )}
       </SecaoPainel>
 

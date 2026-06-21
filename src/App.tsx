@@ -423,8 +423,6 @@ export function Aplicacao() {
         <PainelDireito
           elementos={elementos}
           elementoSelecionadoId={elementoSelecionadoId}
-          perfil={perfil}
-          carregandoPerfil={carregandoPerfil}
           curvasNivel={curvasNivel}
           visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
           carregandoCurvas={carregandoCurvas}
@@ -438,11 +436,6 @@ export function Aplicacao() {
           aoPesquisarLocalizacao={buscarLocalizacao}
           aoAlternarRotulosMapa={() => setRotulosMapaAtivos((valor) => !valor)}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
-          aoAnalisarPerfil={analisarPerfil}
-          aoLimparAnalise={() => {
-            setPerfil(null);
-            setPontoDestacado(null);
-          }}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
           aoGerarCurvas={iniciarSelecaoAreaCurvas}
           aoLimparCurvas={() => {
