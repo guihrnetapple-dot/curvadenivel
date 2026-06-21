@@ -299,10 +299,6 @@ export function PainelDireito({
       </SecaoPainel>
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
-        <div className="aviso-curvas">
-          Curvas geradas a partir de amostras consultadas na Open-Elevation e suavizadas matematicamente. A suavização melhora a representação visual, mas não aumenta a precisão da fonte.
-        </div>
-
         <div className="grupo-controles">
           <span className="rotulo-bloco">Intervalo</span>
           <select

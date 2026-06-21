@@ -149,10 +149,6 @@ export function Aplicacao() {
   function iniciarAnalisePonto() {
     setSelecionandoPontoAltitude(true);
     setSelecionandoAreaCurvas(false);
-    setAlerta({
-      tipo: "aviso",
-      mensagem: "Clique no mapa para analisar a altitude daquele ponto."
-    });
   }
 
   async function analisarPontoNoMapa(latitude: number, longitude: number) {
