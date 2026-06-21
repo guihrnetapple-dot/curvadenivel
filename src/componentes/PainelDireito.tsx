@@ -229,16 +229,6 @@ export function PainelDireito({
         <div className="resultado-atual">
           <span>Última altitude</span>
           <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 2) : "-"}</strong>
-          {resultadoAtual && (
-            <small>
-              Método: API · Fonte: Open-Elevation
-            </small>
-          )}
-          <small>
-            {resultadoAtual?.avisoPrecisao ??
-              "Estimativa suavizada; a precisão real depende da resolução da fonte DEM."}
-          </small>
-          <small>{resultadoAtual?.mensagem ?? "Aguardando consulta."}</small>
         </div>
       </SecaoPainel>
 
