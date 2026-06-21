@@ -9,7 +9,7 @@ export function BarraSuperior() {
         </div>
         <div>
           <strong>Curva de Nível</strong>
-          <span>Topografia, irrigação e engenharia rural</span>
+          <span>Topografia, irrigação e Engenharia.</span>
         </div>
       </div>
     </header>
