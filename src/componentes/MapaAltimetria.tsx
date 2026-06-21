@@ -59,7 +59,7 @@ interface PropriedadesMapaAltimetria {
 
 const opcoesCamadaBase: Array<{ valor: CamadaBase; rotulo: string }> = [
   { valor: "mapa", rotulo: "Mapa" },
-  { valor: "satelite", rotulo: "SatÃ©lite" },
+  { valor: "satelite", rotulo: "Satélite" },
   { valor: "terreno", rotulo: "Terreno" }
 ];
 
@@ -111,9 +111,9 @@ function configurarTextosDesenho() {
   };
 
   drawLocal.draw.toolbar.buttons.polyline = "Desenhar linha";
-  drawLocal.draw.toolbar.buttons.polygon = "Desenhar polÃ­gono";
-  drawLocal.draw.toolbar.buttons.rectangle = "Desenhar retÃ¢ngulo";
-  drawLocal.draw.toolbar.buttons.circle = "Desenhar cÃ­rculo";
+  drawLocal.draw.toolbar.buttons.polygon = "Desenhar polígono";
+  drawLocal.draw.toolbar.buttons.rectangle = "Desenhar retângulo";
+  drawLocal.draw.toolbar.buttons.circle = "Desenhar círculo";
   drawLocal.draw.toolbar.buttons.marker = "Adicionar marcador";
 }
 
@@ -221,9 +221,9 @@ function traduzirTipo(tipo: string): string {
   const nomes: Record<string, string> = {
     marker: "Marcador",
     polyline: "Linha",
-    polygon: "PolÃ­gono",
-    rectangle: "RetÃ¢ngulo",
-    circle: "CÃ­rculo"
+    polygon: "Polígono",
+    rectangle: "Retângulo",
+    circle: "Círculo"
   };
   return nomes[tipo] ?? "Elemento";
 }
@@ -919,10 +919,10 @@ export function MapaAltimetria({
         )}
       </div>
       <div className="sobreposicao-mapa cursor-mapa barra-informacoes-mapa">
-        <span>Data das imagens: nÃ£o disponÃ­vel</span>
-        <span>lat {formatarNumero(informacoesCursor.latitude, 6)}Â°</span>
-        <span>lon {formatarNumero(informacoesCursor.longitude, 6)}Â°</span>
-        <span>altitude do ponto de visÃ£o {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
+        <span>Data das imagens: não disponível</span>
+        <span>lat {formatarNumero(informacoesCursor.latitude, 6)}°</span>
+        <span>lon {formatarNumero(informacoesCursor.longitude, 6)}°</span>
+        <span>altitude do ponto de visão {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
       </div>
     </section>
   );
