@@ -38,7 +38,7 @@ function extrairRetryAfterMs(resposta: Response): number | null {
   return Number.isFinite(data) ? Math.max(0, data - Date.now()) : null;
 }
 
-function criarResultado(coordenada: Coordenada, altitude: number | null): ResultadoAltitude {
+function criarResultadoOpenElevation(coordenada: Coordenada, altitude: number | null): ResultadoAltitude {
   return {
     latitude: coordenada.latitude,
     longitude: coordenada.longitude,
@@ -267,13 +267,13 @@ export class ServicoOpenElevation implements ProvedorElevacao {
 
       return corpo.results.map((resultado, indice) => {
         const altitude = Number(resultado.elevation);
-        return criarResultado(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
+        return criarResultadoOpenElevation(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
       });
     } catch (erro) {
       if (erro instanceof ErroAplicacao) {
         throw erro;
       }
-      throw new ErroAplicacao(`Não foi possível consultar a Open-Elevation: ${obterMensagemErro(erro)}`, 502);
+      throw new ErroAplicacao("Não foi possível consultar a Open-Elevation. Verifique sua conexão e tente novamente.", 502);
     } finally {
       clearTimeout(temporizador);
     }
