@@ -72,7 +72,8 @@ export function Aplicacao() {
   const [carregandoPerfil, setCarregandoPerfil] = useState(false);
   const [curvasNivel, setCurvasNivel] = useState<CurvasNivelGeoJson | null>(null);
   const [carregandoCurvas, setCarregandoCurvas] = useState(false);
-  const [boundsMapa, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
+  const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
+  const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(20);
   const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(250);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
@@ -222,21 +223,29 @@ export function Aplicacao() {
     }
   }
 
-  async function gerarCurvasDaAreaVisivel() {
-    if (!boundsMapa) {
-      setAlerta({ tipo: "aviso", mensagem: "Aguarde o mapa carregar para gerar curvas de nível." });
+  function iniciarSelecaoAreaCurvas() {
+    if (carregandoCurvas) {
       return;
     }
 
+    setSelecionandoAreaCurvas(true);
+    setAlerta({
+      tipo: "aviso",
+      mensagem: "Desenhe um retângulo no mapa para definir a área das curvas de nível."
+    });
+  }
+
+  async function gerarCurvasDaAreaSelecionada(boundsSelecionado: BboxCurvasNivel) {
+    setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
-      const resultado = await gerarCurvasRaw(boundsMapa, intervaloCurvasMetros, resolucaoCurvasMetros);
+      const resultado = await gerarCurvasRaw(boundsSelecionado, intervaloCurvasMetros, resolucaoCurvasMetros);
       setCurvasNivel(resultado);
       setAlerta({
         tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
         mensagem:
           resultado.features.length > 0
-            ? `${resultado.features.length} curva(s) de nível gerada(s) para a área visível.`
+            ? `${resultado.features.length} curva(s) de nível gerada(s) para a área selecionada.`
             : "Nenhuma curva de nível encontrada nessa área com os parâmetros atuais."
       });
     } catch (erro) {
@@ -286,11 +295,14 @@ export function Aplicacao() {
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
             pontoDestacado={pontoDestacado}
+            selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
             aoElementoCriado={adicionarElemento}
             aoElementoAtualizado={atualizarElemento}
             aoElementoRemovido={removerElemento}
             aoSelecionarElemento={setElementoSelecionadoId}
             aoBoundsAlterado={setBoundsMapa}
+            aoAreaCurvasSelecionada={gerarCurvasDaAreaSelecionada}
+            aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
           />
         </div>
 
@@ -303,6 +315,7 @@ export function Aplicacao() {
           carregandoPerfil={carregandoPerfil}
           curvasNivel={curvasNivel}
           carregandoCurvas={carregandoCurvas}
+          selecionandoAreaCurvas={selecionandoAreaCurvas}
           intervaloCurvasMetros={intervaloCurvasMetros}
           resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
@@ -315,8 +328,11 @@ export function Aplicacao() {
           }}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
           aoAlterarResolucaoCurvas={setResolucaoCurvasMetros}
-          aoGerarCurvas={gerarCurvasDaAreaVisivel}
-          aoLimparCurvas={() => setCurvasNivel(null)}
+          aoGerarCurvas={iniciarSelecaoAreaCurvas}
+          aoLimparCurvas={() => {
+            setCurvasNivel(null);
+            setSelecionandoAreaCurvas(false);
+          }}
           aoImportarArquivo={() => inputArquivoRef.current?.click()}
           aoAlternarCamadaImportada={alternarCamadaImportada}
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}

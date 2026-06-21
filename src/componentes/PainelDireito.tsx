@@ -55,6 +55,7 @@ interface PropriedadesPainelDireito {
   carregandoPerfil: boolean;
   curvasNivel: CurvasNivelGeoJson | null;
   carregandoCurvas: boolean;
+  selecionandoAreaCurvas: boolean;
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
@@ -104,6 +105,7 @@ export function PainelDireito({
   carregandoPerfil,
   curvasNivel,
   carregandoCurvas,
+  selecionandoAreaCurvas,
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
@@ -325,8 +327,8 @@ export function PainelDireito({
         </div>
 
         <div className="acoes-linha">
-          <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas}>
-            {carregandoCurvas ? "Gerando" : "Gerar da área visível"}
+          <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>
+            {carregandoCurvas ? "Gerando" : selecionandoAreaCurvas ? "Desenhe o retângulo" : "Gerar por retângulo"}
           </button>
           <button type="button" className="botao-secundario" onClick={aoLimparCurvas}>
             Limpar

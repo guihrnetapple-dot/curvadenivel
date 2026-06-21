@@ -43,11 +43,14 @@ interface PropriedadesMapaAltimetria {
   camadasImportadas: CamadaImportada[];
   curvasNivel: CurvasNivelGeoJson | null;
   pontoDestacado: PontoPerfil | null;
+  selecaoAreaCurvasAtiva: boolean;
   aoElementoCriado: (elemento: ElementoMapa) => void;
   aoElementoAtualizado: (elemento: ElementoMapa) => void;
   aoElementoRemovido: (id: string) => void;
   aoSelecionarElemento: (id: string) => void;
   aoBoundsAlterado: (bounds: BboxCurvasNivel) => void;
+  aoAreaCurvasSelecionada: (bounds: BboxCurvasNivel) => void;
+  aoCancelarSelecaoAreaCurvas: () => void;
 }
 
 const opcoesCamadaBase: Array<{ valor: CamadaBase; rotulo: string }> = [
@@ -255,11 +258,14 @@ export function MapaAltimetria({
   camadasImportadas,
   curvasNivel,
   pontoDestacado,
+  selecaoAreaCurvasAtiva,
   aoElementoCriado,
   aoElementoAtualizado,
   aoElementoRemovido,
   aoSelecionarElemento,
-  aoBoundsAlterado
+  aoBoundsAlterado,
+  aoAreaCurvasSelecionada,
+  aoCancelarSelecaoAreaCurvas
 }: PropriedadesMapaAltimetria) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapaRef = useRef<L.Map | null>(null);
@@ -269,6 +275,9 @@ export function MapaAltimetria({
   const curvasNivelRef = useRef<L.GeoJSON | null>(null);
   const gradeRef = useRef<L.LayerGroup | null>(null);
   const destaqueRef = useRef<L.CircleMarker | null>(null);
+  const areaCurvasRef = useRef<L.Rectangle | null>(null);
+  const desenhoAreaCurvasRef = useRef<L.Draw.Rectangle | null>(null);
+  const selecaoAreaCurvasAtivaRef = useRef(selecaoAreaCurvasAtiva);
   const cacheAltitudeCursorRef = useRef(new Map<string, AltitudeCacheCursor>());
   const temporizadorCursorRef = useRef<number | null>(null);
   const chaveCursorAtivaRef = useRef<string | null>(null);
@@ -277,7 +286,9 @@ export function MapaAltimetria({
     aoElementoAtualizado,
     aoElementoRemovido,
     aoSelecionarElemento,
-    aoBoundsAlterado
+    aoBoundsAlterado,
+    aoAreaCurvasSelecionada,
+    aoCancelarSelecaoAreaCurvas
   });
   const [informacoesCursor, setInformacoesCursor] = useState<InformacoesCursor>(informacoesCursorIniciais);
   const [seletorCamadaAberto, setSeletorCamadaAberto] = useState(false);
@@ -289,15 +300,23 @@ export function MapaAltimetria({
       aoElementoAtualizado,
       aoElementoRemovido,
       aoSelecionarElemento,
-      aoBoundsAlterado
+      aoBoundsAlterado,
+      aoAreaCurvasSelecionada,
+      aoCancelarSelecaoAreaCurvas
     };
   }, [
     aoElementoCriado,
     aoElementoAtualizado,
     aoElementoRemovido,
     aoSelecionarElemento,
-    aoBoundsAlterado
+    aoBoundsAlterado,
+    aoAreaCurvasSelecionada,
+    aoCancelarSelecaoAreaCurvas
   ]);
+
+  useEffect(() => {
+    selecaoAreaCurvasAtivaRef.current = selecaoAreaCurvasAtiva;
+  }, [selecaoAreaCurvasAtiva]);
 
   useEffect(() => {
     if (!containerRef.current || mapaRef.current) {
@@ -320,6 +339,15 @@ export function MapaAltimetria({
 
     L.control.zoom({ position: "bottomleft" }).addTo(mapa);
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(mapa);
+    desenhoAreaCurvasRef.current = new L.Draw.Rectangle(mapa, {
+      repeatMode: false,
+      shapeOptions: {
+        color: "#37e749",
+        fillColor: "#37e749",
+        fillOpacity: 0.12,
+        weight: 2
+      }
+    });
 
     const ControleDesenho = (L.Control as unknown as { Draw: new (opcoes: unknown) => L.Control }).Draw;
     const controleDesenho = new ControleDesenho({
@@ -344,6 +372,21 @@ export function MapaAltimetria({
 
     mapa.on((L as unknown as { Draw: { Event: { CREATED: string } } }).Draw.Event.CREATED, (evento: L.LeafletEvent) => {
       const eventoCriacao = evento as L.LeafletEvent & { layer: L.Layer; layerType: string };
+      if (selecaoAreaCurvasAtivaRef.current && eventoCriacao.layer instanceof L.Rectangle) {
+        if (areaCurvasRef.current) {
+          areaCurvasRef.current.removeFrom(mapa);
+        }
+
+        areaCurvasRef.current = L.rectangle(eventoCriacao.layer.getBounds(), {
+          color: "#37e749",
+          fillColor: "#37e749",
+          fillOpacity: 0.08,
+          weight: 2
+        }).addTo(mapa);
+        propsRef.current.aoAreaCurvasSelecionada(converterBounds(eventoCriacao.layer.getBounds()));
+        return;
+      }
+
       const id = gerarIdentificador("desenho");
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).idElemento = id;
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).tipoElemento =
@@ -437,14 +480,35 @@ export function MapaAltimetria({
     mapa.on("moveend zoomend", notificarBounds);
     notificarBounds();
 
+    mapa.on((L as unknown as { Draw: { Event: { DRAWSTOP: string } } }).Draw.Event.DRAWSTOP, (evento: L.LeafletEvent) => {
+      const eventoParada = evento as L.LeafletEvent & { layerType?: string };
+      if (selecaoAreaCurvasAtivaRef.current && eventoParada.layerType === "rectangle") {
+        propsRef.current.aoCancelarSelecaoAreaCurvas();
+      }
+    });
+
     return () => {
       if (temporizadorCursorRef.current) {
         window.clearTimeout(temporizadorCursorRef.current);
       }
       mapa.remove();
       mapaRef.current = null;
+      desenhoAreaCurvasRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const desenhoArea = desenhoAreaCurvasRef.current;
+    if (!desenhoArea) {
+      return;
+    }
+
+    if (selecaoAreaCurvasAtiva) {
+      desenhoArea.enable();
+    } else {
+      desenhoArea.disable();
+    }
+  }, [selecaoAreaCurvasAtiva]);
 
   useEffect(() => {
     const mapa = mapaRef.current;
