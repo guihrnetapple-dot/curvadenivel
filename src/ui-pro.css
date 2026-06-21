@@ -318,7 +318,8 @@ select {
 }
 
 .lista-checks,
-.lista-camadas-importadas {
+.lista-camadas-importadas,
+.lista-elementos-desenhados {
   gap: 7px;
 }
 
@@ -326,6 +327,17 @@ select {
 .lista-camadas-importadas label {
   gap: 8px;
   font-size: 0.82rem;
+}
+
+.item-camada-desenho {
+  border-color: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.item-camada-desenho:hover,
+.item-camada-desenho.ativo {
+  border-color: rgba(55, 231, 73, 0.55);
+  background: rgba(55, 231, 73, 0.09);
 }
 
 input[type="checkbox"] {

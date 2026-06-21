@@ -18,9 +18,7 @@ import {
 import { FormEvent, ReactNode, useState } from "react";
 
 import type {
-  CamadaBase,
   CamadaImportada,
-  CamadasVisiveis,
   CurvasNivelGeoJson,
   ElementoMapa,
   PerfilElevacao,
@@ -53,8 +51,6 @@ function SecaoPainel({ titulo, icone, abertaInicialmente = false, children }: Pr
 }
 
 interface PropriedadesPainelDireito {
-  camadaBase: CamadaBase;
-  camadasVisiveis: CamadasVisiveis;
   resultadoAtual: ResultadoAltitude | null;
   historico: ResultadoAltitude[];
   elementos: ElementoMapa[];
@@ -66,8 +62,6 @@ interface PropriedadesPainelDireito {
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
-  aoAlterarCamadaBase: (camada: CamadaBase) => void;
-  aoAlternarCamada: (camada: keyof CamadasVisiveis) => void;
   aoConsultarManual: (latitude: number, longitude: number) => void;
   aoSelecionarElemento: (id: string) => void;
   aoAnalisarPerfil: () => void;
@@ -98,9 +92,27 @@ const ferramentasDesenho = [
   { nome: "Mover", icone: <Move size={15} /> }
 ];
 
+function obterIconeElemento(tipo: string): ReactNode {
+  const tipoNormalizado = tipo.toLowerCase();
+  if (tipoNormalizado.includes("círculo")) {
+    return <Circle size={15} aria-hidden="true" />;
+  }
+  if (tipoNormalizado.includes("retângulo")) {
+    return <Square size={15} aria-hidden="true" />;
+  }
+  if (tipoNormalizado.includes("polígono")) {
+    return <Pentagon size={15} aria-hidden="true" />;
+  }
+  if (tipoNormalizado.includes("linha")) {
+    return <Ruler size={15} aria-hidden="true" />;
+  }
+  if (tipoNormalizado.includes("marcador")) {
+    return <MapPin size={15} aria-hidden="true" />;
+  }
+  return <Layers size={15} aria-hidden="true" />;
+}
+
 export function PainelDireito({
-  camadaBase,
-  camadasVisiveis,
   resultadoAtual,
   historico,
   elementos,
@@ -112,8 +124,6 @@ export function PainelDireito({
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
-  aoAlterarCamadaBase,
-  aoAlternarCamada,
   aoConsultarManual,
   aoSelecionarElemento,
   aoAnalisarPerfil,
@@ -142,55 +152,32 @@ export function PainelDireito({
   return (
     <aside className="painel-direito">
       <SecaoPainel titulo="Camadas" icone={<Layers size={17} />}>
-        <div className="grupo-controles">
-          <span className="rotulo-bloco">Mapa base</span>
-          <div className="controle-segmentado">
-            {(["mapa", "satelite", "terreno"] as CamadaBase[]).map((camada) => (
+        <div className="lista-elementos-desenhados">
+          {elementos.length === 0 ? (
+            <div className="estado-vazio">Nenhum elemento desenhado.</div>
+          ) : (
+            elementos.map((elemento) => (
               <button
-                key={camada}
+                key={elemento.id}
                 type="button"
-                className={camadaBase === camada ? "ativo" : ""}
-                onClick={() => aoAlterarCamadaBase(camada)}
+                className={
+                  elementoSelecionadoId === elemento.id ? "item-camada-desenho ativo" : "item-camada-desenho"
+                }
+                onClick={() => aoSelecionarElemento(elemento.id)}
               >
-                {camada === "mapa" ? "Mapa" : camada === "satelite" ? "Satélite" : "Terreno"}
+                <span className="icone-camada-desenho">{obterIconeElemento(elemento.tipo)}</span>
+                <span>
+                  <strong>{elemento.nome}</strong>
+                  <small>{elemento.tipo}</small>
+                </span>
+                <span
+                  className="cor-camada-desenho"
+                  style={{ backgroundColor: elemento.cor }}
+                  aria-hidden="true"
+                />
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="lista-checks">
-          <label>
-            <input
-              type="checkbox"
-              checked={camadasVisiveis.relevo}
-              onChange={() => aoAlternarCamada("relevo")}
-            />
-            Relevo
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={camadasVisiveis.gradeAltitude}
-              onChange={() => aoAlternarCamada("gradeAltitude")}
-            />
-            Grade de altitude
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={camadasVisiveis.importados}
-              onChange={() => aoAlternarCamada("importados")}
-            />
-            KML/KMZ importado
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={camadasVisiveis.desenhos}
-              onChange={() => aoAlternarCamada("desenhos")}
-            />
-            Elementos desenhados
-          </label>
+            ))
+          )}
         </div>
       </SecaoPainel>
 

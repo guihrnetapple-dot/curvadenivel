@@ -220,7 +220,6 @@ export function MapaAltimetria({
   const importadosRef = useRef<L.LayerGroup | null>(null);
   const curvasNivelRef = useRef<L.GeoJSON | null>(null);
   const gradeRef = useRef<L.LayerGroup | null>(null);
-  const relevoRef = useRef<L.TileLayer | null>(null);
   const destaqueRef = useRef<L.CircleMarker | null>(null);
   const propsRef = useRef({
     aoConsultarCoordenada,
@@ -399,28 +398,6 @@ export function MapaAltimetria({
       gradeRef.current.removeFrom(mapa);
     }
   }, [camadasVisiveis.gradeAltitude]);
-
-  useEffect(() => {
-    const mapa = mapaRef.current;
-    if (!mapa) {
-      return;
-    }
-
-    if (!relevoRef.current) {
-      relevoRef.current = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-        maxZoom: ZOOM_MAXIMO_MAPA,
-        maxNativeZoom: ZOOM_NATIVO_OPENTOPOMAP,
-        opacity: 0.36,
-        attribution: "OpenTopoMap"
-      });
-    }
-
-    if (camadasVisiveis.relevo) {
-      relevoRef.current.addTo(mapa);
-    } else {
-      relevoRef.current.removeFrom(mapa);
-    }
-  }, [camadasVisiveis.relevo]);
 
   useEffect(() => {
     const mapa = mapaRef.current;

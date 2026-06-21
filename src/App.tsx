@@ -33,7 +33,6 @@ const CHAVE_HISTORICO = "agroaltimetria.historico";
 const CHAVE_TEMA = "agroaltimetria.tema";
 
 const camadasIniciais: CamadasVisiveis = {
-  relevo: false,
   gradeAltitude: true,
   importados: true,
   desenhos: true
@@ -60,8 +59,8 @@ export function Aplicacao() {
     arquivoCarregado: false
   });
   const [inicializando, setInicializando] = useState(true);
-  const [camadaBase, setCamadaBase] = useState<CamadaBase>("mapa");
-  const [camadasVisiveis, setCamadasVisiveis] = useState<CamadasVisiveis>(camadasIniciais);
+  const camadaBase: CamadaBase = "mapa";
+  const camadasVisiveis = camadasIniciais;
   const [historico, setHistorico] = useState<ResultadoAltitude[]>(() =>
     lerLocalStorage<ResultadoAltitude[]>(CHAVE_HISTORICO, [])
   );
@@ -140,13 +139,6 @@ export function Aplicacao() {
     },
     [registrarResultado]
   );
-
-  function alternarCamada(camada: keyof CamadasVisiveis) {
-    setCamadasVisiveis((estado) => ({
-      ...estado,
-      [camada]: !estado[camada]
-    }));
-  }
 
   function adicionarElemento(elemento: ElementoMapa) {
     setElementos((itens) => [elemento, ...itens]);
@@ -305,8 +297,6 @@ export function Aplicacao() {
         </div>
 
         <PainelDireito
-          camadaBase={camadaBase}
-          camadasVisiveis={camadasVisiveis}
           resultadoAtual={resultadoAtual}
           historico={historico}
           elementos={elementos}
@@ -318,8 +308,6 @@ export function Aplicacao() {
           intervaloCurvasMetros={intervaloCurvasMetros}
           resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
-          aoAlterarCamadaBase={setCamadaBase}
-          aoAlternarCamada={alternarCamada}
           aoConsultarManual={(latitude, longitude) => consultarCoordenada(latitude, longitude)}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
           aoAnalisarPerfil={analisarPerfil}

@@ -419,7 +419,8 @@ button:disabled {
 }
 
 .lista-checks,
-.lista-camadas-importadas {
+.lista-camadas-importadas,
+.lista-elementos-desenhados {
   display: grid;
   gap: 9px;
 }
@@ -436,6 +437,60 @@ button:disabled {
 .lista-camadas-importadas small {
   display: block;
   color: var(--texto-suave);
+}
+
+.item-camada-desenho {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 12px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--superficie) 88%, transparent);
+  color: var(--texto);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.item-camada-desenho:hover,
+.item-camada-desenho.ativo {
+  border-color: color-mix(in srgb, var(--verde) 70%, var(--borda));
+  background: color-mix(in srgb, var(--verde) 12%, var(--superficie));
+}
+
+.item-camada-desenho strong,
+.item-camada-desenho small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-camada-desenho strong {
+  font-size: 0.88rem;
+}
+
+.item-camada-desenho small {
+  color: var(--texto-suave);
+  font-size: 0.76rem;
+}
+
+.icone-camada-desenho {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--verde) 14%, transparent);
+  color: var(--verde);
+}
+
+.cor-camada-desenho {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--superficie) 80%, transparent);
 }
 
 input[type="checkbox"] {

@@ -33,7 +33,6 @@ export interface StatusApi {
 }
 
 export interface CamadasVisiveis {
-  relevo: boolean;
   gradeAltitude: boolean;
   importados: boolean;
   desenhos: boolean;
