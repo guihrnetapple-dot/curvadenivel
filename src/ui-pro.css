@@ -1,0 +1,431 @@
+/* Camada visual profissional, compacta e mais moderna.
+   Mantém a estrutura React atual e sobrescreve apenas layout, cor e escala visual. */
+
+:root {
+  --fundo: #eef2f6;
+  --superficie: #ffffff;
+  --superficie-secundaria: #f6f8fb;
+  --texto: #162029;
+  --texto-suave: #667382;
+  --borda: #d7dee8;
+  --verde: #16a064;
+  --verde-escuro: #087448;
+  --azul: #2563eb;
+  --grafite: #17212b;
+  --alerta: #d97706;
+  --erro: #dc2626;
+  --sombra: 0 14px 34px rgba(15, 23, 42, 0.09);
+  --sombra-leve: 0 8px 20px rgba(15, 23, 42, 0.06);
+  --raio: 12px;
+  --raio-menor: 9px;
+}
+
+:root[data-tema="escuro"] {
+  --fundo: #0b1117;
+  --superficie: #111a23;
+  --superficie-secundaria: #0f1720;
+  --texto: #edf3f8;
+  --texto-suave: #94a3b8;
+  --borda: #263545;
+  --verde: #20c47a;
+  --verde-escuro: #5ee6a0;
+  --azul: #60a5fa;
+  --grafite: #e5eef7;
+  --alerta: #f59e0b;
+  --erro: #f87171;
+  --sombra: 0 18px 44px rgba(0, 0, 0, 0.34);
+  --sombra-leve: 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+  background: var(--fundo);
+}
+
+button,
+input,
+select {
+  letter-spacing: -0.01em;
+}
+
+.aplicacao {
+  height: 100dvh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
+    linear-gradient(180deg, rgba(22, 160, 100, 0.06), transparent 36%),
+    var(--fundo);
+}
+
+.barra-superior {
+  grid-template-columns: 282px minmax(360px, 1fr) auto auto;
+  gap: 12px;
+  min-height: 68px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--borda);
+  background: color-mix(in srgb, var(--superficie) 94%, transparent);
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.marca {
+  gap: 10px;
+}
+
+.marca-simbolo {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--verde), #0f7a53);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(22, 160, 100, 0.22);
+  font-size: 0.94rem;
+}
+
+.marca strong {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+.marca span,
+.busca-coordenada label,
+.formulario-coordenadas label,
+.rotulo-bloco {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.busca-coordenada {
+  gap: 4px;
+}
+
+.campo-busca {
+  height: 38px;
+  border-radius: 11px;
+  background: var(--superficie-secundaria);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.campo-busca input {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.campo-busca button,
+.botao-icone,
+.botao-largo,
+.acoes-linha button,
+.formulario-coordenadas button,
+.grade-exportacao button {
+  min-height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--verde), #0f7a53);
+  box-shadow: 0 8px 18px rgba(22, 160, 100, 0.18);
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+.campo-busca button {
+  padding: 0 16px;
+  border-radius: 0 10px 10px 0;
+}
+
+.botao-icone {
+  padding: 0 12px;
+}
+
+.botao-quadrado {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--superficie-secundaria);
+  box-shadow: var(--sombra-leve);
+}
+
+.status-pill {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--superficie-secundaria);
+  font-size: 0.72rem;
+}
+
+.area-trabalho {
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 12px;
+  height: calc(100dvh - 68px);
+  padding: 12px;
+}
+
+.coluna-mapa {
+  grid-template-rows: minmax(0, 1fr) 190px;
+  gap: 12px;
+  height: 100%;
+}
+
+.mapa-container,
+.painel-baixo,
+.painel-direito {
+  border-radius: var(--raio);
+  border: 1px solid color-mix(in srgb, var(--borda) 88%, transparent);
+  background: var(--superficie);
+  box-shadow: var(--sombra);
+}
+
+.mapa-container {
+  min-height: 0;
+}
+
+.mapa-altimetria {
+  min-height: 0;
+}
+
+.painel-baixo {
+  min-height: 0;
+  padding: 12px 14px;
+}
+
+.cabecalho-painel-baixo {
+  margin-bottom: 8px;
+}
+
+.cabecalho-painel-baixo strong {
+  font-size: 0.92rem;
+  letter-spacing: -0.025em;
+}
+
+.cabecalho-painel-baixo span {
+  font-size: 0.74rem;
+}
+
+.painel-direito {
+  padding: 8px;
+}
+
+.secao-painel + .secao-painel {
+  border-top: 1px solid color-mix(in srgb, var(--borda) 75%, transparent);
+}
+
+.cabecalho-secao {
+  padding: 10px 6px;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.cabecalho-secao:hover {
+  background: var(--superficie-secundaria);
+}
+
+.conteudo-secao {
+  gap: 10px;
+  padding: 0 2px 12px;
+}
+
+.controle-segmentado {
+  border-radius: 10px;
+  background: var(--superficie-secundaria);
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--borda);
+}
+
+.controle-segmentado button {
+  min-height: 31px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.82rem;
+}
+
+.controle-segmentado button.ativo {
+  background: var(--superficie);
+  color: var(--verde-escuro);
+  box-shadow: var(--sombra-leve);
+}
+
+.lista-checks,
+.lista-camadas-importadas {
+  gap: 7px;
+}
+
+.lista-checks label,
+.lista-camadas-importadas label {
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+
+.grade-ferramentas,
+.grade-exportacao {
+  gap: 7px;
+}
+
+.item-ferramenta {
+  min-height: 30px;
+  border-radius: 10px;
+  background: var(--superficie-secundaria);
+  font-size: 0.76rem;
+}
+
+.formulario-coordenadas {
+  gap: 8px;
+}
+
+.formulario-coordenadas input,
+.seletor-elemento {
+  min-height: 34px;
+  border-radius: 10px;
+  background: var(--superficie-secundaria);
+  font-size: 0.84rem;
+}
+
+.resultado-atual {
+  gap: 2px;
+  padding: 10px;
+  border-radius: 11px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--verde) 8%, var(--superficie)), var(--superficie-secundaria));
+}
+
+.resultado-atual strong {
+  font-size: 1.28rem;
+  letter-spacing: -0.035em;
+}
+
+.tabela-compacta table {
+  font-size: 0.74rem;
+}
+
+.tabela-compacta th,
+.tabela-compacta td {
+  padding: 7px 5px;
+}
+
+.grade-metricas {
+  gap: 7px;
+}
+
+.grade-metricas div {
+  min-height: 50px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--superficie-secundaria);
+}
+
+.grade-metricas strong {
+  font-size: 0.88rem;
+}
+
+.sobreposicao-mapa {
+  border-radius: 11px;
+  background: rgba(17, 24, 39, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.22);
+}
+
+.topo-esquerda {
+  top: 12px;
+  left: 56px;
+  padding: 9px 12px;
+}
+
+.topo-esquerda strong {
+  font-size: 0.82rem;
+  letter-spacing: -0.02em;
+}
+
+.topo-esquerda span,
+.cursor-mapa {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+}
+
+.cursor-mapa {
+  right: 12px;
+  bottom: 12px;
+  padding: 7px 10px;
+}
+
+.leaflet-control-zoom,
+.leaflet-draw-toolbar {
+  border: 0 !important;
+  box-shadow: var(--sombra-leve) !important;
+}
+
+.leaflet-control-zoom a,
+.leaflet-draw-toolbar a {
+  width: 30px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.popup-tecnico {
+  min-width: 210px;
+  font-size: 0.82rem;
+}
+
+.alerta-sistema,
+.carregamento-painel,
+.tooltip-grafico {
+  border-radius: var(--raio);
+}
+
+.grafico-vazio {
+  min-height: 128px;
+}
+
+.skeleton-grafico {
+  height: 140px;
+}
+
+@media (max-width: 1280px) {
+  .area-trabalho {
+    grid-template-columns: minmax(0, 1fr) 330px;
+  }
+
+  .barra-superior {
+    grid-template-columns: 250px minmax(300px, 1fr) auto;
+  }
+
+  .status-topo {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1180px) {
+  html,
+  body,
+  #root {
+    overflow: auto;
+  }
+
+  .aplicacao {
+    height: auto;
+  }
+
+  .area-trabalho {
+    height: auto;
+  }
+
+  .coluna-mapa {
+    height: auto;
+    grid-template-rows: minmax(440px, 62dvh) auto;
+  }
+}
