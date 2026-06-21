@@ -2,6 +2,7 @@ import { CURVAS_FATOR_DENSIFICACAO, CURVAS_RESOLUCAO_GLOBAL_METROS } from "../..
 import type { ProvedorElevacao } from "../../tipos";
 import { ErroAplicacao } from "../../utilitarios/erros";
 import { cortarLinhaParaBbox } from "./clipLinhaBbox";
+import { calcularBboxGeometria, filtrarLinhaPorGeometria } from "./clipLinhaGeometria";
 import { densificarGrade } from "./densificarGrade";
 import { gerarGradeElevacaoApi } from "./gradeElevacaoApi";
 import { gerarSegmentosMarchingSquares } from "./marchingSquares";
@@ -35,7 +36,14 @@ export class ServicoCurvas {
       throw new ErroAplicacao("Informe os parâmetros para gerar curvas de nível.");
     }
 
-    const bboxOriginal = validarBbox(requisicao.bbox);
+    const geometriaFiltro = requisicao.geometria;
+    const bboxEntrada = requisicao.bbox;
+    if (!geometriaFiltro && !bboxEntrada) {
+      throw new ErroAplicacao("Informe uma área para gerar curvas de nível.");
+    }
+    const bboxOriginal = geometriaFiltro
+      ? validarBbox(calcularBboxGeometria(geometriaFiltro))
+      : validarBbox(bboxEntrada as NonNullable<typeof bboxEntrada>);
     const intervaloSolicitado = normalizarIntervaloMetros(requisicao.intervaloMetros);
     const resolucaoGradeMetros = CURVAS_RESOLUCAO_GLOBAL_METROS;
     const bboxAmostragem = expandirBboxPorMercator(bboxOriginal, resolucaoGradeMetros * 2);
@@ -56,7 +64,10 @@ export class ServicoCurvas {
 
         for (const linhaBruta of linhas) {
           const linha = prepararLinhaCurva(linhaBruta, gradeOriginal.resolucaoMetros);
-          const linhasCortadas = cortarLinhaParaBbox(linha.linha, bboxOriginal);
+          const linhasCortadasBbox = cortarLinhaParaBbox(linha.linha, bboxOriginal);
+          const linhasCortadas = geometriaFiltro
+            ? linhasCortadasBbox.flatMap((linhaCortada) => filtrarLinhaPorGeometria(linhaCortada, geometriaFiltro))
+            : linhasCortadasBbox;
 
           for (const linhaCortada of linhasCortadas) {
             const linhaFinal = prepararLinhaCurva(linhaCortada, gradeOriginal.resolucaoMetros);

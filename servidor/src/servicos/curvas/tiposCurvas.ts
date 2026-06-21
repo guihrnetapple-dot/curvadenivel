@@ -7,8 +7,24 @@ export interface BboxCurvas {
   maxLng: number;
 }
 
+export type ParLngLat = [number, number];
+
+export interface GeometriaPoligonoCurvas {
+  type: "Polygon";
+  coordinates: ParLngLat[][];
+}
+
+export interface GeometriaCirculoCurvas {
+  type: "Circle";
+  center: ParLngLat;
+  radiusMeters: number;
+}
+
+export type GeometriaAreaCurvas = GeometriaPoligonoCurvas | GeometriaCirculoCurvas;
+
 export interface RequisicaoCurvas {
-  bbox: BboxCurvas;
+  bbox?: BboxCurvas;
+  geometria?: GeometriaAreaCurvas;
   intervaloMetros?: number;
 }
 

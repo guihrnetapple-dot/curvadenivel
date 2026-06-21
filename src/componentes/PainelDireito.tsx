@@ -58,12 +58,15 @@ interface PropriedadesPainelDireito {
   rotulosMapaAtivos: boolean;
   intervaloCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
+  areaSelecionadaParaCurvas: ElementoMapa | null;
+  existeElementoSelecionado: boolean;
   aoAlterarTermoLocalizacao: (termo: string) => void;
   aoPesquisarLocalizacao: () => void;
   aoAlternarRotulosMapa: () => void;
   aoSelecionarElemento: (id: string) => void;
   aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
   aoGerarCurvas: () => void;
+  aoGerarCurvasAreaSelecionada: () => void;
   aoLimparCurvas: () => void;
   aoImportarArquivo: () => void;
   aoAlternarCamadaImportada: (id: string) => void;
@@ -134,12 +137,15 @@ export function PainelDireito({
   rotulosMapaAtivos,
   intervaloCurvasMetros,
   camadasImportadas,
+  areaSelecionadaParaCurvas,
+  existeElementoSelecionado,
   aoAlterarTermoLocalizacao,
   aoPesquisarLocalizacao,
   aoAlternarRotulosMapa,
   aoSelecionarElemento,
   aoAlterarIntervaloCurvas,
   aoGerarCurvas,
+  aoGerarCurvasAreaSelecionada,
   aoLimparCurvas,
   aoImportarArquivo,
   aoAlternarCamadaImportada,
@@ -158,6 +164,7 @@ export function PainelDireito({
   const [carregandoPropriedade, setCarregandoPropriedade] = useState(false);
   const [erroPropriedade, setErroPropriedade] = useState<string | null>(null);
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
+  const selecaoInvalidaParaCurvas = existeElementoSelecionado && !areaSelecionadaParaCurvas;
 
   useEffect(() => {
     if (!elementoSelecionado) {
@@ -373,6 +380,13 @@ export function PainelDireito({
         </div>
 
         <div className="acoes-linha">
+          <button
+            type="button"
+            onClick={aoGerarCurvasAreaSelecionada}
+            disabled={!areaSelecionadaParaCurvas || carregandoCurvas}
+          >
+            {areaSelecionadaParaCurvas ? "Gerar da área selecionada" : "Selecionar área no mapa"}
+          </button>
           <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>
             {carregandoCurvas ? "Gerando" : selecionandoAreaCurvas ? "Desenhe o retângulo" : "Gerar por retângulo"}
           </button>
@@ -380,6 +394,16 @@ export function PainelDireito({
             Limpar
           </button>
         </div>
+
+        {areaSelecionadaParaCurvas && (
+          <div className="area-curvas-selecionada">Área selecionada: {areaSelecionadaParaCurvas.nome}</div>
+        )}
+
+        {selecaoInvalidaParaCurvas && (
+          <div className="aviso-curvas">
+            Selecione um retângulo, círculo ou polígono para gerar curvas pela área selecionada.
+          </div>
+        )}
 
         <div className="menu-exportacao-curvas">
           <button

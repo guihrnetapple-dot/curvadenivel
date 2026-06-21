@@ -855,6 +855,86 @@ function clipSegmentoBbox(inicio, fim, bbox) {
   return [[x0 + dx * t0, y0 + dy * t0], [x0 + dx * t1, y0 + dy * t1]];
 }
 
+function calcularBboxGeometriaCurvas(geometria) {
+  if (!geometria?.type) throw new ErroAplicacao("Informe uma geometria válida para gerar curvas de nível.");
+
+  if (geometria.type === "Circle") {
+    const longitude = Number(geometria.center?.[0]);
+    const latitude = Number(geometria.center?.[1]);
+    const raio = Number(geometria.radiusMeters);
+    if (![latitude, longitude, raio].every(Number.isFinite) || raio <= 0) {
+      throw new ErroAplicacao("O círculo selecionado precisa ter centro e raio válidos.");
+    }
+
+    const deltaLat = raio / 111320;
+    const deltaLng = raio / Math.max(1, 111320 * Math.cos((latitude * Math.PI) / 180));
+    return validarBbox({
+      minLat: latitude - deltaLat,
+      minLng: longitude - deltaLng,
+      maxLat: latitude + deltaLat,
+      maxLng: longitude + deltaLng
+    });
+  }
+
+  if (geometria.type !== "Polygon") {
+    throw new ErroAplicacao("Selecione um retângulo, círculo ou polígono para gerar curvas.");
+  }
+
+  const pontos = geometria.coordinates?.[0] ?? [];
+  if (pontos.length < 4) throw new ErroAplicacao("O polígono selecionado precisa ter pelo menos três vértices.");
+  const latitudes = pontos.map((p) => Number(p[1]));
+  const longitudes = pontos.map((p) => Number(p[0]));
+  return validarBbox({
+    minLat: Math.min(...latitudes),
+    minLng: Math.min(...longitudes),
+    maxLat: Math.max(...latitudes),
+    maxLng: Math.max(...longitudes)
+  });
+}
+
+function pontoDentroPoligonoCurvas(ponto, poligono) {
+  const longitude = ponto[0], latitude = ponto[1];
+  let dentro = false;
+  for (let i = 0, j = poligono.length - 1; i < poligono.length; j = i, i += 1) {
+    const lngI = poligono[i][0], latI = poligono[i][1], lngJ = poligono[j][0], latJ = poligono[j][1];
+    if (latI > latitude !== latJ > latitude) {
+      const lngIntersecao = ((lngJ - lngI) * (latitude - latI)) / (latJ - latI || 1) + lngI;
+      if (longitude < lngIntersecao) dentro = !dentro;
+    }
+  }
+  return dentro;
+}
+
+function pontoDentroGeometriaCurvas(ponto, geometria) {
+  if (!geometria) return true;
+  if (geometria.type === "Circle") {
+    return distancia(
+      { latitude: geometria.center[1], longitude: geometria.center[0] },
+      { latitude: ponto[1], longitude: ponto[0] }
+    ) <= Number(geometria.radiusMeters);
+  }
+  return pontoDentroPoligonoCurvas(ponto, geometria.coordinates?.[0] ?? []);
+}
+
+function filtrarLinhaGeometriaCurvas(linha, geometria) {
+  if (!geometria) return [linha];
+  const linhas = [];
+  let atual = [];
+  for (let i = 1; i < linha.length; i += 1) {
+    const inicio = linha[i - 1], fim = linha[i];
+    const meio = [(inicio[0] + fim[0]) / 2, (inicio[1] + fim[1]) / 2];
+    if (!pontoDentroGeometriaCurvas(meio, geometria)) {
+      if (atual.length >= 2) linhas.push(atual);
+      atual = [];
+      continue;
+    }
+    if (!atual.length) atual.push(inicio);
+    atual.push(fim);
+  }
+  if (atual.length >= 2) linhas.push(atual);
+  return linhas;
+}
+
 function pontosLinhaIguais(a, b) {
   return Math.abs(a[0] - b[0]) <= 1e-10 && Math.abs(a[1] - b[1]) <= 1e-10;
 }
@@ -885,7 +965,8 @@ function cortarLinhaParaBbox(linha, bbox) {
 }
 
 async function gerarCurvas(body) {
-  const bboxOriginal = validarBbox(body?.bbox);
+  const geometriaFiltro = body?.geometria ?? null;
+  const bboxOriginal = geometriaFiltro ? calcularBboxGeometriaCurvas(geometriaFiltro) : validarBbox(body?.bbox);
   const intervaloSolicitado = normalizarIntervaloCurvas(body?.intervaloMetros);
   const resolucao = RESOLUCAO_GLOBAL_METROS;
   const bboxAmostragem = expandirBboxPorMercator(bboxOriginal, resolucao * 2);
@@ -902,7 +983,11 @@ async function gerarCurvas(body) {
     ) {
       for (const linha of unir(segmentosNivel(nos, nivel))) {
         const suave = chaikin(linha);
-        for (const linhaCortada of cortarLinhaParaBbox(suave, bboxOriginal)) {
+        const linhasCortadasBbox = cortarLinhaParaBbox(suave, bboxOriginal);
+        const linhasCortadas = geometriaFiltro
+          ? linhasCortadasBbox.flatMap((linhaCortada) => filtrarLinhaGeometriaCurvas(linhaCortada, geometriaFiltro))
+          : linhasCortadasBbox;
+        for (const linhaCortada of linhasCortadas) {
           const suaveCortada = chaikin(linhaCortada);
           const comp = comprimentoLinha(suaveCortada);
           if (suaveCortada.length < 2 || comp < Math.max(grade.resolucaoEfetivaMetros * 0.5, 3)) continue;

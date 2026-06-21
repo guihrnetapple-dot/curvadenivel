@@ -5,7 +5,7 @@ import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
-import { gerarCurvasNivel } from "./servicos/apiCurvasNivel";
+import { gerarCurvasNivel, gerarCurvasNivelPorGeometria } from "./servicos/apiCurvasNivel";
 import { pesquisarLocalizacao } from "./servicos/apiLocalizacao";
 import type {
   AlertaSistema,
@@ -356,7 +356,16 @@ export function Aplicacao() {
     });
   }
 
-  async function gerarCurvasDaAreaSelecionada(boundsSelecionado: BboxCurvasNivel) {
+  function obterElementoSelecionado(): ElementoMapa | null {
+    return elementos.find((item) => item.id === elementoSelecionadoId) ?? null;
+  }
+
+  function elementoSelecionadoEhArea(): boolean {
+    const elemento = obterElementoSelecionado();
+    return elemento?.geometria.type === "Polygon" || elemento?.geometria.type === "Circle";
+  }
+
+  async function gerarCurvasDoRetanguloSelecionado(boundsSelecionado: BboxCurvasNivel) {
     setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
@@ -368,6 +377,39 @@ export function Aplicacao() {
         mensagem:
           resultado.features.length > 0
             ? `${resultado.features.length} curva(s) de nível gerada(s) para a área selecionada.`
+            : "Nenhuma curva de nível encontrada nessa área com os parâmetros atuais."
+      });
+    } catch (erro) {
+      setAlerta({
+        tipo: "erro",
+        mensagem: erro instanceof Error ? erro.message : "Não foi possível gerar curvas de nível."
+      });
+    } finally {
+      setCarregandoCurvas(false);
+    }
+  }
+
+  async function gerarCurvasDaAreaSelecionada() {
+    const elemento = obterElementoSelecionado();
+    if (!elemento || (elemento.geometria.type !== "Polygon" && elemento.geometria.type !== "Circle")) {
+      setAlerta({
+        tipo: "aviso",
+        mensagem: "Selecione um retângulo, círculo ou polígono para gerar curvas pela área selecionada."
+      });
+      return;
+    }
+
+    setSelecionandoAreaCurvas(false);
+    setCarregandoCurvas(true);
+    try {
+      const resultado = await gerarCurvasNivelPorGeometria(elemento.geometria, intervaloCurvasMetros);
+      setCurvasNivel(resultado);
+      setVisibilidadeCamadaCurvasNivel(true);
+      setAlerta({
+        tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
+        mensagem:
+          resultado.features.length > 0
+            ? `${resultado.features.length} curva(s) de nível gerada(s) dentro de ${elemento.nome}.`
             : "Nenhuma curva de nível encontrada nessa área com os parâmetros atuais."
       });
     } catch (erro) {
@@ -443,7 +485,7 @@ export function Aplicacao() {
             aoSelecionarElemento={setElementoSelecionadoId}
             aoLimparSelecao={limparSelecaoElemento}
             aoBoundsAlterado={setBoundsMapa}
-            aoAreaCurvasSelecionada={gerarCurvasDaAreaSelecionada}
+            aoAreaCurvasSelecionada={gerarCurvasDoRetanguloSelecionado}
             aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
             aoPontoAltitudeSelecionado={analisarPontoNoMapa}
             aoCancelarSelecaoPontoAltitude={() => setSelecionandoPontoAltitude(false)}
@@ -462,12 +504,15 @@ export function Aplicacao() {
           rotulosMapaAtivos={rotulosMapaAtivos}
           intervaloCurvasMetros={intervaloCurvasMetros}
           camadasImportadas={camadasImportadas}
+          areaSelecionadaParaCurvas={elementoSelecionadoEhArea() ? obterElementoSelecionado() : null}
+          existeElementoSelecionado={Boolean(elementoSelecionadoId)}
           aoAlterarTermoLocalizacao={setTermoLocalizacao}
           aoPesquisarLocalizacao={buscarLocalizacao}
           aoAlternarRotulosMapa={() => setRotulosMapaAtivos((valor) => !valor)}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
           aoGerarCurvas={iniciarSelecaoAreaCurvas}
+          aoGerarCurvasAreaSelecionada={gerarCurvasDaAreaSelecionada}
           aoLimparCurvas={() => {
             setCurvasNivel(null);
             setSelecionandoAreaCurvas(false);

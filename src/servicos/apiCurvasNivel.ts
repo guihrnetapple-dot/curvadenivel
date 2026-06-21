@@ -1,4 +1,4 @@
-import type { BboxCurvasNivel, CurvasNivelGeoJson } from "../tipos/altimetria";
+import type { BboxCurvasNivel, CurvasNivelGeoJson, GeometriaProjeto } from "../tipos/altimetria";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -25,6 +25,21 @@ export async function gerarCurvasNivel(
       "Content-Type": "application/json"
     },
     body: JSON.stringify({ bbox, intervaloMetros })
+  });
+
+  return lerRespostaJson<CurvasNivelGeoJson>(resposta);
+}
+
+export async function gerarCurvasNivelPorGeometria(
+  geometria: Extract<GeometriaProjeto, { type: "Polygon" | "Circle" }>,
+  intervaloMetros = 5
+): Promise<CurvasNivelGeoJson> {
+  const resposta = await fetch(`${API_BASE}/api/contours`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ geometria, intervaloMetros })
   });
 
   return lerRespostaJson<CurvasNivelGeoJson>(resposta);
