@@ -39,8 +39,6 @@ import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
 const TEMA_PADRAO: TemaVisual = "escuro";
-const RESOLUCAO_PADRAO_CURVAS_METROS = 100;
-
 const camadasIniciais: CamadasVisiveis = {
   gradeAltitude: true,
   importados: true,
@@ -328,12 +326,7 @@ export function Aplicacao() {
     setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
-      const resultado = await gerarCurvasNivel(
-        boundsSelecionado,
-        "automatico",
-        intervaloCurvasMetros,
-        RESOLUCAO_PADRAO_CURVAS_METROS
-      );
+      const resultado = await gerarCurvasNivel(boundsSelecionado, intervaloCurvasMetros);
       setCurvasNivel(resultado);
       setVisibilidadeCamadaCurvasNivel(true);
       setAlerta({

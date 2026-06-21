@@ -174,15 +174,6 @@ export function PainelDireito({
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
   const podeAnalisarPerfilLinear = elementoPossuiPerfilLinear(elementoSelecionado);
   const podeAnalisarArea = elementoPossuiArea(elementoSelecionado);
-  const detalhesResolucaoAutomatica =
-    curvasNivel?.metadados.resolucaoPorAreaMetros &&
-    curvasNivel.metadados.resolucaoPorIntervaloMetros &&
-    curvasNivel.metadados.resolucaoEfetivaMetros
-      ? `Área recomendou ${formatarMetros(curvasNivel.metadados.resolucaoPorAreaMetros, 0)}, intervalo recomendou ${formatarMetros(
-          curvasNivel.metadados.resolucaoPorIntervaloMetros,
-          0
-        )}, usado ${formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}.`
-      : null;
 
   return (
     <aside className="painel-direito">
@@ -434,6 +425,8 @@ export function PainelDireito({
           </select>
         </div>
 
+        <div className="estado-vazio">Resolução fixa da grade: 50 m</div>
+
         <div className="acoes-linha">
           <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>
             {carregandoCurvas ? "Gerando" : selecionandoAreaCurvas ? "Desenhe o retângulo" : "Gerar por retângulo"}
@@ -497,8 +490,8 @@ export function PainelDireito({
             <strong>{formatarMetros(curvasNivel?.metadados.intervaloMetros, 0)}</strong>
           </div>
           <div>
-            <span>Resolução</span>
-            <strong>{formatarMetros(curvasNivel?.metadados.resolucaoEfetivaMetros, 0)}</strong>
+            <span>Grade</span>
+            <strong>{formatarMetros(curvasNivel?.metadados.resolucaoGradeGlobalMetros, 0)}</strong>
           </div>
           <div>
             <span>Fonte</span>
@@ -509,21 +502,8 @@ export function PainelDireito({
         {curvasNivel && (
           <div className="estado-vazio">
             Usado: intervalo {formatarMetros(curvasNivel.metadados.intervaloMetros, 0)}, resolução{" "}
-            {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}
+            {formatarMetros(curvasNivel.metadados.resolucaoGradeGlobalMetros, 0)}
           </div>
-        )}
-
-        {detalhesResolucaoAutomatica && <div className="estado-vazio">{detalhesResolucaoAutomatica}</div>}
-
-        {curvasNivel?.metadados.resolucaoAjustada && (
-          <div className="estado-vazio">
-            Resolução ajustada automaticamente de {formatarMetros(curvasNivel.metadados.resolucaoSolicitadaMetros, 0)} para{" "}
-            {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}.
-          </div>
-        )}
-
-        {curvasNivel?.metadados.motivoAjusteAutomatico && (
-          <div className="estado-vazio">{curvasNivel.metadados.motivoAjusteAutomatico}</div>
         )}
 
         {curvasNivel?.metadados.avisoPrecisao && (

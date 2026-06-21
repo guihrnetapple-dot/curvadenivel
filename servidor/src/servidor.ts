@@ -4,7 +4,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import {
   CURVAS_FATOR_DENSIFICACAO,
   CURVAS_LIMITE_PONTOS_API,
-  CURVAS_RESOLUCAO_MINIMA_METROS,
+  CURVAS_RESOLUCAO_GLOBAL_METROS,
   obterPerfilIntervaloMinimoMetros,
   obterPerfilIntervaloPadraoMetros,
   obterPerfilLimiteAmostras,
@@ -68,7 +68,9 @@ aplicacao.get(
       },
       curvas: {
         limitePontosApi: CURVAS_LIMITE_PONTOS_API,
-        resolucaoMinimaMetros: CURVAS_RESOLUCAO_MINIMA_METROS,
+        resolucaoGradeGlobalMetros: CURVAS_RESOLUCAO_GLOBAL_METROS,
+        gradeTravada: true,
+        sistemaGrade: "web_mercator_global",
         fatorDensificacao: CURVAS_FATOR_DENSIFICACAO
       },
       perfil: {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { Coordenada, ProvedorElevacao, ResultadoAltitude } from "../../tipos";
 import { CacheElevacao } from "../elevacao/cacheElevacao";
+import { gerarGradeElevacaoApi } from "./gradeElevacaoApi";
 import { gerarSegmentosMarchingSquares } from "./marchingSquares";
-import { calcularParametrosAutomaticosCurvas } from "./parametrosAutomaticosCurvas";
+import { ServicoCurvas } from "./servicoCurvas";
 import { prepararLinhaCurva, suavizarLinhaChaikin } from "./suavizarLinhas";
-import type { GradeCurvas, NoGradeCurvas, SegmentoCurva } from "./tiposCurvas";
+import type { BboxCurvas, FeatureCollectionCurvas, GradeCurvas, NoGradeCurvas, SegmentoCurva } from "./tiposCurvas";
 import { unirSegmentos } from "./unirSegmentos";
 
 function criarGrade(altitudes: number[][]): GradeCurvas {
@@ -20,27 +22,94 @@ function criarGrade(altitudes: number[][]): GradeCurvas {
 
   return {
     bbox: { minLat: 0, minLng: 0, maxLat: linhas - 1, maxLng: colunas - 1 },
+    bboxAmostragem: { minLat: 0, minLng: 0, maxLat: linhas - 1, maxLng: colunas - 1 },
     linhas,
     colunas,
     resolucaoMetros: 100,
     resolucaoSolicitadaMetros: 100,
     resolucaoAjustada: false,
     pontosConsultados: linhas * colunas,
+    gradeTravada: true,
+    sistemaGrade: "web_mercator_global",
     nos,
     altitudeMinima: Math.min(...altitudes.flat()),
     altitudeMaxima: Math.max(...altitudes.flat())
   };
 }
 
-describe("curvas de nível", () => {
-  it("combina intervalo, área e padrão mínimo de 100 m na resolução automática", () => {
-    const areaPequena = { minLat: -23, minLng: -47, maxLat: -22.995, maxLng: -46.995 };
-    const areaGrande = { minLat: -23, minLng: -47, maxLat: -22.9, maxLng: -46.9 };
+function criarResultadoAltitude(coordenada: Coordenada, altitude: number | null): ResultadoAltitude {
+  return {
+    ...coordenada,
+    altitude,
+    status: altitude === null ? "sem_dado" : "valido",
+    fonte: "open_elevation",
+    metodo: "api",
+    precisaoReal: "media",
+    mensagem: "ok",
+    consultadoEm: "2026-06-21T00:00:00.000Z"
+  };
+}
 
-    expect(calcularParametrosAutomaticosCurvas(areaPequena, 5).resolucaoOriginalMetros).toBe(100);
-    expect(calcularParametrosAutomaticosCurvas(areaPequena, 40).resolucaoOriginalMetros).toBe(150);
-    expect(calcularParametrosAutomaticosCurvas(areaPequena, 80).resolucaoOriginalMetros).toBe(250);
-    expect(calcularParametrosAutomaticosCurvas(areaGrande, 5).resolucaoOriginalMetros).toBeGreaterThanOrEqual(500);
+class ProvedorElevacaoDeterministico implements ProvedorElevacao {
+  async consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude> {
+    return criarResultadoAltitude(coordenada, this.calcularAltitude(coordenada));
+  }
+
+  async consultarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
+    return coordenadas.map((coordenada) => criarResultadoAltitude(coordenada, this.calcularAltitude(coordenada)));
+  }
+
+  private calcularAltitude(coordenada: Coordenada): number {
+    return Math.round((coordenada.latitude + 23.01) * 2600 + (coordenada.longitude + 47.01) * 1800);
+  }
+}
+
+function assinaturaCurvas(resultado: FeatureCollectionCurvas, filtroElevacao?: (elevacao: number) => boolean): string[] {
+  return resultado.features
+    .filter((feature) => !filtroElevacao || filtroElevacao(feature.properties.elevacao))
+    .map((feature) =>
+      JSON.stringify({
+        elevacao: feature.properties.elevacao,
+        coords: feature.geometry.coordinates.map(([lng, lat]) => [Number(lng.toFixed(6)), Number(lat.toFixed(6))])
+      })
+    )
+    .sort();
+}
+
+describe("curvas de nível", () => {
+  it("gera grade global travada com nós iguais na área sobreposta", async () => {
+    const provedor = new ProvedorElevacaoDeterministico();
+    const bboxMenor: BboxCurvas = { minLat: -23, minLng: -47, maxLat: -22.998, maxLng: -46.998 };
+    const bboxMaior: BboxCurvas = { minLat: -23.001, minLng: -47.001, maxLat: -22.997, maxLng: -46.997 };
+    const gradeMenor = await gerarGradeElevacaoApi(provedor, bboxMenor, 50);
+    const gradeMaior = await gerarGradeElevacaoApi(provedor, bboxMaior, 50);
+    const chavesMenores = new Set(gradeMenor.nos.flat().map((no) => no.chaveGlobal));
+    const chavesMaiores = new Set(gradeMaior.nos.flat().map((no) => no.chaveGlobal));
+    const intersecao = [...chavesMenores].filter((chave) => chave && chavesMaiores.has(chave));
+
+    expect(gradeMenor.resolucaoMetros).toBe(50);
+    expect(gradeMenor.gradeTravada).toBe(true);
+    expect(intersecao.length).toBeGreaterThan(0);
+  });
+
+  it("gera resultado idêntico ao limpar e gerar novamente", async () => {
+    const servico = new ServicoCurvas(new ProvedorElevacaoDeterministico());
+    const bbox: BboxCurvas = { minLat: -23, minLng: -47, maxLat: -22.9975, maxLng: -46.9975 };
+    const primeiro = await servico.gerarCurvas({ bbox, intervaloMetros: 1 });
+    const segundo = await servico.gerarCurvas({ bbox, intervaloMetros: 1 });
+
+    expect(assinaturaCurvas(segundo)).toEqual(assinaturaCurvas(primeiro));
+    expect(primeiro.metadados.resolucaoGradeGlobalMetros).toBe(50);
+    expect(primeiro.metadados.gradeTravada).toBe(true);
+  });
+
+  it("mantém curvas múltiplas de 5 m iguais entre intervalo 1 m e 5 m", async () => {
+    const servico = new ServicoCurvas(new ProvedorElevacaoDeterministico());
+    const bbox: BboxCurvas = { minLat: -23, minLng: -47, maxLat: -22.9975, maxLng: -46.9975 };
+    const intervalo1 = await servico.gerarCurvas({ bbox, intervaloMetros: 1 });
+    const intervalo5 = await servico.gerarCurvas({ bbox, intervaloMetros: 5 });
+
+    expect(assinaturaCurvas(intervalo1, (elevacao) => elevacao % 5 === 0)).toEqual(assinaturaCurvas(intervalo5));
   });
 
   it("gera segmentos em um plano inclinado", () => {

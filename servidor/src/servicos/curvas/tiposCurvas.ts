@@ -9,23 +9,25 @@ export interface BboxCurvas {
 
 export interface RequisicaoCurvas {
   bbox: BboxCurvas;
-  modoParametros?: "automatico" | "manual";
   intervaloMetros?: number;
-  resolucaoMetros?: number;
 }
 
 export interface NoGradeCurvas extends Coordenada {
   altitude: number | null;
+  chaveGlobal?: string;
 }
 
 export interface GradeCurvas {
   bbox: BboxCurvas;
+  bboxAmostragem: BboxCurvas;
   linhas: number;
   colunas: number;
   resolucaoMetros: number;
   resolucaoSolicitadaMetros: number;
   resolucaoAjustada: boolean;
   pontosConsultados: number;
+  gradeTravada: boolean;
+  sistemaGrade: "web_mercator_global";
   nos: NoGradeCurvas[][];
   altitudeMinima: number | null;
   altitudeMaxima: number | null;
@@ -57,7 +59,7 @@ export interface FeatureCollectionCurvas {
   metadados: {
     fonte: "Open-Elevation API";
     metodo: "open_elevation_api_marching_squares_suavizado";
-    modoParametros: "automatico" | "manual";
+    modoParametros: null;
     resolucaoAutomatica: number | null;
     resolucaoPorIntervaloMetros: number | null;
     resolucaoPorAreaMetros: number | null;
@@ -67,6 +69,11 @@ export interface FeatureCollectionCurvas {
     maiorDimensaoMetros: number;
     areaMetrosQuadrados: number;
     intervaloMetros: number;
+    resolucaoGradeGlobalMetros: number;
+    gradeTravada: true;
+    sistemaGrade: "web_mercator_global";
+    bboxOriginal: BboxCurvas;
+    bboxAmostragem: BboxCurvas;
     resolucaoSolicitadaMetros: number;
     resolucaoEfetivaMetros: number;
     resolucaoAjustada: boolean;

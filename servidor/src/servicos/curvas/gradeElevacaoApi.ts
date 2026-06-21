@@ -1,6 +1,12 @@
 import type { ProvedorElevacao } from "../../tipos";
 import type { BboxCurvas, GradeCurvas, NoGradeCurvas } from "./tiposCurvas";
-import { normalizarResolucaoMetros, validarBbox, validarLimitePontos } from "./validacaoGradeCurvas";
+import {
+  criarChaveNoGlobal,
+  latLngFromMercator,
+  normalizarResolucaoMetros,
+  validarBbox,
+  validarLimitePontosGradeGlobal
+} from "./validacaoGradeCurvas";
 
 function calcularExtremos(nos: NoGradeCurvas[][]): { altitudeMinima: number | null; altitudeMaxima: number | null } {
   const altitudes = nos
@@ -21,32 +27,35 @@ export async function gerarGradeElevacaoApi(
 ): Promise<GradeCurvas> {
   const bbox = validarBbox(bboxEntrada);
   const resolucaoSolicitadaMetros = normalizarResolucaoMetros(resolucaoEntradaMetros);
-  const ajuste = validarLimitePontos(bbox, resolucaoSolicitadaMetros);
+  const gradeTravada = validarLimitePontosGradeGlobal(bbox, resolucaoSolicitadaMetros);
   const coordenadas = [];
 
-  for (let linha = 0; linha < ajuste.linhas; linha += 1) {
-    const fracaoLat = ajuste.linhas === 1 ? 0 : linha / (ajuste.linhas - 1);
-    const latitude = bbox.maxLat - (bbox.maxLat - bbox.minLat) * fracaoLat;
+  for (let indiceY = gradeTravada.indiceMaxY; indiceY >= gradeTravada.indiceMinY; indiceY -= 1) {
+    const y = indiceY * resolucaoSolicitadaMetros;
 
-    for (let coluna = 0; coluna < ajuste.colunas; coluna += 1) {
-      const fracaoLng = ajuste.colunas === 1 ? 0 : coluna / (ajuste.colunas - 1);
-      const longitude = bbox.minLng + (bbox.maxLng - bbox.minLng) * fracaoLng;
-      coordenadas.push({ latitude, longitude });
+    for (let indiceX = gradeTravada.indiceMinX; indiceX <= gradeTravada.indiceMaxX; indiceX += 1) {
+      const x = indiceX * resolucaoSolicitadaMetros;
+      const coordenada = latLngFromMercator(x, y);
+      coordenadas.push({
+        ...coordenada,
+        chaveGlobal: criarChaveNoGlobal(x, y, resolucaoSolicitadaMetros)
+      });
     }
   }
 
   const resultados = await provedorElevacao.consultarLote(coordenadas);
   const nos: NoGradeCurvas[][] = [];
 
-  for (let linha = 0; linha < ajuste.linhas; linha += 1) {
+  for (let linha = 0; linha < gradeTravada.linhas; linha += 1) {
     const linhaNos: NoGradeCurvas[] = [];
-    for (let coluna = 0; coluna < ajuste.colunas; coluna += 1) {
-      const indice = linha * ajuste.colunas + coluna;
+    for (let coluna = 0; coluna < gradeTravada.colunas; coluna += 1) {
+      const indice = linha * gradeTravada.colunas + coluna;
       const coordenada = coordenadas[indice];
       linhaNos.push({
         latitude: coordenada.latitude,
         longitude: coordenada.longitude,
-        altitude: resultados[indice]?.altitude ?? null
+        altitude: resultados[indice]?.altitude ?? null,
+        chaveGlobal: coordenada.chaveGlobal
       });
     }
     nos.push(linhaNos);
@@ -54,12 +63,15 @@ export async function gerarGradeElevacaoApi(
 
   return {
     bbox,
-    linhas: ajuste.linhas,
-    colunas: ajuste.colunas,
-    resolucaoMetros: ajuste.resolucaoEfetiva,
+    bboxAmostragem: bbox,
+    linhas: gradeTravada.linhas,
+    colunas: gradeTravada.colunas,
+    resolucaoMetros: resolucaoSolicitadaMetros,
     resolucaoSolicitadaMetros,
-    resolucaoAjustada: ajuste.resolucaoAjustada,
-    pontosConsultados: ajuste.quantidadePontos,
+    resolucaoAjustada: false,
+    pontosConsultados: gradeTravada.quantidadePontos,
+    gradeTravada: true,
+    sistemaGrade: "web_mercator_global",
     nos,
     ...calcularExtremos(nos)
   };

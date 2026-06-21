@@ -6,10 +6,11 @@ const CACHE_MAX_ITENS = Number(process.env.OPEN_ELEVATION_CACHE_MAX_ITENS ?? 200
 const TAMANHO_LOTE = Number(process.env.OPEN_ELEVATION_TAMANHO_LOTE ?? 400);
 const TIMEOUT_MS = Number(process.env.OPEN_ELEVATION_TIMEOUT_MS ?? 20000);
 const LIMITE_PONTOS_API = 5000;
-const RESOLUCAO_MINIMA_METROS = 50;
-const RESOLUCAO_PADRAO_METROS = 100;
+const RESOLUCAO_GLOBAL_METROS = 50;
 const FATOR_DENSIFICACAO = 4;
 const LIMITE_NOS_DENSIFICADOS = 300000;
+const RAIO_TERRA_WEB_MERCATOR = 6378137;
+const LATITUDE_MAXIMA_WEB_MERCATOR = 85.05112878;
 const CODIGOS_ERRO_CERTIFICADO = new Set([
   "CERT_HAS_EXPIRED",
   "DEPTH_ZERO_SELF_SIGNED_CERT",
@@ -40,6 +41,10 @@ function chaveCache(latitude, longitude) {
   return `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
 }
 
+function chaveCacheCoordenada(coordenada) {
+  return coordenada.chaveGlobal ? `global:${coordenada.chaveGlobal}` : chaveCache(coordenada.latitude, coordenada.longitude);
+}
+
 function validarCoordenada(coordenada) {
   const latitude = Number(coordenada?.latitude ?? coordenada?.lat);
   const longitude = Number(coordenada?.longitude ?? coordenada?.lng);
@@ -48,7 +53,7 @@ function validarCoordenada(coordenada) {
   }
   if (latitude < -90 || latitude > 90) throw new ErroAplicacao("A latitude precisa estar entre -90 e 90.");
   if (longitude < -180 || longitude > 180) throw new ErroAplicacao("A longitude precisa estar entre -180 e 180.");
-  return { latitude, longitude };
+  return { latitude, longitude, chaveGlobal: coordenada?.chaveGlobal };
 }
 
 function criarResultado(coordenada, altitude) {
@@ -70,7 +75,7 @@ function criarResultado(coordenada, altitude) {
 }
 
 function obterCache(coordenada) {
-  const chave = chaveCache(coordenada.latitude, coordenada.longitude);
+  const chave = chaveCacheCoordenada(coordenada);
   const entrada = cacheElevacao.get(chave);
   if (!entrada) return null;
   if (Date.now() - entrada.criadoEm > CACHE_TTL_MS) {
@@ -82,8 +87,8 @@ function obterCache(coordenada) {
   return entrada.resultado;
 }
 
-function salvarCache(resultado) {
-  cacheElevacao.set(chaveCache(resultado.latitude, resultado.longitude), { resultado, criadoEm: Date.now() });
+function salvarCache(resultado, chave = null) {
+  cacheElevacao.set(chave ?? chaveCacheCoordenada(resultado), { resultado, criadoEm: Date.now() });
   while (cacheElevacao.size > CACHE_MAX_ITENS) {
     cacheElevacao.delete(cacheElevacao.keys().next().value);
   }
@@ -223,7 +228,7 @@ async function consultarLote(coordenadasEntrada) {
 
   coordenadas.forEach((coordenada, indice) => {
     const cached = obterCache(coordenada);
-    const chave = chaveCache(coordenada.latitude, coordenada.longitude);
+    const chave = chaveCacheCoordenada(coordenada);
     if (cached) {
       resultados[indice] = { ...cached, latitude: coordenada.latitude, longitude: coordenada.longitude };
       return;
@@ -238,7 +243,7 @@ async function consultarLote(coordenadasEntrada) {
     const respostas = await consultarOpenElevationLoteUnico(lote.map(([, coordenada]) => coordenada));
     respostas.forEach((resultado, posicao) => {
       const [chave] = lote[posicao];
-      salvarCache(resultado);
+        salvarCache(resultado, chave);
       for (const indiceOriginal of indices.get(chave) ?? []) {
         const coordenadaOriginal = coordenadas[indiceOriginal];
         resultados[indiceOriginal] = { ...resultado, latitude: coordenadaOriginal.latitude, longitude: coordenadaOriginal.longitude };
@@ -299,23 +304,8 @@ function validarBbox(bbox) {
   return saida;
 }
 
-function calcularGradeInfo(bbox, resolucaoEntrada) {
-  let resolucao = Math.max(RESOLUCAO_MINIMA_METROS, Number(resolucaoEntrada ?? RESOLUCAO_PADRAO_METROS));
-  const calcular = () => {
-    const latRef = (bbox.minLat + bbox.maxLat) / 2;
-    const latStep = resolucao / 111320;
-    const lngStep = resolucao / (111320 * Math.max(0.01, Math.cos((latRef * Math.PI) / 180)));
-    const linhas = Math.max(2, Math.floor((bbox.maxLat - bbox.minLat) / latStep) + 1);
-    const colunas = Math.max(2, Math.floor((bbox.maxLng - bbox.minLng) / lngStep) + 1);
-    return { linhas, colunas, pontos: linhas * colunas };
-  };
-  let info = calcular();
-  const solicitada = resolucao;
-  while (info.pontos > LIMITE_PONTOS_API) {
-    resolucao *= 1.25;
-    info = calcular();
-  }
-  return { ...info, resolucaoSolicitadaMetros: solicitada, resolucaoEfetivaMetros: resolucao, ajustada: resolucao !== solicitada };
+function limitarNumero(valor, minimo, maximo) {
+  return Math.min(Math.max(valor, minimo), maximo);
 }
 
 function calcularDimensoesMetrosCurvas(bbox) {
@@ -329,65 +319,84 @@ function calcularDimensoesMetrosCurvas(bbox) {
   };
 }
 
+function mercatorFromLatLng(latitude, longitude) {
+  const latitudeLimitada = limitarNumero(latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR);
+  const latRad = (latitudeLimitada * Math.PI) / 180;
+  return {
+    x: RAIO_TERRA_WEB_MERCATOR * ((longitude * Math.PI) / 180),
+    y: RAIO_TERRA_WEB_MERCATOR * Math.log(Math.tan(Math.PI / 4 + latRad / 2))
+  };
+}
+
+function latLngFromMercator(x, y) {
+  return {
+    latitude: (Math.atan(Math.sinh(y / RAIO_TERRA_WEB_MERCATOR)) * 180) / Math.PI,
+    longitude: (x / RAIO_TERRA_WEB_MERCATOR) * (180 / Math.PI)
+  };
+}
+
+function criarChaveNoGlobal(x, y, resolucaoMetros) {
+  const indiceX = Math.round(x / resolucaoMetros);
+  const indiceY = Math.round(y / resolucaoMetros);
+  return `${indiceX}:${indiceY}`;
+}
+
+function expandirBboxPorMercator(bboxEntrada, paddingMetros) {
+  const bbox = validarBbox(bboxEntrada);
+  const sudoeste = mercatorFromLatLng(bbox.minLat, bbox.minLng);
+  const nordeste = mercatorFromLatLng(bbox.maxLat, bbox.maxLng);
+  const min = latLngFromMercator(sudoeste.x - paddingMetros, sudoeste.y - paddingMetros);
+  const max = latLngFromMercator(nordeste.x + paddingMetros, nordeste.y + paddingMetros);
+  return validarBbox({
+    minLat: limitarNumero(min.latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR),
+    minLng: limitarNumero(min.longitude, -180, 180),
+    maxLat: limitarNumero(max.latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR),
+    maxLng: limitarNumero(max.longitude, -180, 180)
+  });
+}
+
+function snapBboxParaGradeGlobal(bboxEntrada, resolucaoMetros) {
+  const bbox = validarBbox(bboxEntrada);
+  const sudoeste = mercatorFromLatLng(bbox.minLat, bbox.minLng);
+  const nordeste = mercatorFromLatLng(bbox.maxLat, bbox.maxLng);
+  const indiceMinX = Math.floor(sudoeste.x / resolucaoMetros);
+  const indiceMaxX = Math.ceil(nordeste.x / resolucaoMetros);
+  const indiceMinY = Math.floor(sudoeste.y / resolucaoMetros);
+  const indiceMaxY = Math.ceil(nordeste.y / resolucaoMetros);
+  const colunas = indiceMaxX - indiceMinX + 1;
+  const linhas = indiceMaxY - indiceMinY + 1;
+  return {
+    indiceMinX,
+    indiceMaxX,
+    indiceMinY,
+    indiceMaxY,
+    linhas,
+    colunas,
+    pontos: linhas * colunas
+  };
+}
+
+function validarGradeGlobal(bbox, resolucaoMetros) {
+  const info = snapBboxParaGradeGlobal(bbox, resolucaoMetros);
+  if (info.pontos > LIMITE_PONTOS_API) {
+    throw new ErroAplicacao("Área muito grande para a grade fixa de 50 m. Selecione uma área menor para manter curvas estáveis.");
+  }
+  return info;
+}
+
 function normalizarIntervaloCurvas(intervaloMetros) {
   const valor = Number(intervaloMetros ?? 5);
   return Number.isFinite(valor) && valor > 0 ? valor : 5;
 }
 
-function escolherResolucaoPorIntervalo(intervaloMetros) {
-  const intervalo = normalizarIntervaloCurvas(intervaloMetros);
-  if (intervalo <= 5) return 50;
-  if (intervalo <= 10) return 75;
-  if (intervalo <= 20) return 100;
-  if (intervalo <= 40) return 150;
-  if (intervalo <= 80) return 250;
-  return 300;
-}
-
-function escolherResolucaoPorArea(maiorDimensaoMetros) {
-  if (maiorDimensaoMetros <= 1000) return 50;
-  if (maiorDimensaoMetros <= 3000) return 100;
-  if (maiorDimensaoMetros <= 8000) return 250;
-  return 500;
-}
-
-function intervaloMinimoPorResolucao(resolucaoMetros) {
-  return Math.ceil(resolucaoMetros / 100);
-}
-
-function calcularParametrosAutomaticos(bbox, intervaloMetrosEntrada = 5) {
-  const dimensoes = calcularDimensoesMetrosCurvas(bbox);
-  const resolucaoPorIntervaloMetros = escolherResolucaoPorIntervalo(intervaloMetrosEntrada);
-  const resolucaoPorAreaMetros = escolherResolucaoPorArea(dimensoes.maiorDimensaoMetros);
-  const resolucaoOriginal = Math.max(resolucaoPorIntervaloMetros, resolucaoPorAreaMetros);
-  let resolucao = resolucaoOriginal;
-  let motivoAjusteAutomatico = null;
-  let info = calcularGradeInfo(bbox, resolucao);
-  while (info.pontos > LIMITE_PONTOS_API) {
-    resolucao *= 1.25;
-    motivoAjusteAutomatico = "A resolução foi ajustada automaticamente para evitar excesso de consultas.";
-    info = calcularGradeInfo(bbox, resolucao);
-  }
-  return {
-    ...dimensoes,
-    resolucaoMetros: resolucao,
-    resolucaoPorIntervaloMetros,
-    resolucaoPorAreaMetros,
-    resolucaoOriginalMetros: resolucaoOriginal,
-    criterioResolucaoAutomatica:
-      "Resolução escolhida combinando intervalo das curvas, tamanho da área e limite de pontos da API.",
-    motivoAjusteAutomatico
-  };
-}
-
 async function gerarGrade(bbox, resolucaoMetros) {
-  const info = calcularGradeInfo(bbox, resolucaoMetros);
+  const info = validarGradeGlobal(bbox, resolucaoMetros);
   const coordenadas = [];
-  for (let l = 0; l < info.linhas; l += 1) {
-    const lat = bbox.maxLat - (bbox.maxLat - bbox.minLat) * (l / (info.linhas - 1));
-    for (let c = 0; c < info.colunas; c += 1) {
-      const lng = bbox.minLng + (bbox.maxLng - bbox.minLng) * (c / (info.colunas - 1));
-      coordenadas.push({ latitude: lat, longitude: lng });
+  for (let indiceY = info.indiceMaxY; indiceY >= info.indiceMinY; indiceY -= 1) {
+    const y = indiceY * resolucaoMetros;
+    for (let indiceX = info.indiceMinX; indiceX <= info.indiceMaxX; indiceX += 1) {
+      const x = indiceX * resolucaoMetros;
+      coordenadas.push({ ...latLngFromMercator(x, y), chaveGlobal: criarChaveNoGlobal(x, y, resolucaoMetros) });
     }
   }
   const resultados = await consultarLote(coordenadas);
@@ -400,7 +409,17 @@ async function gerarGrade(bbox, resolucaoMetros) {
     }
     nos.push(linha);
   }
-  return { bbox, ...info, nos };
+  return {
+    bbox,
+    bboxAmostragem: bbox,
+    ...info,
+    resolucaoSolicitadaMetros: resolucaoMetros,
+    resolucaoEfetivaMetros: resolucaoMetros,
+    ajustada: false,
+    gradeTravada: true,
+    sistemaGrade: "web_mercator_global",
+    nos
+  };
 }
 
 function extremos(nos) {
@@ -514,28 +533,85 @@ function comprimentoLinha(linha) {
   return total;
 }
 
+function clipSegmentoBbox(inicio, fim, bbox) {
+  const x0 = inicio[0], y0 = inicio[1], x1 = fim[0], y1 = fim[1];
+  const dx = x1 - x0, dy = y1 - y0;
+  let t0 = 0, t1 = 1;
+  const limites = [[-dx, x0 - bbox.minLng], [dx, bbox.maxLng - x0], [-dy, y0 - bbox.minLat], [dy, bbox.maxLat - y0]];
+  for (const [p, q] of limites) {
+    if (p === 0) {
+      if (q < 0) return null;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return null;
+      t0 = Math.max(t0, r);
+    } else {
+      if (r < t0) return null;
+      t1 = Math.min(t1, r);
+    }
+  }
+  return [[x0 + dx * t0, y0 + dy * t0], [x0 + dx * t1, y0 + dy * t1]];
+}
+
+function pontosLinhaIguais(a, b) {
+  return Math.abs(a[0] - b[0]) <= 1e-10 && Math.abs(a[1] - b[1]) <= 1e-10;
+}
+
+function cortarLinhaParaBbox(linha, bbox) {
+  const linhas = [];
+  let atual = [];
+  for (let i = 1; i < linha.length; i += 1) {
+    const segmento = clipSegmentoBbox(linha[i - 1], linha[i], bbox);
+    if (!segmento) {
+      if (atual.length >= 2) linhas.push(atual);
+      atual = [];
+      continue;
+    }
+    const [inicio, fim] = segmento;
+    if (atual.length === 0) {
+      atual.push(inicio, fim);
+      continue;
+    }
+    if (!pontosLinhaIguais(atual.at(-1), inicio)) {
+      if (atual.length >= 2) linhas.push(atual);
+      atual = [inicio];
+    }
+    if (!pontosLinhaIguais(atual.at(-1), fim)) atual.push(fim);
+  }
+  if (atual.length >= 2) linhas.push(atual);
+  return linhas;
+}
+
 async function gerarCurvas(body) {
-  const bbox = validarBbox(body?.bbox);
-  const modoParametros = body?.modoParametros === "manual" ? "manual" : "automatico";
+  const bboxOriginal = validarBbox(body?.bbox);
   const intervaloSolicitado = normalizarIntervaloCurvas(body?.intervaloMetros);
-  const automaticos = calcularParametrosAutomaticos(bbox, intervaloSolicitado);
-  const resolucao = modoParametros === "automatico" ? automaticos.resolucaoMetros : Number(body?.resolucaoMetros ?? 100);
-  const intervalo = Math.max(intervaloSolicitado, intervaloMinimoPorResolucao(resolucao));
-  const grade = await gerarGrade(bbox, resolucao);
+  const resolucao = RESOLUCAO_GLOBAL_METROS;
+  const bboxAmostragem = expandirBboxPorMercator(bboxOriginal, resolucao * 2);
+  const dimensoesOriginais = calcularDimensoesMetrosCurvas(bboxOriginal);
+  const grade = await gerarGrade(bboxAmostragem, resolucao);
   const nos = densificar(suavizar(grade.nos));
   const ex = extremos(grade.nos);
   const features = [];
   if (ex.min !== null && ex.max !== null) {
-    for (let nivel = Math.ceil(ex.min / intervalo) * intervalo; nivel <= Math.floor(ex.max / intervalo) * intervalo; nivel += intervalo) {
+    for (
+      let nivel = Math.ceil(ex.min / intervaloSolicitado) * intervaloSolicitado;
+      nivel <= Math.floor(ex.max / intervaloSolicitado) * intervaloSolicitado;
+      nivel += intervaloSolicitado
+    ) {
       for (const linha of unir(segmentosNivel(nos, nivel))) {
         const suave = chaikin(linha);
-        const comp = comprimentoLinha(suave);
-        if (suave.length < 2 || comp < Math.max(grade.resolucaoEfetivaMetros * 0.5, 3)) continue;
-        features.push({
-          type: "Feature",
-          properties: { elevacao: nivel, tipo: nivel % (intervalo * 5) === 0 ? "mestra" : "normal", fonte: "Open-Elevation", comprimentoMetros: comp, fechada: chavePonto(suave[0]) === chavePonto(suave.at(-1)) },
-          geometry: { type: "LineString", coordinates: suave }
-        });
+        for (const linhaCortada of cortarLinhaParaBbox(suave, bboxOriginal)) {
+          const suaveCortada = chaikin(linhaCortada);
+          const comp = comprimentoLinha(suaveCortada);
+          if (suaveCortada.length < 2 || comp < Math.max(grade.resolucaoEfetivaMetros * 0.5, 3)) continue;
+          features.push({
+            type: "Feature",
+            properties: { elevacao: nivel, tipo: nivel % (intervaloSolicitado * 5) === 0 ? "mestra" : "normal", fonte: "Open-Elevation", comprimentoMetros: comp, fechada: chavePonto(suaveCortada[0]) === chavePonto(suaveCortada.at(-1)) },
+            geometry: { type: "LineString", coordinates: suaveCortada }
+          });
+        }
       }
     }
   }
@@ -545,17 +621,21 @@ async function gerarCurvas(body) {
     metadados: {
       fonte: "Open-Elevation API",
       metodo: "open_elevation_api_marching_squares_suavizado",
-      modoParametros,
-      resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
-      resolucaoPorIntervaloMetros: modoParametros === "automatico" ? automaticos.resolucaoPorIntervaloMetros : null,
-      resolucaoPorAreaMetros: modoParametros === "automatico" ? automaticos.resolucaoPorAreaMetros : null,
-      resolucaoOriginalMetros: modoParametros === "automatico" ? automaticos.resolucaoOriginalMetros : null,
-      criterioResolucaoAutomatica:
-        modoParametros === "automatico" ? automaticos.criterioResolucaoAutomatica : null,
-      motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
-      maiorDimensaoMetros: automaticos.maiorDimensaoMetros,
-      areaMetrosQuadrados: automaticos.areaMetrosQuadrados,
-      intervaloMetros: intervalo,
+      modoParametros: null,
+      resolucaoAutomatica: null,
+      resolucaoPorIntervaloMetros: null,
+      resolucaoPorAreaMetros: null,
+      resolucaoOriginalMetros: null,
+      criterioResolucaoAutomatica: null,
+      motivoAjusteAutomatico: null,
+      maiorDimensaoMetros: dimensoesOriginais.maiorDimensaoMetros,
+      areaMetrosQuadrados: dimensoesOriginais.areaMetrosQuadrados,
+      intervaloMetros: intervaloSolicitado,
+      resolucaoGradeGlobalMetros: resolucao,
+      gradeTravada: true,
+      sistemaGrade: "web_mercator_global",
+      bboxOriginal,
+      bboxAmostragem,
       resolucaoSolicitadaMetros: grade.resolucaoSolicitadaMetros,
       resolucaoEfetivaMetros: grade.resolucaoEfetivaMetros,
       resolucaoAjustada: grade.ajustada,
@@ -583,7 +663,13 @@ export default async function handler(req, res) {
         backendOnline: true,
         dataHora: new Date().toISOString(),
         elevacao: { fonte: "Open-Elevation API", configurada: true, tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
-        curvas: { limitePontosApi: LIMITE_PONTOS_API, resolucaoMinimaMetros: RESOLUCAO_MINIMA_METROS, fatorDensificacao: FATOR_DENSIFICACAO }
+        curvas: {
+          limitePontosApi: LIMITE_PONTOS_API,
+          resolucaoGradeGlobalMetros: RESOLUCAO_GLOBAL_METROS,
+          gradeTravada: true,
+          sistemaGrade: "web_mercator_global",
+          fatorDensificacao: FATOR_DENSIFICACAO
+        }
       });
     }
     if (req.method === "GET" && url.pathname === "/api/elevation") {

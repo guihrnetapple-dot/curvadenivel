@@ -123,7 +123,7 @@ export interface FeatureCurvaNivel {
 export interface MetadadosCurvasNivel {
   fonte: "Open-Elevation API";
   metodo: "open_elevation_api_marching_squares_suavizado";
-  modoParametros: ModoParametrosCurvas;
+  modoParametros: null;
   resolucaoAutomatica: number | null;
   resolucaoPorIntervaloMetros: number | null;
   resolucaoPorAreaMetros: number | null;
@@ -133,6 +133,11 @@ export interface MetadadosCurvasNivel {
   maiorDimensaoMetros: number;
   areaMetrosQuadrados: number;
   intervaloMetros: number;
+  resolucaoGradeGlobalMetros: number;
+  gradeTravada: true;
+  sistemaGrade: "web_mercator_global";
+  bboxOriginal: BboxCurvasNivel;
+  bboxAmostragem: BboxCurvasNivel;
   resolucaoSolicitadaMetros: number;
   resolucaoEfetivaMetros: number;
   resolucaoAjustada: boolean;

@@ -1,12 +1,34 @@
 import {
   CURVAS_LIMITE_PONTOS_API,
-  CURVAS_RESOLUCAO_MINIMA_METROS,
-  CURVAS_RESOLUCAO_PADRAO_METROS
+  CURVAS_RESOLUCAO_GLOBAL_METROS
 } from "../../configuracao";
 import { ErroAplicacao } from "../../utilitarios/erros";
 import type { BboxCurvas } from "./tiposCurvas";
 
-const METROS_POR_GRAU_LATITUDE = 111320;
+const RAIO_TERRA_WEB_MERCATOR = 6378137;
+const LATITUDE_MAXIMA_WEB_MERCATOR = 85.05112878;
+
+export interface PontoMercator {
+  x: number;
+  y: number;
+}
+
+export interface BboxMercator {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface BboxTravadoGlobal extends BboxMercator {
+  indiceMinX: number;
+  indiceMaxX: number;
+  indiceMinY: number;
+  indiceMaxY: number;
+  linhas: number;
+  colunas: number;
+  quantidadePontos: number;
+}
 
 export function limitar(valor: number, minimo: number, maximo: number): number {
   return Math.min(Math.max(valor, minimo), maximo);
@@ -36,44 +58,79 @@ export function validarBbox(bbox: BboxCurvas): BboxCurvas {
 }
 
 export function normalizarResolucaoMetros(resolucaoMetros: unknown): number {
-  const valor = Number(resolucaoMetros ?? CURVAS_RESOLUCAO_PADRAO_METROS);
-  return Number.isFinite(valor)
-    ? Math.max(CURVAS_RESOLUCAO_MINIMA_METROS, valor)
-    : CURVAS_RESOLUCAO_PADRAO_METROS;
+  const valor = Number(resolucaoMetros ?? CURVAS_RESOLUCAO_GLOBAL_METROS);
+  return Number.isFinite(valor) && valor > 0 ? valor : CURVAS_RESOLUCAO_GLOBAL_METROS;
 }
 
-export function converterMetrosParaGraus(resolucaoMetros: number, latitudeReferencia: number) {
-  const latStep = resolucaoMetros / METROS_POR_GRAU_LATITUDE;
-  const cosLatitude = Math.max(0.01, Math.cos((latitudeReferencia * Math.PI) / 180));
-  const lngStep = resolucaoMetros / (METROS_POR_GRAU_LATITUDE * cosLatitude);
-  return { latStep, lngStep };
+export function mercatorFromLatLng(latitude: number, longitude: number): PontoMercator {
+  const latitudeLimitada = limitar(latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR);
+  const latRad = (latitudeLimitada * Math.PI) / 180;
+  return {
+    x: RAIO_TERRA_WEB_MERCATOR * ((longitude * Math.PI) / 180),
+    y: RAIO_TERRA_WEB_MERCATOR * Math.log(Math.tan(Math.PI / 4 + latRad / 2))
+  };
 }
 
-export function calcularDimensoesGrade(bbox: BboxCurvas, resolucaoMetros: number) {
-  const latitudeReferencia = (bbox.minLat + bbox.maxLat) / 2;
-  const { latStep, lngStep } = converterMetrosParaGraus(resolucaoMetros, latitudeReferencia);
-  const linhas = Math.max(2, Math.floor((bbox.maxLat - bbox.minLat) / latStep) + 1);
-  const colunas = Math.max(2, Math.floor((bbox.maxLng - bbox.minLng) / lngStep) + 1);
+export function latLngFromMercator(x: number, y: number): { latitude: number; longitude: number } {
+  return {
+    latitude: (Math.atan(Math.sinh(y / RAIO_TERRA_WEB_MERCATOR)) * 180) / Math.PI,
+    longitude: (x / RAIO_TERRA_WEB_MERCATOR) * (180 / Math.PI)
+  };
+}
+
+export function criarChaveNoGlobal(x: number, y: number, resolucaoMetros: number): string {
+  const indiceX = Math.round(x / resolucaoMetros);
+  const indiceY = Math.round(y / resolucaoMetros);
+  return `${indiceX}:${indiceY}`;
+}
+
+export function expandirBboxPorMercator(bboxEntrada: BboxCurvas, paddingMetros: number): BboxCurvas {
+  const bbox = validarBbox(bboxEntrada);
+  const sudoeste = mercatorFromLatLng(bbox.minLat, bbox.minLng);
+  const nordeste = mercatorFromLatLng(bbox.maxLat, bbox.maxLng);
+  const min = latLngFromMercator(sudoeste.x - paddingMetros, sudoeste.y - paddingMetros);
+  const max = latLngFromMercator(nordeste.x + paddingMetros, nordeste.y + paddingMetros);
+
+  return validarBbox({
+    minLat: limitar(min.latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR),
+    minLng: limitar(min.longitude, -180, 180),
+    maxLat: limitar(max.latitude, -LATITUDE_MAXIMA_WEB_MERCATOR, LATITUDE_MAXIMA_WEB_MERCATOR),
+    maxLng: limitar(max.longitude, -180, 180)
+  });
+}
+
+export function snapBboxParaGradeGlobal(bboxEntrada: BboxCurvas, resolucaoMetros: number): BboxTravadoGlobal {
+  const bbox = validarBbox(bboxEntrada);
+  const sudoeste = mercatorFromLatLng(bbox.minLat, bbox.minLng);
+  const nordeste = mercatorFromLatLng(bbox.maxLat, bbox.maxLng);
+  const indiceMinX = Math.floor(sudoeste.x / resolucaoMetros);
+  const indiceMaxX = Math.ceil(nordeste.x / resolucaoMetros);
+  const indiceMinY = Math.floor(sudoeste.y / resolucaoMetros);
+  const indiceMaxY = Math.ceil(nordeste.y / resolucaoMetros);
+  const colunas = indiceMaxX - indiceMinX + 1;
+  const linhas = indiceMaxY - indiceMinY + 1;
 
   return {
+    indiceMinX,
+    indiceMaxX,
+    indiceMinY,
+    indiceMaxY,
+    minX: indiceMinX * resolucaoMetros,
+    maxX: indiceMaxX * resolucaoMetros,
+    minY: indiceMinY * resolucaoMetros,
+    maxY: indiceMaxY * resolucaoMetros,
     linhas,
     colunas,
     quantidadePontos: linhas * colunas
   };
 }
 
-export function validarLimitePontos(bbox: BboxCurvas, resolucaoSolicitada: number) {
-  let resolucaoEfetiva = resolucaoSolicitada;
-  let dimensoes = calcularDimensoesGrade(bbox, resolucaoEfetiva);
-
-  while (dimensoes.quantidadePontos > CURVAS_LIMITE_PONTOS_API) {
-    resolucaoEfetiva *= 1.25;
-    dimensoes = calcularDimensoesGrade(bbox, resolucaoEfetiva);
+export function validarLimitePontosGradeGlobal(bbox: BboxCurvas, resolucaoMetros: number): BboxTravadoGlobal {
+  const grade = snapBboxParaGradeGlobal(bbox, resolucaoMetros);
+  if (grade.quantidadePontos > CURVAS_LIMITE_PONTOS_API) {
+    throw new ErroAplicacao(
+      "Área muito grande para a grade fixa de 50 m. Selecione uma área menor para manter curvas estáveis."
+    );
   }
-
-  return {
-    resolucaoEfetiva,
-    resolucaoAjustada: resolucaoEfetiva !== resolucaoSolicitada,
-    ...dimensoes
-  };
+  return grade;
 }
