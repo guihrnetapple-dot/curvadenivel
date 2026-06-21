@@ -33,7 +33,7 @@ export type SegmentoCurva = [CoordenadaLinhaCurva, CoordenadaLinhaCurva];
 export interface PropriedadesCurva {
   elevacao: number;
   tipo: "mestra" | "normal";
-  fonte: "RAW interpolado";
+  fonte: "RAW interpolado" | "Open-Elevation";
 }
 
 export interface FeatureCurva {
@@ -49,8 +49,8 @@ export interface FeatureCollectionCurvas {
   type: "FeatureCollection";
   features: FeatureCurva[];
   metadados: {
-    fonte: "data10k8b.raw interpolado";
-    metodo: "interpolacao_bilinear_marching_squares";
+    fonte: "data10k8b.raw interpolado" | "Open-Elevation API";
+    metodo: "interpolacao_bilinear_marching_squares" | "open_elevation_marching_squares";
     intervaloMetros: number;
     resolucaoMetros: number;
     altitudeMinima: number | null;

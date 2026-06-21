@@ -16,10 +16,25 @@ const INTERVALO_MINIMO_METROS = Number(process.env.PERFIL_INTERVALO_MINIMO_METRO
 const LIMITE_AMOSTRAS = Number(process.env.PERFIL_LIMITE_AMOSTRAS ?? 3000);
 const CURVAS_MIN_RESOLUCAO_METROS = 100;
 const CURVAS_MAX_CELULAS_GRADE = 80000;
+const CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO = Number(process.env.OPEN_ELEVATION_LIMITE_PONTOS_CURVAS ?? 5000);
+const CURVAS_MAX_PONTOS_OPEN_ELEVATION = Number.isFinite(CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO)
+  ? Math.max(4, CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO)
+  : 5000;
 const CURVAS_INTERVALO_MINIMO_METROS = 20;
 const METROS_POR_GRAU_LATITUDE = 111320;
 const AVISO_PRECISAO_CURVAS =
   "Curvas aproximadas geradas a partir de grade RAW global de baixa resolução. Não usar como curva de nível topográfica final.";
+const AVISO_PRECISAO_CURVAS_OPEN_ELEVATION =
+  "Curvas aproximadas geradas pela API Open-Elevation. A precisão depende da base DEM usada pelo serviço e não substitui levantamento topográfico final.";
+const OPEN_ELEVATION_API_URL = process.env.OPEN_ELEVATION_API_URL ?? "https://api.open-elevation.com/api/v1/lookup";
+const OPEN_ELEVATION_TAMANHO_LOTE_CONFIGURADO = Number(process.env.OPEN_ELEVATION_TAMANHO_LOTE ?? 400);
+const OPEN_ELEVATION_TAMANHO_LOTE = Number.isFinite(OPEN_ELEVATION_TAMANHO_LOTE_CONFIGURADO)
+  ? Math.max(1, OPEN_ELEVATION_TAMANHO_LOTE_CONFIGURADO)
+  : 400;
+const OPEN_ELEVATION_TIMEOUT_CONFIGURADO = Number(process.env.OPEN_ELEVATION_TIMEOUT_MS ?? 20000);
+const OPEN_ELEVATION_TIMEOUT_MS = Number.isFinite(OPEN_ELEVATION_TIMEOUT_CONFIGURADO)
+  ? Math.max(1000, OPEN_ELEVATION_TIMEOUT_CONFIGURADO)
+  : 20000;
 const MENSAGEM_INTERPOLACAO =
   "Altitude estimada com interpolação bilinear a partir da grade data10k8b.raw. A fonte original possui baixa resolução espacial, portanto os decimais representam suavização matemática, não precisão topográfica real.";
 
@@ -533,6 +548,133 @@ async function gerarGradeRawInterpoladaCurvas(bboxEntrada, resolucaoEntradaMetro
   return { bbox, linhas, colunas, resolucaoMetros, nos, altitudeMinima, altitudeMaxima };
 }
 
+async function consultarOpenElevationLote(coordenadas) {
+  const resultados = [];
+
+  for (let indice = 0; indice < coordenadas.length; indice += OPEN_ELEVATION_TAMANHO_LOTE) {
+    const lote = coordenadas.slice(indice, indice + OPEN_ELEVATION_TAMANHO_LOTE);
+    const controlador = new AbortController();
+    const temporizador = setTimeout(() => controlador.abort(), OPEN_ELEVATION_TIMEOUT_MS);
+
+    try {
+      const resposta = await fetch(OPEN_ELEVATION_API_URL, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          locations: lote.map((coordenada) => ({
+            latitude: coordenada.latitude,
+            longitude: coordenada.longitude
+          }))
+        }),
+        signal: controlador.signal
+      });
+
+      const corpo = await resposta.json().catch(() => null);
+      if (!resposta.ok) {
+        throw new ErroAplicacao(`Open-Elevation respondeu com status ${resposta.status}.`, 502, corpo);
+      }
+      if (!Array.isArray(corpo?.results) || corpo.results.length !== lote.length) {
+        throw new ErroAplicacao("A resposta da Open-Elevation veio em formato inesperado.", 502, corpo);
+      }
+
+      resultados.push(
+        ...corpo.results.map((resultado, itemIndice) => ({
+          latitude: Number(resultado.latitude ?? lote[itemIndice].latitude),
+          longitude: Number(resultado.longitude ?? lote[itemIndice].longitude),
+          altitude: Number.isFinite(Number(resultado.elevation)) ? Number(resultado.elevation) : null
+        }))
+      );
+    } catch (erro) {
+      if (erro instanceof ErroAplicacao) throw erro;
+      const mensagem = erro instanceof Error ? erro.message : "Falha desconhecida na API Open-Elevation.";
+      throw new ErroAplicacao(`Não foi possível consultar a Open-Elevation: ${mensagem}`, 502);
+    } finally {
+      clearTimeout(temporizador);
+    }
+  }
+
+  return resultados;
+}
+
+async function consultarPontoOpenElevation(coordenada) {
+  const latitude = Number(coordenada.latitude);
+  const longitude = Number(coordenada.longitude);
+  validarCoordenada(latitude, longitude);
+
+  const [resultado] = await consultarOpenElevationLote([{ latitude, longitude }]);
+  const altitude = resultado?.altitude ?? null;
+
+  return {
+    latitude,
+    longitude,
+    coluna: 0,
+    linha: 0,
+    indice: 0,
+    valorBruto: altitude ?? 0,
+    valorBrutoInterpolado: altitude ?? undefined,
+    metodo: "bilinear",
+    precisaoReal: "media",
+    avisoPrecisao:
+      "Altitude consultada na API Open-Elevation. A precisão depende da base DEM usada pelo serviço.",
+    altitude,
+    status: altitude === null ? "sem_dado" : "valido",
+    mensagem:
+      altitude === null
+        ? "A API Open-Elevation não retornou altitude válida para esse ponto."
+        : "Altitude consultada pela API Open-Elevation.",
+    consultadoEm: new Date().toISOString()
+  };
+}
+
+async function gerarGradeOpenElevationCurvas(bboxEntrada, resolucaoEntradaMetros) {
+  const bbox = normalizarBboxCurvas(bboxEntrada);
+  const resolucaoMetros = normalizarResolucaoCurvas(resolucaoEntradaMetros);
+  const latitudeMediaRad = ((bbox.minLat + bbox.maxLat) / 2) * RADIANOS_POR_GRAU;
+  const fatorLongitude = Math.max(Math.abs(Math.cos(latitudeMediaRad)), 0.01);
+  const grausLat = resolucaoMetros / METROS_POR_GRAU_LATITUDE;
+  const grausLng = resolucaoMetros / (METROS_POR_GRAU_LATITUDE * fatorLongitude);
+  const deltaLat = bbox.maxLat - bbox.minLat;
+  const deltaLng = bbox.maxLng - bbox.minLng;
+  const linhas = Math.max(2, Math.ceil(deltaLat / grausLat) + 1);
+  const colunas = Math.max(2, Math.ceil(deltaLng / grausLng) + 1);
+
+  if (linhas * colunas > CURVAS_MAX_PONTOS_OPEN_ELEVATION) {
+    throw new ErroAplicacao("Área muito grande para usar a API Open-Elevation. Aproxime o mapa ou aumente a resolução.");
+  }
+
+  const coordenadas = Array.from({ length: linhas * colunas }, (_valor, indice) => {
+    const linha = Math.floor(indice / colunas);
+    const coluna = indice % colunas;
+    return {
+      latitude: bbox.maxLat - Math.min(linha * grausLat, deltaLat),
+      longitude: bbox.minLng + Math.min(coluna * grausLng, deltaLng)
+    };
+  });
+  const resultados = await consultarOpenElevationLote(coordenadas);
+  let altitudeMinima = null;
+  let altitudeMaxima = null;
+  const nos = [];
+
+  for (let linha = 0; linha < linhas; linha += 1) {
+    const linhaNos = [];
+    for (let coluna = 0; coluna < colunas; coluna += 1) {
+      const resultado = resultados[linha * colunas + coluna];
+      const altitude = resultado.altitude;
+      if (altitude !== null) {
+        altitudeMinima = altitudeMinima === null ? altitude : Math.min(altitudeMinima, altitude);
+        altitudeMaxima = altitudeMaxima === null ? altitude : Math.max(altitudeMaxima, altitude);
+      }
+      linhaNos.push({ latitude: resultado.latitude, longitude: resultado.longitude, altitude });
+    }
+    nos.push(linhaNos);
+  }
+
+  return { bbox, linhas, colunas, resolucaoMetros, nos, altitudeMinima, altitudeMaxima };
+}
+
 function cruzaNivel(a, b, nivel) {
   return (a < nivel && b >= nivel) || (b < nivel && a >= nivel);
 }
@@ -666,6 +808,47 @@ async function gerarCurvasRaw(requisicao) {
   };
 }
 
+async function gerarCurvasOpenElevation(requisicao) {
+  if (!requisicao || typeof requisicao !== "object") {
+    throw new ErroAplicacao("Informe os parÃ¢metros para gerar curvas de nÃ­vel.");
+  }
+
+  const intervaloMetros = normalizarIntervaloCurvas(requisicao.intervaloMetros);
+  const grade = await gerarGradeOpenElevationCurvas(requisicao.bbox, requisicao.resolucaoMetros);
+  const features = [];
+
+  if (grade.altitudeMinima !== null && grade.altitudeMaxima !== null) {
+    const nivelInicial = Math.ceil(grade.altitudeMinima / intervaloMetros) * intervaloMetros;
+    const nivelFinal = Math.floor(grade.altitudeMaxima / intervaloMetros) * intervaloMetros;
+
+    for (let nivel = nivelInicial; nivel <= nivelFinal; nivel += intervaloMetros) {
+      const tipo = nivel % (intervaloMetros * 5) === 0 ? "mestra" : "normal";
+      const linhas = unirSegmentosCurvas(gerarSegmentosMarchingSquares(grade, nivel));
+      for (const linha of linhas) {
+        features.push({
+          type: "Feature",
+          properties: { elevacao: nivel, tipo, fonte: "Open-Elevation" },
+          geometry: { type: "LineString", coordinates: linha }
+        });
+      }
+    }
+  }
+
+  return {
+    type: "FeatureCollection",
+    features,
+    metadados: {
+      fonte: "Open-Elevation API",
+      metodo: "open_elevation_marching_squares",
+      intervaloMetros,
+      resolucaoMetros: grade.resolucaoMetros,
+      altitudeMinima: grade.altitudeMinima,
+      altitudeMaxima: grade.altitudeMaxima,
+      avisoPrecisao: AVISO_PRECISAO_CURVAS_OPEN_ELEVATION
+    }
+  };
+}
+
 function normalizarCoordenadaEntrada(entrada) {
   if (!entrada || typeof entrada !== "object") {
     throw new ErroAplicacao("Cada coordenada precisa ser um objeto com latitude e longitude.");
@@ -739,6 +922,16 @@ async function manipularRota(requisicao, resposta) {
     return;
   }
 
+  if (requisicao.method === "GET" && caminho === "/api/elevation/open-elevation") {
+    resposta.status(200).json(
+      await consultarPontoOpenElevation({
+        latitude: Number(requisicao.query?.lat ?? requisicao.query?.latitude),
+        longitude: Number(requisicao.query?.lng ?? requisicao.query?.longitude)
+      })
+    );
+    return;
+  }
+
   if (requisicao.method === "POST" && caminho === "/api/elevation/batch") {
     const corpo = lerCorpo(requisicao);
     const coordenadas = corpo.coordenadas;
@@ -757,6 +950,11 @@ async function manipularRota(requisicao, resposta) {
 
   if (requisicao.method === "POST" && caminho === "/api/contours/raw") {
     resposta.status(200).json(await gerarCurvasRaw(lerCorpo(requisicao)));
+    return;
+  }
+
+  if (requisicao.method === "POST" && caminho === "/api/contours/open-elevation") {
+    resposta.status(200).json(await gerarCurvasOpenElevation(lerCorpo(requisicao)));
     return;
   }
 

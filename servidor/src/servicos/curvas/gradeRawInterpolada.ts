@@ -7,7 +7,7 @@ export const MAX_CELULAS_GRADE = 80000;
 
 const METROS_POR_GRAU_LATITUDE = 111320;
 
-function validarBbox(bbox: BboxCurvas): BboxCurvas {
+export function validarBbox(bbox: BboxCurvas): BboxCurvas {
   const normalizado = {
     minLat: Number(bbox?.minLat),
     minLng: Number(bbox?.minLng),

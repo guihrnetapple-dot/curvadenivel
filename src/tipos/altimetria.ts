@@ -2,6 +2,7 @@ export type TemaVisual = "claro" | "escuro";
 export type CamadaBase = "mapa" | "satelite" | "terreno";
 export type StatusAltitude = "valido" | "sem_dado";
 export type MetodoInterpolacao = "celula" | "bilinear" | "bilinear_parcial";
+export type FonteElevacao = "raw" | "open_elevation";
 export type PrecisaoReal = "baixa" | "media" | "alta";
 
 export interface ResultadoAltitude {
@@ -101,14 +102,14 @@ export interface FeatureCurvaNivel {
   properties: {
     elevacao: number;
     tipo: "mestra" | "normal";
-    fonte: "RAW interpolado";
+    fonte: "RAW interpolado" | "Open-Elevation";
   };
   geometry: GeometriaLinha;
 }
 
 export interface MetadadosCurvasNivel {
-  fonte: "data10k8b.raw interpolado";
-  metodo: "interpolacao_bilinear_marching_squares";
+  fonte: "data10k8b.raw interpolado" | "Open-Elevation API";
+  metodo: "interpolacao_bilinear_marching_squares" | "open_elevation_marching_squares";
   intervaloMetros: number;
   resolucaoMetros: number;
   altitudeMinima: number | null;

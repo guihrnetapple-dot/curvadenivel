@@ -11,17 +11,17 @@ import {
   Square,
   UploadCloud
 } from "lucide-react";
-import { FormEvent, ReactNode, useState } from "react";
+import { ReactNode, useState } from "react";
 
 import type {
   CamadaImportada,
   CurvasNivelGeoJson,
   ElementoMapa,
+  FonteElevacao,
   PerfilElevacao,
   ResultadoAltitude
 } from "../tipos/altimetria";
 import { formatarArea, formatarMetros, formatarNumero } from "../utilitarios/formatacao";
-import { TabelaHistorico } from "./TabelaHistorico";
 
 interface PropriedadesSecao {
   titulo: string;
@@ -48,7 +48,6 @@ function SecaoPainel({ titulo, icone, abertaInicialmente = false, children }: Pr
 
 interface PropriedadesPainelDireito {
   resultadoAtual: ResultadoAltitude | null;
-  historico: ResultadoAltitude[];
   elementos: ElementoMapa[];
   elementoSelecionadoId: string | null;
   perfil: PerfilElevacao | null;
@@ -56,10 +55,12 @@ interface PropriedadesPainelDireito {
   curvasNivel: CurvasNivelGeoJson | null;
   carregandoCurvas: boolean;
   selecionandoAreaCurvas: boolean;
+  selecionandoPontoAltitude: boolean;
+  fonteElevacao: FonteElevacao;
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
-  aoConsultarManual: (latitude: number, longitude: number) => void;
+  aoAnalisarPonto: () => void;
   aoSelecionarElemento: (id: string) => void;
   aoAnalisarPerfil: () => void;
   aoLimparAnalise: () => void;
@@ -98,7 +99,6 @@ function obterIconeElemento(tipo: string): ReactNode {
 
 export function PainelDireito({
   resultadoAtual,
-  historico,
   elementos,
   elementoSelecionadoId,
   perfil,
@@ -106,10 +106,12 @@ export function PainelDireito({
   curvasNivel,
   carregandoCurvas,
   selecionandoAreaCurvas,
+  selecionandoPontoAltitude,
+  fonteElevacao,
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
-  aoConsultarManual,
+  aoAnalisarPonto,
   aoSelecionarElemento,
   aoAnalisarPerfil,
   aoLimparAnalise,
@@ -125,14 +127,7 @@ export function PainelDireito({
   aoExportarCurvasGeoJson,
   aoExportarKml
 }: PropriedadesPainelDireito) {
-  const [latitude, setLatitude] = useState("-16.72");
-  const [longitude, setLongitude] = useState("-43.86");
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
-
-  function enviarConsultaManual(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
-    aoConsultarManual(Number(latitude.replace(",", ".")), Number(longitude.replace(",", ".")));
-  }
 
   return (
     <aside className="painel-direito">
@@ -192,25 +187,17 @@ export function PainelDireito({
       </SecaoPainel>
 
       <SecaoPainel titulo="Consulta de altitude" icone={<Crosshair size={17} />}>
-        <form className="formulario-coordenadas" onSubmit={enviarConsultaManual}>
-          <label>
-            Latitude
-            <input value={latitude} onChange={(evento) => setLatitude(evento.target.value)} />
-          </label>
-          <label>
-            Longitude
-            <input value={longitude} onChange={(evento) => setLongitude(evento.target.value)} />
-          </label>
-          <button type="submit">Consultar ponto</button>
-        </form>
+        <button className="botao-largo" type="button" onClick={aoAnalisarPonto} disabled={selecionandoPontoAltitude}>
+          {selecionandoPontoAltitude ? "Clique no mapa" : "Analisar ponto"}
+        </button>
 
         <div className="resultado-atual">
           <span>Última altitude</span>
           <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 2) : "-"}</strong>
           {resultadoAtual && (
             <small>
-              Método: {resultadoAtual.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"} · Fonte:
-              data10k8b.raw
+              Método: {fonteElevacao === "open_elevation" ? "Open-Elevation" : resultadoAtual.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"} · Fonte:
+              {fonteElevacao === "open_elevation" ? " Open-Elevation" : " data10k8b.raw"}
             </small>
           )}
           <small>
@@ -219,8 +206,6 @@ export function PainelDireito({
           </small>
           <small>{resultadoAtual?.mensagem ?? "Aguardando consulta."}</small>
         </div>
-
-        <TabelaHistorico historico={historico} />
       </SecaoPainel>
 
       <SecaoPainel titulo="Perfil de elevação" icone={<LineChart size={17} />}>
@@ -291,7 +276,7 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
         <div className="aviso-curvas">
-          Curvas provisórias geradas por interpolação do RAW global. Não usar como levantamento topográfico final.
+          Curvas provisórias geradas a partir da fonte selecionada. Não usar como levantamento topográfico final.
         </div>
 
         <div className="grupo-controles">
@@ -359,7 +344,7 @@ export function PainelDireito({
           </div>
           <div>
             <span>Fonte</span>
-            <strong>RAW</strong>
+            <strong>{curvasNivel?.metadados.fonte ?? (fonteElevacao === "open_elevation" ? "Open-Elevation" : "RAW")}</strong>
           </div>
         </div>
 

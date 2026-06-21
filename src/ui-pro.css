@@ -189,6 +189,28 @@ select {
   color: var(--verde);
 }
 
+.seletor-fonte-elevacao {
+  min-height: 36px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid rgba(68, 213, 66, 0.24);
+  border-radius: 6px;
+  background: rgba(68, 213, 66, 0.07);
+}
+
+.seletor-fonte-elevacao select {
+  min-height: 36px;
+  width: 220px;
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: #181b19;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.seletor-fonte-elevacao select:focus {
+  outline: 2px solid rgba(68, 213, 66, 0.42);
+  outline-offset: 2px;
+}
+
 .status-pill {
   height: 26px;
   padding: 0 9px;
@@ -283,15 +305,16 @@ select {
 }
 
 .leaflet-top.leaflet-right .leaflet-control-attribution {
-  margin-top: 56px;
-  margin-right: 12px;
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(21, 23, 21, 0.72);
-  color: rgba(255, 255, 255, 0.62);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .leaflet-top.leaflet-right .leaflet-control-attribution a {
-  color: rgba(255, 255, 255, 0.74);
+  color: inherit;
 }
 
 .painel-baixo {
@@ -556,6 +579,15 @@ input[type="checkbox"] {
 
   .barra-superior {
     grid-template-columns: minmax(250px, 1fr) auto;
+  }
+
+  .seletor-fonte-elevacao {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .seletor-fonte-elevacao select {
+    width: 190px;
   }
 
   .status-topo {

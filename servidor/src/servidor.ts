@@ -11,6 +11,8 @@ import {
   obterPortaServidor
 } from "./configuracao";
 import { ServicoAltitude } from "./servicos/servicoAltitude";
+import { ServicoOpenElevation } from "./servicos/servicoOpenElevation";
+import { ServicoCurvasOpenElevation } from "./servicos/curvas/servicoCurvasOpenElevation";
 import { ServicoCurvasRaw } from "./servicos/curvas/servicoCurvasRaw";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
@@ -19,8 +21,10 @@ import { ErroAplicacao } from "./utilitarios/erros";
 const aplicacao = express();
 const porta = obterPortaServidor();
 const servicoAltitude = new ServicoAltitude(obterCaminhoArquivoAltitude());
+const servicoOpenElevation = new ServicoOpenElevation();
 const servicoPerfil = new ServicoPerfil(servicoAltitude);
 const servicoCurvasRaw = new ServicoCurvasRaw(servicoAltitude);
+const servicoCurvasOpenElevation = new ServicoCurvasOpenElevation(servicoOpenElevation);
 
 aplicacao.use(cors({ origin: true }));
 aplicacao.use(express.json({ limit: "4mb" }));
@@ -78,6 +82,14 @@ aplicacao.get(
   })
 );
 
+aplicacao.get(
+  "/api/elevation/open-elevation",
+  rotaAssincrona(async (requisicao, resposta) => {
+    const resultado = await servicoOpenElevation.consultarPonto(lerCoordenadaDaQuery(requisicao));
+    resposta.json(resultado);
+  })
+);
+
 aplicacao.post(
   "/api/elevation/batch",
   rotaAssincrona(async (requisicao, resposta) => {
@@ -110,6 +122,14 @@ aplicacao.post(
   "/api/contours/raw",
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoCurvasRaw.gerarCurvas(requisicao.body);
+    resposta.json(resultado);
+  })
+);
+
+aplicacao.post(
+  "/api/contours/open-elevation",
+  rotaAssincrona(async (requisicao, resposta) => {
+    const resultado = await servicoCurvasOpenElevation.gerarCurvas(requisicao.body);
     resposta.json(resultado);
   })
 );

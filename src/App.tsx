@@ -5,7 +5,7 @@ import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
-import { gerarCurvasRaw } from "./servicos/apiCurvasNivel";
+import { gerarCurvasNivel } from "./servicos/apiCurvasNivel";
 import type {
   AlertaSistema,
   BboxCurvasNivel,
@@ -14,6 +14,7 @@ import type {
   CamadasVisiveis,
   CurvasNivelGeoJson,
   ElementoMapa,
+  FonteElevacao,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -74,6 +75,8 @@ export function Aplicacao() {
   const [carregandoCurvas, setCarregandoCurvas] = useState(false);
   const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
+  const [selecionandoPontoAltitude, setSelecionandoPontoAltitude] = useState(false);
+  const [fonteElevacao, setFonteElevacao] = useState<FonteElevacao>("raw");
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(20);
   const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(250);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
@@ -125,7 +128,7 @@ export function Aplicacao() {
   const consultarCoordenada = useCallback(
     async (latitude: number, longitude: number): Promise<ResultadoAltitude | null> => {
       try {
-        const resultado = await consultarAltitude(latitude, longitude);
+        const resultado = await consultarAltitude(latitude, longitude, fonteElevacao);
         registrarResultado(resultado);
         setAlerta({
           tipo: resultado.status === "valido" ? "sucesso" : "aviso",
@@ -138,8 +141,22 @@ export function Aplicacao() {
         return null;
       }
     },
-    [registrarResultado]
+    [fonteElevacao, registrarResultado]
   );
+
+  function iniciarAnalisePonto() {
+    setSelecionandoPontoAltitude(true);
+    setSelecionandoAreaCurvas(false);
+    setAlerta({
+      tipo: "aviso",
+      mensagem: "Clique no mapa para analisar a altitude daquele ponto."
+    });
+  }
+
+  async function analisarPontoNoMapa(latitude: number, longitude: number) {
+    setSelecionandoPontoAltitude(false);
+    await consultarCoordenada(latitude, longitude);
+  }
 
   function adicionarElemento(elemento: ElementoMapa) {
     setElementos((itens) => [elemento, ...itens]);
@@ -239,7 +256,12 @@ export function Aplicacao() {
     setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
-      const resultado = await gerarCurvasRaw(boundsSelecionado, intervaloCurvasMetros, resolucaoCurvasMetros);
+      const resultado = await gerarCurvasNivel(
+        fonteElevacao,
+        boundsSelecionado,
+        intervaloCurvasMetros,
+        resolucaoCurvasMetros
+      );
       setCurvasNivel(resultado);
       setAlerta({
         tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
@@ -276,6 +298,7 @@ export function Aplicacao() {
 
       <BarraSuperior
         tema={tema}
+        fonteElevacao={fonteElevacao}
         aoAlternarTema={() => setTema((valor) => (valor === "claro" ? "escuro" : "claro"))}
         aoAbrirConfiguracoes={() =>
           setAlerta({
@@ -283,6 +306,7 @@ export function Aplicacao() {
             mensagem: "Configurações técnicas preservadas: cálculo no backend e RAW carregado uma única vez."
           })
         }
+        aoAlterarFonteElevacao={setFonteElevacao}
       />
 
       <main className="area-trabalho">
@@ -294,8 +318,11 @@ export function Aplicacao() {
             camadasVisiveis={camadasVisiveis}
             camadasImportadas={camadasImportadas}
             curvasNivel={curvasNivel}
+            fonteElevacao={fonteElevacao}
             pontoDestacado={pontoDestacado}
+            elementoSelecionadoId={elementoSelecionadoId}
             selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
+            selecaoPontoAltitudeAtiva={selecionandoPontoAltitude}
             aoElementoCriado={adicionarElemento}
             aoElementoAtualizado={atualizarElemento}
             aoElementoRemovido={removerElemento}
@@ -303,12 +330,13 @@ export function Aplicacao() {
             aoBoundsAlterado={setBoundsMapa}
             aoAreaCurvasSelecionada={gerarCurvasDaAreaSelecionada}
             aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
+            aoPontoAltitudeSelecionado={analisarPontoNoMapa}
+            aoCancelarSelecaoPontoAltitude={() => setSelecionandoPontoAltitude(false)}
           />
         </div>
 
         <PainelDireito
           resultadoAtual={resultadoAtual}
-          historico={historico}
           elementos={elementos}
           elementoSelecionadoId={elementoSelecionadoId}
           perfil={perfil}
@@ -316,10 +344,12 @@ export function Aplicacao() {
           curvasNivel={curvasNivel}
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
+          selecionandoPontoAltitude={selecionandoPontoAltitude}
+          fonteElevacao={fonteElevacao}
           intervaloCurvasMetros={intervaloCurvasMetros}
           resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
-          aoConsultarManual={(latitude, longitude) => consultarCoordenada(latitude, longitude)}
+          aoAnalisarPonto={iniciarAnalisePonto}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
           aoAnalisarPerfil={analisarPerfil}
           aoLimparAnalise={() => {

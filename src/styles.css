@@ -206,6 +206,8 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .botao-icone {
@@ -224,6 +226,32 @@ button:disabled {
   border-radius: 8px;
   background: var(--superficie);
   color: var(--texto);
+}
+
+.seletor-fonte-elevacao {
+  display: grid;
+  grid-template-columns: auto 220px;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  min-width: 0;
+}
+
+.seletor-fonte-elevacao span {
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.seletor-fonte-elevacao select {
+  min-height: 38px;
+  width: 220px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  padding: 0 34px 0 11px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 750;
 }
 
 .status-pill {
@@ -346,14 +374,12 @@ button:disabled {
 }
 
 .leaflet-top.leaflet-right .leaflet-control-attribution {
-  margin-top: 58px;
-  margin-right: 14px;
-  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--superficie) 88%, transparent);
-  box-shadow: 0 8px 20px rgba(25, 39, 34, 0.12);
-  color: var(--texto-suave);
-  font-size: 0.68rem;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sobreposicao-mapa {
@@ -885,6 +911,13 @@ input[type="checkbox"] {
 .leaflet-draw-toolbar a,
 .leaflet-control-zoom a {
   color: #1d2b27;
+}
+
+.modo-desenho-area-curvas,
+.modo-desenho-area-curvas .leaflet-interactive,
+.modo-selecao-ponto-altitude,
+.modo-selecao-ponto-altitude .leaflet-interactive {
+  cursor: crosshair !important;
 }
 
 @keyframes brilho {

@@ -1,4 +1,4 @@
-import type { GeometriaProjeto, PerfilElevacao, ResultadoAltitude, StatusApi } from "../tipos/altimetria";
+import type { FonteElevacao, GeometriaProjeto, PerfilElevacao, ResultadoAltitude, StatusApi } from "../tipos/altimetria";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -46,12 +46,17 @@ export async function consultarStatusApi(): Promise<StatusApi> {
   };
 }
 
-export async function consultarAltitude(latitude: number, longitude: number): Promise<ResultadoAltitude> {
+export async function consultarAltitude(
+  latitude: number,
+  longitude: number,
+  fonte: FonteElevacao = "raw"
+): Promise<ResultadoAltitude> {
   const parametros = new URLSearchParams({
     lat: String(latitude),
     lng: String(longitude)
   });
-  const resposta = await fetch(`${API_BASE}/api/elevation?${parametros.toString()}`);
+  const rota = fonte === "open_elevation" ? "/api/elevation/open-elevation" : "/api/elevation";
+  const resposta = await fetch(`${API_BASE}${rota}?${parametros.toString()}`);
   return lerRespostaJson<ResultadoAltitude>(resposta);
 }
 
