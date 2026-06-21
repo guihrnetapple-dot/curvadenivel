@@ -518,10 +518,6 @@ export function MapaAltimetria({
   return (
     <section className="mapa-container">
       <div ref={containerRef} className="mapa-altimetria" />
-      <div className="sobreposicao-mapa topo-esquerda">
-        <strong>Mapa operacional</strong>
-        <span>Interpolação bilinear sobre fonte global de baixa resolução</span>
-      </div>
       <div className="sobreposicao-mapa cursor-mapa">{coordenadasCursor}</div>
     </section>
   );
