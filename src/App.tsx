@@ -395,14 +395,7 @@ export function Aplicacao() {
     <div className="aplicacao">
       {inicializando && <CarregamentoInicial />}
 
-      <BarraSuperior
-        aoAbrirConfiguracoes={() =>
-          setAlerta({
-            tipo: "aviso",
-            mensagem: "Configurações técnicas preservadas: cálculo no backend com Open-Elevation."
-          })
-        }
-      />
+      <BarraSuperior />
 
       <main className="area-trabalho">
         <div className="coluna-mapa">
