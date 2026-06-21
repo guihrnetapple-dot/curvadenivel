@@ -70,7 +70,7 @@ select {
 }
 
 .barra-superior {
-  grid-template-columns: minmax(282px, 1fr) auto auto;
+  grid-template-columns: minmax(282px, 1fr) auto;
   gap: 12px;
   min-height: 70px;
   padding: 10px 16px;

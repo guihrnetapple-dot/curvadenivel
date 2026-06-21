@@ -1,17 +1,8 @@
-import {
-  Database,
-  Download,
-  Moon,
-  Settings,
-  Sun,
-  Upload,
-  Wifi
-} from "lucide-react";
+import { Download, Moon, Settings, Sun, Upload } from "lucide-react";
 
-import type { StatusApi, TemaVisual } from "../tipos/altimetria";
+import type { TemaVisual } from "../tipos/altimetria";
 
 interface PropriedadesBarraSuperior {
-  statusApi: StatusApi;
   tema: TemaVisual;
   aoImportarArquivo: () => void;
   aoExportarRelatorio: () => void;
@@ -20,16 +11,12 @@ interface PropriedadesBarraSuperior {
 }
 
 export function BarraSuperior({
-  statusApi,
   tema,
   aoImportarArquivo,
   aoExportarRelatorio,
   aoAlternarTema,
   aoAbrirConfiguracoes
 }: PropriedadesBarraSuperior) {
-  const statusBackend = statusApi.backendOnline ? "Online" : "Offline";
-  const statusArquivo = statusApi.arquivoCarregado ? "RAW carregado" : "RAW pendente";
-
   return (
     <header className="barra-superior">
       <div className="marca">
@@ -55,17 +42,6 @@ export function BarraSuperior({
         <button className="botao-quadrado" type="button" onClick={aoAbrirConfiguracoes} title="Configurações">
           <Settings size={18} aria-hidden="true" />
         </button>
-      </div>
-
-      <div className="status-topo">
-        <span className={statusApi.backendOnline ? "status-pill sucesso" : "status-pill erro"}>
-          <Wifi size={14} aria-hidden="true" />
-          {statusBackend}
-        </span>
-        <span className={statusApi.arquivoCarregado ? "status-pill sucesso" : "status-pill aviso"}>
-          <Database size={14} aria-hidden="true" />
-          {statusArquivo}
-        </span>
       </div>
     </header>
   );

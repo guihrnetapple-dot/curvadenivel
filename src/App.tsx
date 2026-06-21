@@ -54,7 +54,7 @@ export function Aplicacao() {
     const temaSalvo = localStorage.getItem(CHAVE_TEMA);
     return temaSalvo === "escuro" ? "escuro" : "claro";
   });
-  const [statusApi, setStatusApi] = useState<StatusApi>({
+  const [, setStatusApi] = useState<StatusApi>({
     carregando: true,
     backendOnline: false,
     arquivoCarregado: false
@@ -274,7 +274,6 @@ export function Aplicacao() {
       {inicializando && <CarregamentoInicial />}
 
       <BarraSuperior
-        statusApi={statusApi}
         tema={tema}
         aoImportarArquivo={() => inputArquivoRef.current?.click()}
         aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
