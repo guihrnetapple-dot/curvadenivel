@@ -41,6 +41,11 @@ const iconeMarcadorVermelho = L.icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
+const iconeControleRaioCirculo = L.divIcon({
+  className: "controle-raio-circulo",
+  iconSize: [14, 14],
+  iconAnchor: [7, 7]
+});
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -121,6 +126,12 @@ interface EstadoArrasteCamada {
   tipo: string;
   ultimoPonto: L.LatLng;
   moveu: boolean;
+}
+
+interface EstadoRedimensionamentoCirculo {
+  id: string;
+  circulo: L.Circle;
+  marcador: L.Marker;
 }
 
 const informacoesCursorIniciais: InformacoesCursor = {
@@ -288,6 +299,24 @@ function converterCamadaEmElemento(id: string, camada: L.Layer, tipo: string): E
       type: "Point",
       coordinates: [ponto.lng, ponto.lat]
     };
+  } else if (tipo === "rectangle" && camada instanceof L.Rectangle) {
+    const bounds = camada.getBounds();
+    const sulOeste = bounds.getSouthWest();
+    const nordeste = bounds.getNorthEast();
+    const noroeste = bounds.getNorthWest();
+    const sudeste = bounds.getSouthEast();
+    geometria = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [sulOeste.lng, sulOeste.lat],
+          [sudeste.lng, sudeste.lat],
+          [nordeste.lng, nordeste.lat],
+          [noroeste.lng, noroeste.lat],
+          [sulOeste.lng, sulOeste.lat]
+        ]
+      ]
+    };
   } else {
     const geojson = (camada as L.Layer & { toGeoJSON: () => { geometry: GeometriaProjeto } }).toGeoJSON();
     geometria = geojson.geometry;
@@ -409,7 +438,15 @@ function moverCamada(camada: L.Layer, deltaLatitude: number, deltaLongitude: num
 }
 
 function elementoEdicaoLeaflet(alvo: EventTarget | null): boolean {
-  return alvo instanceof HTMLElement && Boolean(alvo.closest(".leaflet-editing-icon"));
+  return alvo instanceof HTMLElement && Boolean(alvo.closest(".leaflet-editing-icon, .controle-raio-circulo"));
+}
+
+function calcularPontoControleRaio(circulo: L.Circle): L.LatLng {
+  const centro = circulo.getLatLng();
+  const raioMetros = circulo.getRadius();
+  const latitudeRad = (centro.lat * Math.PI) / 180;
+  const metrosPorGrauLongitude = Math.max(1, 111320 * Math.cos(latitudeRad));
+  return L.latLng(centro.lat, centro.lng + raioMetros / metrosPorGrauLongitude);
 }
 
 function alvoInterativo(evento: KeyboardEvent): boolean {
@@ -462,6 +499,7 @@ export function MapaAltimetria({
   const selecaoAreaCurvasAtivaRef = useRef(selecaoAreaCurvasAtiva);
   const selecaoPontoAltitudeAtivaRef = useRef(selecaoPontoAltitudeAtiva);
   const arrasteCamadaRef = useRef<EstadoArrasteCamada | null>(null);
+  const controleRaioCirculoRef = useRef<EstadoRedimensionamentoCirculo | null>(null);
   const temporizadorEdicaoRef = useRef<number | null>(null);
   const cacheAltitudeCursorRef = useRef(new Map<string, AltitudeCacheCursor>());
   const temporizadorCursorRef = useRef<number | null>(null);
@@ -500,6 +538,11 @@ export function MapaAltimetria({
   function aplicarEdicaoCamada(camada: L.Layer, selecionada: boolean) {
     const camadaDesenho = camada as CamadaDesenho;
 
+    if (camada instanceof L.Circle) {
+      camadaDesenho.editing?.disable();
+      return;
+    }
+
     if (selecionada) {
       camadaDesenho.editing?.enable();
       return;
@@ -507,6 +550,53 @@ export function MapaAltimetria({
 
     camadaDesenho.editing?.disable();
     camadaDesenho.dragging?.disable();
+  }
+
+  function removerControleRaioCirculo() {
+    const controle = controleRaioCirculoRef.current;
+    if (!controle) {
+      return;
+    }
+
+    controle.marcador.remove();
+    controleRaioCirculoRef.current = null;
+  }
+
+  function atualizarControleRaioCirculo(circuloSelecionado: L.Circle | null, idSelecionado: string | null) {
+    const mapa = mapaRef.current;
+    removerControleRaioCirculo();
+
+    if (!mapa || !circuloSelecionado || !idSelecionado) {
+      return;
+    }
+
+    const marcador = L.marker(calcularPontoControleRaio(circuloSelecionado), {
+      icon: iconeControleRaioCirculo,
+      draggable: true,
+      zIndexOffset: 1400
+    }).addTo(mapa);
+
+    marcador.on("mousedown click", (evento: L.LeafletEvent) => {
+      L.DomEvent.stopPropagation(evento);
+    });
+
+    marcador.on("drag", () => {
+      const novoRaio = Math.max(0.5, circuloSelecionado.getLatLng().distanceTo(marcador.getLatLng()));
+      circuloSelecionado.setRadius(novoRaio);
+    });
+
+    marcador.on("dragend", () => {
+      const novoRaio = Math.max(0.5, circuloSelecionado.getLatLng().distanceTo(marcador.getLatLng()));
+      circuloSelecionado.setRadius(novoRaio);
+      marcador.setLatLng(calcularPontoControleRaio(circuloSelecionado));
+      salvarCamadaAtualizada(circuloSelecionado, idSelecionado, "circle");
+    });
+
+    controleRaioCirculoRef.current = {
+      id: idSelecionado,
+      circulo: circuloSelecionado,
+      marcador
+    };
   }
 
   function registrarCamadaDesenho(camada: L.Layer, id: string) {
@@ -517,11 +607,17 @@ export function MapaAltimetria({
 
     camada.on("click", (evento: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(evento);
+      if (selecaoAreaCurvasAtivaRef.current) {
+        return;
+      }
       propsRef.current.aoSelecionarElemento(id);
     });
 
     camada.on("contextmenu", (evento: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(evento);
+      if (selecaoAreaCurvasAtivaRef.current) {
+        return;
+      }
       propsRef.current.aoSelecionarElemento(id);
     });
 
@@ -600,10 +696,18 @@ export function MapaAltimetria({
       return;
     }
 
+    let circuloSelecionado: L.Circle | null = null;
+    let idCirculoSelecionado: string | null = null;
+
     grupoDesenhos.eachLayer((camada) => {
       const camadaDesenho = camada as CamadaDesenho;
       const selecionado = Boolean(camadaDesenho.idElemento && camadaDesenho.idElemento === elementoSelecionadoId);
       aplicarEdicaoCamada(camada, selecionado);
+
+      if (selecionado && camada instanceof L.Circle && camadaDesenho.tipoElemento === "circle") {
+        circuloSelecionado = camada;
+        idCirculoSelecionado = camadaDesenho.idElemento ?? null;
+      }
 
       if (camada instanceof L.Path) {
         camada.setStyle(obterEstiloDesenho(camadaDesenho.tipoElemento, selecionado));
@@ -617,6 +721,8 @@ export function MapaAltimetria({
         camada.setOpacity(selecionado ? 1 : 0.85);
       }
     });
+
+    atualizarControleRaioCirculo(circuloSelecionado, idCirculoSelecionado);
   }, [elementoSelecionadoId]);
 
   useEffect(() => {
@@ -626,6 +732,9 @@ export function MapaAltimetria({
     }
 
     grupoDesenhos.clearLayers();
+    let circuloSelecionado: L.Circle | null = null;
+    let idCirculoSelecionado: string | null = null;
+
     elementos.forEach((elemento) => {
       const camada = criarCamadaPorElemento(elemento) as CamadaDesenho;
       camada.idElemento = elemento.id;
@@ -635,6 +744,10 @@ export function MapaAltimetria({
 
       const selecionado = elemento.id === elementoSelecionadoIdRef.current;
       aplicarEdicaoCamada(camada, selecionado);
+      if (selecionado && camada instanceof L.Circle && (camada as CamadaDesenho).tipoElemento === "circle") {
+        circuloSelecionado = camada;
+        idCirculoSelecionado = elemento.id;
+      }
       if (camada instanceof L.Path) {
         camada.setStyle(obterEstiloDesenho((camada as CamadaDesenho).tipoElemento, selecionado));
         if (selecionado) {
@@ -646,6 +759,8 @@ export function MapaAltimetria({
         camada.setOpacity(selecionado ? 1 : 0.85);
       }
     });
+
+    atualizarControleRaioCirculo(circuloSelecionado, idCirculoSelecionado);
   }, [elementos]);
 
   useEffect(() => {
@@ -775,6 +890,8 @@ export function MapaAltimetria({
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).idElemento = id;
       (eventoCriacao.layer as L.Layer & { idElemento?: string; tipoElemento?: string }).tipoElemento =
         eventoCriacao.layerType;
+      desenhosRef.current?.addLayer(eventoCriacao.layer);
+      registrarCamadaDesenho(eventoCriacao.layer, id);
       propsRef.current.aoElementoCriado(converterCamadaEmElemento(id, eventoCriacao.layer, eventoCriacao.layerType));
       propsRef.current.aoSelecionarElemento(id);
     });
@@ -807,6 +924,9 @@ export function MapaAltimetria({
         const deltaLatitude = evento.latlng.lat - arrasteCamada.ultimoPonto.lat;
         const deltaLongitude = evento.latlng.lng - arrasteCamada.ultimoPonto.lng;
         moverCamada(arrasteCamada.camada, deltaLatitude, deltaLongitude);
+        if (arrasteCamada.camada instanceof L.Circle && controleRaioCirculoRef.current?.id === arrasteCamada.id) {
+          controleRaioCirculoRef.current.marcador.setLatLng(calcularPontoControleRaio(arrasteCamada.camada));
+        }
         arrasteCamada.ultimoPonto = evento.latlng;
         arrasteCamada.moveu = true;
         return;
@@ -897,6 +1017,7 @@ export function MapaAltimetria({
       mapa.remove();
       mapaRef.current = null;
       desenhoAreaCurvasRef.current = null;
+      removerControleRaioCirculo();
     };
   }, []);
 
@@ -907,14 +1028,25 @@ export function MapaAltimetria({
     }
     const mapaAtual = mapa;
     const containerMapa = mapaAtual.getContainer();
+    const grupoDesenhos = desenhosRef.current;
 
-    if (!selecaoAreaCurvasAtiva) {
+    function limparModoSelecaoAreaCurvas() {
       containerMapa.classList.remove("modo-desenho-area-curvas");
       if (desenhoAreaCurvasRef.current) {
         desenhoAreaCurvasRef.current.retangulo.removeFrom(mapaAtual);
         desenhoAreaCurvasRef.current = null;
       }
       mapaAtual.dragging.enable();
+      grupoDesenhos?.eachLayer((camada) => {
+        const camadaComOpcoes = camada as L.Layer & { options?: L.InteractiveLayerOptions };
+        if (camadaComOpcoes.options) {
+          camadaComOpcoes.options.interactive = true;
+        }
+      });
+    }
+
+    if (!selecaoAreaCurvasAtiva) {
+      limparModoSelecaoAreaCurvas();
       return;
     }
 
@@ -928,46 +1060,43 @@ export function MapaAltimetria({
 
     containerMapa.classList.add("modo-desenho-area-curvas");
     mapaAtual.dragging.disable();
+    grupoDesenhos?.eachLayer((camada) => {
+      const camadaComOpcoes = camada as L.Layer & { options?: L.InteractiveLayerOptions };
+      if (camadaComOpcoes.options) {
+        camadaComOpcoes.options.interactive = false;
+      }
+    });
 
-    function obterLatLngDoPonteiro(evento: PointerEvent): L.LatLng {
-      const pontoContainer = mapaAtual.mouseEventToContainerPoint(evento);
-      return mapaAtual.containerPointToLatLng(pontoContainer);
-    }
-
-    function iniciarDesenho(evento: PointerEvent) {
-      if (evento.button !== 0) {
+    function iniciarDesenho(evento: L.LeafletMouseEvent) {
+      if (evento.originalEvent.button !== 0) {
         return;
       }
 
-      evento.preventDefault();
-      evento.stopPropagation();
-      containerMapa.setPointerCapture(evento.pointerId);
+      L.DomEvent.stopPropagation(evento);
+      L.DomEvent.preventDefault(evento.originalEvent);
 
       if (areaCurvasRef.current) {
         areaCurvasRef.current.removeFrom(mapaAtual);
         areaCurvasRef.current = null;
       }
 
-      const latLngInicial = obterLatLngDoPonteiro(evento);
-      const retangulo = L.rectangle(L.latLngBounds(latLngInicial, latLngInicial), estiloAreaTemporaria).addTo(mapaAtual);
+      const retangulo = L.rectangle(L.latLngBounds(evento.latlng, evento.latlng), estiloAreaTemporaria).addTo(mapaAtual);
       desenhoAreaCurvasRef.current = {
-        inicio: latLngInicial,
+        inicio: evento.latlng,
         retangulo
       };
     }
 
-    function atualizarDesenho(evento: PointerEvent) {
+    function atualizarDesenho(evento: L.LeafletMouseEvent) {
       const desenhoArea = desenhoAreaCurvasRef.current;
       if (!desenhoArea) {
         return;
       }
 
-      evento.preventDefault();
-      evento.stopPropagation();
-      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, obterLatLngDoPonteiro(evento)));
+      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, evento.latlng));
     }
 
-    function finalizarDesenho(evento: PointerEvent) {
+    function finalizarDesenho(evento: MouseEvent) {
       const desenhoArea = desenhoAreaCurvasRef.current;
       if (!desenhoArea) {
         return;
@@ -975,11 +1104,10 @@ export function MapaAltimetria({
 
       evento.preventDefault();
       evento.stopPropagation();
-      if (containerMapa.hasPointerCapture(evento.pointerId)) {
-        containerMapa.releasePointerCapture(evento.pointerId);
-      }
 
-      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, obterLatLngDoPonteiro(evento)));
+      const pontoContainer = mapaAtual.mouseEventToContainerPoint(evento);
+      const latLngFinal = mapaAtual.containerPointToLatLng(pontoContainer);
+      desenhoArea.retangulo.setBounds(L.latLngBounds(desenhoArea.inicio, latLngFinal));
       const bounds = desenhoArea.retangulo.getBounds();
       const areaValida =
         Math.abs(bounds.getNorth() - bounds.getSouth()) > 0.000001 &&
@@ -988,6 +1116,7 @@ export function MapaAltimetria({
       if (!areaValida) {
         desenhoArea.retangulo.removeFrom(mapaAtual);
         desenhoAreaCurvasRef.current = null;
+        limparModoSelecaoAreaCurvas();
         propsRef.current.aoCancelarSelecaoAreaCurvas();
         return;
       }
@@ -1001,21 +1130,19 @@ export function MapaAltimetria({
       });
       areaCurvasRef.current = desenhoArea.retangulo;
       desenhoAreaCurvasRef.current = null;
+      limparModoSelecaoAreaCurvas();
       propsRef.current.aoAreaCurvasSelecionada(converterBounds(bounds));
     }
 
-    containerMapa.addEventListener("pointerdown", iniciarDesenho);
-    containerMapa.addEventListener("pointermove", atualizarDesenho);
-    containerMapa.addEventListener("pointerup", finalizarDesenho);
-    containerMapa.addEventListener("pointercancel", finalizarDesenho);
+    mapaAtual.on("mousedown", iniciarDesenho);
+    mapaAtual.on("mousemove", atualizarDesenho);
+    window.addEventListener("mouseup", finalizarDesenho, true);
 
     return () => {
-      containerMapa.removeEventListener("pointerdown", iniciarDesenho);
-      containerMapa.removeEventListener("pointermove", atualizarDesenho);
-      containerMapa.removeEventListener("pointerup", finalizarDesenho);
-      containerMapa.removeEventListener("pointercancel", finalizarDesenho);
-      containerMapa.classList.remove("modo-desenho-area-curvas");
-      mapaAtual.dragging.enable();
+      mapaAtual.off("mousedown", iniciarDesenho);
+      mapaAtual.off("mousemove", atualizarDesenho);
+      window.removeEventListener("mouseup", finalizarDesenho, true);
+      limparModoSelecaoAreaCurvas();
     };
   }, [selecaoAreaCurvasAtiva]);
 
