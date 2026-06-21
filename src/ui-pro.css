@@ -376,16 +376,8 @@ input[type="checkbox"] {
   height: 14px;
 }
 
-.grade-ferramentas,
 .grade-exportacao {
   gap: 7px;
-}
-
-.item-ferramenta {
-  min-height: 30px;
-  border-radius: 6px;
-  background: var(--superficie-secundaria);
-  font-size: 0.76rem;
 }
 
 .formulario-coordenadas {

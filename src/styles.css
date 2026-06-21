@@ -555,23 +555,10 @@ input[type="checkbox"] {
   accent-color: var(--verde);
 }
 
-.grade-ferramentas,
 .grade-exportacao {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-}
-
-.item-ferramenta {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 32px;
-  padding: 7px 8px;
-  border: 1px solid var(--borda);
-  border-radius: 8px;
-  color: var(--texto-suave);
-  font-size: 0.8rem;
 }
 
 .botao-largo {
@@ -947,7 +934,6 @@ input[type="checkbox"] {
 
   .formulario-coordenadas,
   .grade-metricas,
-  .grade-ferramentas,
   .grade-exportacao {
     grid-template-columns: 1fr;
   }

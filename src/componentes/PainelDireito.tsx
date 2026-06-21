@@ -2,14 +2,10 @@ import {
   ChevronDown,
   Circle,
   Crosshair,
-  Eraser,
   FileDown,
   Layers,
   LineChart,
   MapPin,
-  MousePointer2,
-  Move,
-  Pencil,
   Pentagon,
   Ruler,
   Square,
@@ -78,19 +74,6 @@ interface PropriedadesPainelDireito {
   aoExportarCurvasGeoJson: () => void;
   aoExportarKml: () => void;
 }
-
-const ferramentasDesenho = [
-  { nome: "Marcador", icone: <MapPin size={15} /> },
-  { nome: "Linha", icone: <Ruler size={15} /> },
-  { nome: "Polilinha", icone: <Pencil size={15} /> },
-  { nome: "Caminho", icone: <MousePointer2 size={15} /> },
-  { nome: "Retângulo", icone: <Square size={15} /> },
-  { nome: "Círculo", icone: <Circle size={15} /> },
-  { nome: "Polígono", icone: <Pentagon size={15} /> },
-  { nome: "Apagar", icone: <Eraser size={15} /> },
-  { nome: "Editar vértices", icone: <Pencil size={15} /> },
-  { nome: "Mover", icone: <Move size={15} /> }
-];
 
 function obterIconeElemento(tipo: string): ReactNode {
   const tipoNormalizado = tipo.toLowerCase();
@@ -178,17 +161,6 @@ export function PainelDireito({
               </button>
             ))
           )}
-        </div>
-      </SecaoPainel>
-
-      <SecaoPainel titulo="Ferramentas de desenho" icone={<Pencil size={17} />} abertaInicialmente={false}>
-        <div className="grade-ferramentas">
-          {ferramentasDesenho.map((ferramenta) => (
-            <span key={ferramenta.nome} className="item-ferramenta">
-              {ferramenta.icone}
-              {ferramenta.nome}
-            </span>
-          ))}
         </div>
       </SecaoPainel>
 
