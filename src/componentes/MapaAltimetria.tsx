@@ -20,7 +20,7 @@ import { formatarDataHoraIso, formatarMetros, formatarNumero, gerarIdentificador
 
 const ZOOM_MAXIMO_MAPA = 24;
 const ZOOM_NATIVO_OSM = 19;
-const ZOOM_NATIVO_ESRI = 19;
+const ZOOM_NATIVO_ESRI = 17;
 const ZOOM_NATIVO_OPENTOPOMAP = 17;
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
