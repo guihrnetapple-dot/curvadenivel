@@ -421,7 +421,6 @@ export function Aplicacao() {
         </div>
 
         <PainelDireito
-          resultadoAtual={resultadoAtual}
           elementos={elementos}
           elementoSelecionadoId={elementoSelecionadoId}
           perfil={perfil}
@@ -430,13 +429,11 @@ export function Aplicacao() {
           visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
-          selecionandoPontoAltitude={selecionandoPontoAltitude}
           termoLocalizacao={termoLocalizacao}
           carregandoLocalizacao={carregandoLocalizacao}
           rotulosMapaAtivos={rotulosMapaAtivos}
           intervaloCurvasMetros={intervaloCurvasMetros}
           camadasImportadas={camadasImportadas}
-          aoAnalisarPonto={iniciarAnalisePonto}
           aoAlterarTermoLocalizacao={setTermoLocalizacao}
           aoPesquisarLocalizacao={buscarLocalizacao}
           aoAlternarRotulosMapa={() => setRotulosMapaAtivos((valor) => !valor)}

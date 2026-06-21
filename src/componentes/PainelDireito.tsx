@@ -1,7 +1,6 @@
 import {
   ChevronDown,
   Circle,
-  Crosshair,
   FileDown,
   Info,
   Layers,
@@ -18,8 +17,7 @@ import type {
   CamadaImportada,
   CurvasNivelGeoJson,
   ElementoMapa,
-  PerfilElevacao,
-  ResultadoAltitude
+  PerfilElevacao
 } from "../tipos/altimetria";
 import { formatarArea, formatarMetros, formatarNumero } from "../utilitarios/formatacao";
 
@@ -47,7 +45,6 @@ function SecaoPainel({ titulo, icone, abertaInicialmente = false, children }: Pr
 }
 
 interface PropriedadesPainelDireito {
-  resultadoAtual: ResultadoAltitude | null;
   elementos: ElementoMapa[];
   elementoSelecionadoId: string | null;
   perfil: PerfilElevacao | null;
@@ -56,13 +53,11 @@ interface PropriedadesPainelDireito {
   visibilidadeCamadaCurvasNivel: boolean;
   carregandoCurvas: boolean;
   selecionandoAreaCurvas: boolean;
-  selecionandoPontoAltitude: boolean;
   termoLocalizacao: string;
   carregandoLocalizacao: boolean;
   rotulosMapaAtivos: boolean;
   intervaloCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
-  aoAnalisarPonto: () => void;
   aoAlterarTermoLocalizacao: (termo: string) => void;
   aoPesquisarLocalizacao: () => void;
   aoAlternarRotulosMapa: () => void;
@@ -132,7 +127,6 @@ function descreverGeometria(elemento: ElementoMapa | null): string {
 }
 
 export function PainelDireito({
-  resultadoAtual,
   elementos,
   elementoSelecionadoId,
   perfil,
@@ -141,13 +135,11 @@ export function PainelDireito({
   visibilidadeCamadaCurvasNivel,
   carregandoCurvas,
   selecionandoAreaCurvas,
-  selecionandoPontoAltitude,
   termoLocalizacao,
   carregandoLocalizacao,
   rotulosMapaAtivos,
   intervaloCurvasMetros,
   camadasImportadas,
-  aoAnalisarPonto,
   aoAlterarTermoLocalizacao,
   aoPesquisarLocalizacao,
   aoAlternarRotulosMapa,
@@ -330,17 +322,6 @@ export function PainelDireito({
             ))}
           </div>
         )}
-      </SecaoPainel>
-
-      <SecaoPainel titulo="Consulta de altitude" icone={<Crosshair size={17} />}>
-        <button className="botao-largo" type="button" onClick={aoAnalisarPonto} disabled={selecionandoPontoAltitude}>
-          {selecionandoPontoAltitude ? "Clique no mapa" : "Analisar ponto"}
-        </button>
-
-        <div className="resultado-atual">
-          <span>Última altitude</span>
-          <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 2) : "-"}</strong>
-        </div>
       </SecaoPainel>
 
       <SecaoPainel titulo="Perfil de elevação" icone={<LineChart size={17} />}>
