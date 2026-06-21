@@ -33,11 +33,11 @@ function criarGrade(altitudes: number[][]): GradeCurvas {
 }
 
 describe("curvas de nível", () => {
-  it("combina intervalo e área na resolução automática", () => {
+  it("combina intervalo, área e padrão mínimo de 100 m na resolução automática", () => {
     const areaPequena = { minLat: -23, minLng: -47, maxLat: -22.995, maxLng: -46.995 };
     const areaGrande = { minLat: -23, minLng: -47, maxLat: -22.9, maxLng: -46.9 };
 
-    expect(calcularParametrosAutomaticosCurvas(areaPequena, 5).resolucaoOriginalMetros).toBe(50);
+    expect(calcularParametrosAutomaticosCurvas(areaPequena, 5).resolucaoOriginalMetros).toBe(100);
     expect(calcularParametrosAutomaticosCurvas(areaPequena, 40).resolucaoOriginalMetros).toBe(150);
     expect(calcularParametrosAutomaticosCurvas(areaPequena, 80).resolucaoOriginalMetros).toBe(250);
     expect(calcularParametrosAutomaticosCurvas(areaGrande, 5).resolucaoOriginalMetros).toBeGreaterThanOrEqual(500);

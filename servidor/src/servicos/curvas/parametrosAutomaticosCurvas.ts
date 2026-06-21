@@ -3,6 +3,7 @@ import type { BboxCurvas } from "./tiposCurvas";
 import { calcularDimensoesGrade, validarBbox } from "./validacaoGradeCurvas";
 
 const METROS_POR_GRAU_LATITUDE = 111320;
+const RESOLUCAO_AUTOMATICA_PADRAO_METROS = 100;
 
 export interface ParametrosAutomaticosCurvas {
   resolucaoMetros: number;
@@ -77,7 +78,11 @@ export function calcularParametrosAutomaticosCurvas(
   const dimensoes = calcularDimensoesMetros(bbox);
   const resolucaoPorIntervaloMetros = escolherResolucaoPorIntervalo(intervaloMetrosEntrada);
   const resolucaoPorAreaMetros = escolherResolucaoPorArea(dimensoes.maiorDimensaoMetros);
-  const resolucaoOriginalMetros = Math.max(resolucaoPorIntervaloMetros, resolucaoPorAreaMetros);
+  const resolucaoOriginalMetros = Math.max(
+    RESOLUCAO_AUTOMATICA_PADRAO_METROS,
+    resolucaoPorIntervaloMetros,
+    resolucaoPorAreaMetros
+  );
   let resolucaoMetros = resolucaoOriginalMetros;
   let motivoAjusteAutomatico: string | null = null;
   let dimensoesGrade = calcularDimensoesGrade(bbox, resolucaoMetros);

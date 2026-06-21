@@ -18,7 +18,6 @@ import type {
   CamadaImportada,
   CurvasNivelGeoJson,
   ElementoMapa,
-  ModoParametrosCurvas,
   PerfilElevacao,
   ResultadoAltitude
 } from "../tipos/altimetria";
@@ -61,9 +60,7 @@ interface PropriedadesPainelDireito {
   termoLocalizacao: string;
   carregandoLocalizacao: boolean;
   rotulosMapaAtivos: boolean;
-  modoParametrosCurvas: ModoParametrosCurvas;
   intervaloCurvasMetros: number;
-  resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
   aoAnalisarPonto: () => void;
   aoAlterarTermoLocalizacao: (termo: string) => void;
@@ -73,8 +70,6 @@ interface PropriedadesPainelDireito {
   aoAnalisarPerfil: () => void;
   aoLimparAnalise: () => void;
   aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
-  aoAlterarResolucaoCurvas: (resolucaoMetros: number) => void;
-  aoAlterarModoParametrosCurvas: (modo: ModoParametrosCurvas) => void;
   aoGerarCurvas: () => void;
   aoLimparCurvas: () => void;
   aoImportarArquivo: () => void;
@@ -150,9 +145,7 @@ export function PainelDireito({
   termoLocalizacao,
   carregandoLocalizacao,
   rotulosMapaAtivos,
-  modoParametrosCurvas,
   intervaloCurvasMetros,
-  resolucaoCurvasMetros,
   camadasImportadas,
   aoAnalisarPonto,
   aoAlterarTermoLocalizacao,
@@ -162,8 +155,6 @@ export function PainelDireito({
   aoAnalisarPerfil,
   aoLimparAnalise,
   aoAlterarIntervaloCurvas,
-  aoAlterarResolucaoCurvas,
-  aoAlterarModoParametrosCurvas,
   aoGerarCurvas,
   aoLimparCurvas,
   aoImportarArquivo,
@@ -429,26 +420,6 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
         <div className="grupo-controles">
-          <span className="rotulo-bloco">Modo da resolução</span>
-          <div className="controle-segmentado">
-            <button
-              type="button"
-              className={modoParametrosCurvas === "automatico" ? "ativo" : ""}
-              onClick={() => aoAlterarModoParametrosCurvas("automatico")}
-            >
-              Automático
-            </button>
-            <button
-              type="button"
-              className={modoParametrosCurvas === "manual" ? "ativo" : ""}
-              onClick={() => aoAlterarModoParametrosCurvas("manual")}
-            >
-              Manual
-            </button>
-          </div>
-        </div>
-
-        <div className="grupo-controles">
           <span className="rotulo-bloco">Intervalo</span>
           <select
             className="seletor-elemento"
@@ -462,24 +433,6 @@ export function PainelDireito({
             ))}
           </select>
         </div>
-
-        {modoParametrosCurvas === "manual" && (
-          <div className="grupo-controles">
-            <span className="rotulo-bloco">Resolução</span>
-            <div className="controle-segmentado">
-              {[50, 100, 250, 500].map((resolucao) => (
-                <button
-                  key={resolucao}
-                  type="button"
-                  className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
-                  onClick={() => aoAlterarResolucaoCurvas(resolucao)}
-                >
-                  {resolucao} m
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="acoes-linha">
           <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>

@@ -16,7 +16,6 @@ import type {
   CurvasNivelGeoJson,
   ElementoMapa,
   LocalizacaoEncontrada,
-  ModoParametrosCurvas,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -40,6 +39,7 @@ import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
 const TEMA_PADRAO: TemaVisual = "escuro";
+const RESOLUCAO_PADRAO_CURVAS_METROS = 100;
 
 const camadasIniciais: CamadasVisiveis = {
   gradeAltitude: true,
@@ -84,9 +84,7 @@ export function Aplicacao() {
   const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
   const [selecionandoPontoAltitude, setSelecionandoPontoAltitude] = useState(false);
-  const [modoParametrosCurvas, setModoParametrosCurvas] = useState<ModoParametrosCurvas>("automatico");
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(5);
-  const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(100);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
   const [termoLocalizacao, setTermoLocalizacao] = useState("");
   const [carregandoLocalizacao, setCarregandoLocalizacao] = useState(false);
@@ -332,9 +330,9 @@ export function Aplicacao() {
     try {
       const resultado = await gerarCurvasNivel(
         boundsSelecionado,
-        modoParametrosCurvas,
+        "automatico",
         intervaloCurvasMetros,
-        resolucaoCurvasMetros
+        RESOLUCAO_PADRAO_CURVAS_METROS
       );
       setCurvasNivel(resultado);
       setVisibilidadeCamadaCurvasNivel(true);
@@ -447,12 +445,10 @@ export function Aplicacao() {
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
           selecionandoPontoAltitude={selecionandoPontoAltitude}
-          modoParametrosCurvas={modoParametrosCurvas}
           termoLocalizacao={termoLocalizacao}
           carregandoLocalizacao={carregandoLocalizacao}
           rotulosMapaAtivos={rotulosMapaAtivos}
           intervaloCurvasMetros={intervaloCurvasMetros}
-          resolucaoCurvasMetros={resolucaoCurvasMetros}
           camadasImportadas={camadasImportadas}
           aoAnalisarPonto={iniciarAnalisePonto}
           aoAlterarTermoLocalizacao={setTermoLocalizacao}
@@ -465,8 +461,6 @@ export function Aplicacao() {
             setPontoDestacado(null);
           }}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
-          aoAlterarResolucaoCurvas={setResolucaoCurvasMetros}
-          aoAlterarModoParametrosCurvas={setModoParametrosCurvas}
           aoGerarCurvas={iniciarSelecaoAreaCurvas}
           aoLimparCurvas={() => {
             setCurvasNivel(null);
