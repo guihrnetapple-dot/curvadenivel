@@ -15,14 +15,18 @@ import type {
   ElementoMapa,
   GeometriaProjeto,
   PontoPerfil,
+  ResultadoAltitude,
   TemaVisual
 } from "../tipos/altimetria";
+import { consultarAltitude } from "../servicos/apiAltimetria";
 import { formatarMetros, formatarNumero, gerarIdentificador } from "../utilitarios/formatacao";
 
 const ZOOM_MAXIMO_MAPA = 24;
 const ZOOM_NATIVO_OSM = 19;
 const ZOOM_NATIVO_ESRI = 17;
 const ZOOM_NATIVO_OPENTOPOMAP = 17;
+const ATRASO_CONSULTA_CURSOR_MS = 420;
+const CASAS_CACHE_CURSOR = 4;
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -51,6 +55,29 @@ const opcoesCamadaBase: Array<{ valor: CamadaBase; rotulo: string }> = [
   { valor: "satelite", rotulo: "Satélite" },
   { valor: "terreno", rotulo: "Terreno" }
 ];
+
+type StatusAltitudeCursor = "ocioso" | "carregando" | "valido" | "sem_dado" | "erro";
+
+interface InformacoesCursor {
+  latitude: number | null;
+  longitude: number | null;
+  altitude: number | null;
+  altitudeVisaoMetros: number | null;
+  statusAltitude: StatusAltitudeCursor;
+}
+
+interface AltitudeCacheCursor {
+  altitude: number | null;
+  statusAltitude: StatusAltitudeCursor;
+}
+
+const informacoesCursorIniciais: InformacoesCursor = {
+  latitude: null,
+  longitude: null,
+  altitude: null,
+  altitudeVisaoMetros: null,
+  statusAltitude: "ocioso"
+};
 
 function configurarTextosDesenho() {
   const local = (L as unknown as { drawLocal?: Record<string, unknown> }).drawLocal;
@@ -121,6 +148,45 @@ function criarGradeAltitude(): L.LayerGroup {
     ).addTo(grupo);
   }
   return grupo;
+}
+
+function criarChaveCursor(latitude: number, longitude: number): string {
+  return `${latitude.toFixed(CASAS_CACHE_CURSOR)},${longitude.toFixed(CASAS_CACHE_CURSOR)}`;
+}
+
+function calcularAltitudeVisao(mapa: L.Map, latitude: number): number {
+  const zoom = mapa.getZoom();
+  const tamanho = mapa.getSize();
+  const latitudeRad = (latitude * Math.PI) / 180;
+  const metrosPorPixel = (156543.03392 * Math.cos(latitudeRad)) / 2 ** zoom;
+  return Math.max(0, metrosPorPixel * Math.max(tamanho.x, tamanho.y) * 1.35);
+}
+
+function normalizarAltitudeCursor(resultado: ResultadoAltitude): AltitudeCacheCursor {
+  if (resultado.status !== "valido" || resultado.altitude === null) {
+    return {
+      altitude: null,
+      statusAltitude: "sem_dado"
+    };
+  }
+
+  return {
+    altitude: resultado.altitude,
+    statusAltitude: "valido"
+  };
+}
+
+function obterRotuloAltitudeCursor(info: InformacoesCursor): string {
+  if (info.statusAltitude === "carregando") {
+    return "calculando";
+  }
+  if (info.statusAltitude === "erro") {
+    return "erro";
+  }
+  if (info.statusAltitude === "sem_dado") {
+    return "sem dado";
+  }
+  return formatarMetros(info.altitude, 0);
 }
 
 function converterBounds(bounds: L.LatLngBounds): BboxCurvasNivel {
@@ -203,6 +269,9 @@ export function MapaAltimetria({
   const curvasNivelRef = useRef<L.GeoJSON | null>(null);
   const gradeRef = useRef<L.LayerGroup | null>(null);
   const destaqueRef = useRef<L.CircleMarker | null>(null);
+  const cacheAltitudeCursorRef = useRef(new Map<string, AltitudeCacheCursor>());
+  const temporizadorCursorRef = useRef<number | null>(null);
+  const chaveCursorAtivaRef = useRef<string | null>(null);
   const propsRef = useRef({
     aoElementoCriado,
     aoElementoAtualizado,
@@ -210,7 +279,7 @@ export function MapaAltimetria({
     aoSelecionarElemento,
     aoBoundsAlterado
   });
-  const [coordenadasCursor, setCoordenadasCursor] = useState("Lat -, Lng -");
+  const [informacoesCursor, setInformacoesCursor] = useState<InformacoesCursor>(informacoesCursorIniciais);
   const [seletorCamadaAberto, setSeletorCamadaAberto] = useState(false);
   const camadaBaseAtual = opcoesCamadaBase.find((opcao) => opcao.valor === camadaBase) ?? opcoesCamadaBase[0];
 
@@ -306,9 +375,57 @@ export function MapaAltimetria({
     });
 
     mapa.on("mousemove", (evento: L.LeafletMouseEvent) => {
-      setCoordenadasCursor(
-        `Lat ${formatarNumero(evento.latlng.lat, 5)}, Lng ${formatarNumero(evento.latlng.lng, 5)}`
-      );
+      const latitude = evento.latlng.lat;
+      const longitude = evento.latlng.lng;
+      const chaveCursor = criarChaveCursor(latitude, longitude);
+      const altitudeEmCache = cacheAltitudeCursorRef.current.get(chaveCursor);
+
+      setInformacoesCursor({
+        latitude,
+        longitude,
+        altitude: altitudeEmCache?.altitude ?? null,
+        altitudeVisaoMetros: calcularAltitudeVisao(mapa, latitude),
+        statusAltitude: altitudeEmCache?.statusAltitude ?? "carregando"
+      });
+
+      if (altitudeEmCache) {
+        return;
+      }
+
+      if (temporizadorCursorRef.current) {
+        window.clearTimeout(temporizadorCursorRef.current);
+      }
+
+      chaveCursorAtivaRef.current = chaveCursor;
+      temporizadorCursorRef.current = window.setTimeout(async () => {
+        try {
+          const resultado = await consultarAltitude(latitude, longitude);
+          const altitudeNormalizada = normalizarAltitudeCursor(resultado);
+          cacheAltitudeCursorRef.current.set(chaveCursor, altitudeNormalizada);
+
+          if (chaveCursorAtivaRef.current === chaveCursor) {
+            setInformacoesCursor((estadoAtual) => ({
+              ...estadoAtual,
+              altitude: altitudeNormalizada.altitude,
+              statusAltitude: altitudeNormalizada.statusAltitude
+            }));
+          }
+        } catch {
+          const altitudeErro: AltitudeCacheCursor = {
+            altitude: null,
+            statusAltitude: "erro"
+          };
+          cacheAltitudeCursorRef.current.set(chaveCursor, altitudeErro);
+
+          if (chaveCursorAtivaRef.current === chaveCursor) {
+            setInformacoesCursor((estadoAtual) => ({
+              ...estadoAtual,
+              altitude: null,
+              statusAltitude: "erro"
+            }));
+          }
+        }
+      }, ATRASO_CONSULTA_CURSOR_MS);
     });
 
     function notificarBounds() {
@@ -319,6 +436,9 @@ export function MapaAltimetria({
     notificarBounds();
 
     return () => {
+      if (temporizadorCursorRef.current) {
+        window.clearTimeout(temporizadorCursorRef.current);
+      }
       mapa.remove();
       mapaRef.current = null;
     };
@@ -492,7 +612,13 @@ export function MapaAltimetria({
           </div>
         )}
       </div>
-      <div className="sobreposicao-mapa cursor-mapa">{coordenadasCursor}</div>
+      <div className="sobreposicao-mapa cursor-mapa barra-informacoes-mapa">
+        <span>Data das imagens: não disponível</span>
+        <span>lat {formatarNumero(informacoesCursor.latitude, 6)}°</span>
+        <span>lon {formatarNumero(informacoesCursor.longitude, 6)}°</span>
+        <span>elev {obterRotuloAltitudeCursor(informacoesCursor)}</span>
+        <span>altitude do ponto de visão {formatarMetros(informacoesCursor.altitudeVisaoMetros, 2)}</span>
+      </div>
     </section>
   );
 }

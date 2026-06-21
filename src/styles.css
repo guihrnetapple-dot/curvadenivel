@@ -377,6 +377,20 @@ button:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.barra-informacoes-mapa {
+  left: 14px;
+  right: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px 16px;
+  pointer-events: none;
+}
+
+.barra-informacoes-mapa span {
+  white-space: nowrap;
+}
+
 .painel-baixo,
 .painel-direito {
   border: 1px solid var(--borda);
@@ -930,6 +944,11 @@ input[type="checkbox"] {
   .topo-esquerda {
     left: 50px;
     right: 10px;
+  }
+
+  .barra-informacoes-mapa {
+    justify-content: flex-start;
+    gap: 6px 10px;
   }
 
   .formulario-coordenadas,

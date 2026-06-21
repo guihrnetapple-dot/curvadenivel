@@ -473,6 +473,18 @@ input[type="checkbox"] {
   padding: 7px 10px;
 }
 
+.barra-informacoes-mapa {
+  left: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.74rem;
+}
+
+.barra-informacoes-mapa span {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
 .leaflet-control-zoom,
 .leaflet-draw-toolbar {
   border: 0 !important;
