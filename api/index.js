@@ -6,7 +6,7 @@ const CACHE_MAX_ITENS = Number(process.env.OPEN_ELEVATION_CACHE_MAX_ITENS ?? 200
 const TAMANHO_LOTE = Number(process.env.OPEN_ELEVATION_TAMANHO_LOTE ?? 400);
 const TIMEOUT_MS = Number(process.env.OPEN_ELEVATION_TIMEOUT_MS ?? 20000);
 const LIMITE_PONTOS_API = 5000;
-const RESOLUCAO_GLOBAL_METROS = 50;
+const RESOLUCAO_GLOBAL_METROS = 100;
 const FATOR_DENSIFICACAO = 4;
 const LIMITE_NOS_DENSIFICADOS = 300000;
 const RAIO_TERRA_WEB_MERCATOR = 6378137;
@@ -379,7 +379,7 @@ function snapBboxParaGradeGlobal(bboxEntrada, resolucaoMetros) {
 function validarGradeGlobal(bbox, resolucaoMetros) {
   const info = snapBboxParaGradeGlobal(bbox, resolucaoMetros);
   if (info.pontos > LIMITE_PONTOS_API) {
-    throw new ErroAplicacao("Área muito grande para a grade fixa de 50 m. Selecione uma área menor para manter curvas estáveis.");
+    throw new ErroAplicacao("Área muito grande para a grade fixa de 100 m. Selecione uma área menor para manter curvas estáveis.");
   }
   return info;
 }

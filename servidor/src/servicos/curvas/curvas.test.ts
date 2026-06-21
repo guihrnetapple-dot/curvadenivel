@@ -81,13 +81,13 @@ describe("curvas de nível", () => {
     const provedor = new ProvedorElevacaoDeterministico();
     const bboxMenor: BboxCurvas = { minLat: -23, minLng: -47, maxLat: -22.998, maxLng: -46.998 };
     const bboxMaior: BboxCurvas = { minLat: -23.001, minLng: -47.001, maxLat: -22.997, maxLng: -46.997 };
-    const gradeMenor = await gerarGradeElevacaoApi(provedor, bboxMenor, 50);
-    const gradeMaior = await gerarGradeElevacaoApi(provedor, bboxMaior, 50);
+    const gradeMenor = await gerarGradeElevacaoApi(provedor, bboxMenor, 100);
+    const gradeMaior = await gerarGradeElevacaoApi(provedor, bboxMaior, 100);
     const chavesMenores = new Set(gradeMenor.nos.flat().map((no) => no.chaveGlobal));
     const chavesMaiores = new Set(gradeMaior.nos.flat().map((no) => no.chaveGlobal));
     const intersecao = [...chavesMenores].filter((chave) => chave && chavesMaiores.has(chave));
 
-    expect(gradeMenor.resolucaoMetros).toBe(50);
+    expect(gradeMenor.resolucaoMetros).toBe(100);
     expect(gradeMenor.gradeTravada).toBe(true);
     expect(intersecao.length).toBeGreaterThan(0);
   });
@@ -99,7 +99,7 @@ describe("curvas de nível", () => {
     const segundo = await servico.gerarCurvas({ bbox, intervaloMetros: 1 });
 
     expect(assinaturaCurvas(segundo)).toEqual(assinaturaCurvas(primeiro));
-    expect(primeiro.metadados.resolucaoGradeGlobalMetros).toBe(50);
+    expect(primeiro.metadados.resolucaoGradeGlobalMetros).toBe(100);
     expect(primeiro.metadados.gradeTravada).toBe(true);
   });
 

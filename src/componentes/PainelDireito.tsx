@@ -425,7 +425,7 @@ export function PainelDireito({
           </select>
         </div>
 
-        <div className="estado-vazio">Resolução fixa da grade: 50 m</div>
+        <div className="estado-vazio">Resolução fixa da grade: 100 m</div>
 
         <div className="acoes-linha">
           <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>

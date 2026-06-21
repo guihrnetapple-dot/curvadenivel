@@ -129,7 +129,7 @@ export function validarLimitePontosGradeGlobal(bbox: BboxCurvas, resolucaoMetros
   const grade = snapBboxParaGradeGlobal(bbox, resolucaoMetros);
   if (grade.quantidadePontos > CURVAS_LIMITE_PONTOS_API) {
     throw new ErroAplicacao(
-      "Área muito grande para a grade fixa de 50 m. Selecione uma área menor para manter curvas estáveis."
+      "Área muito grande para a grade fixa de 100 m. Selecione uma área menor para manter curvas estáveis."
     );
   }
   return grade;
