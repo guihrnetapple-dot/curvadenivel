@@ -480,32 +480,6 @@ export function PainelDireito({
           )}
         </div>
 
-        <div className="grade-metricas">
-          <div>
-            <span>Curvas</span>
-            <strong>{formatarNumero(curvasNivel?.metadados.quantidadeCurvas ?? curvasNivel?.features.length, 0)}</strong>
-          </div>
-          <div>
-            <span>Intervalo</span>
-            <strong>{formatarMetros(curvasNivel?.metadados.intervaloMetros, 0)}</strong>
-          </div>
-          <div>
-            <span>Grade</span>
-            <strong>{formatarMetros(curvasNivel?.metadados.resolucaoGradeGlobalMetros, 0)}</strong>
-          </div>
-          <div>
-            <span>Fonte</span>
-            <strong>{curvasNivel?.metadados.fonte ? "Open-Elevation" : "-"}</strong>
-          </div>
-        </div>
-
-        {curvasNivel && (
-          <div className="estado-vazio">
-            Usado: intervalo {formatarMetros(curvasNivel.metadados.intervaloMetros, 0)}, resolução{" "}
-            {formatarMetros(curvasNivel.metadados.resolucaoGradeGlobalMetros, 0)}
-          </div>
-        )}
-
         {curvasNivel?.metadados.avisoPrecisao && (
           <div className="estado-vazio">{curvasNivel.metadados.avisoPrecisao}</div>
         )}
