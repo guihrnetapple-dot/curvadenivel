@@ -1,40 +1,41 @@
-/* Camada visual profissional, compacta e mais moderna.
-   Mantém a estrutura React atual e sobrescreve apenas layout, cor e escala visual. */
+/* Camada visual inspirada na iCrop, mantendo a estrutura React atual. */
 
 :root {
-  --fundo: #eef2f6;
+  --fundo: #f3f5f1;
   --superficie: #ffffff;
-  --superficie-secundaria: #f6f8fb;
-  --texto: #162029;
-  --texto-suave: #667382;
-  --borda: #d7dee8;
-  --verde: #16a064;
-  --verde-escuro: #087448;
-  --azul: #2563eb;
-  --grafite: #17212b;
-  --alerta: #d97706;
-  --erro: #dc2626;
-  --sombra: 0 14px 34px rgba(15, 23, 42, 0.09);
-  --sombra-leve: 0 8px 20px rgba(15, 23, 42, 0.06);
-  --raio: 12px;
-  --raio-menor: 9px;
+  --superficie-secundaria: #eef1eb;
+  --texto: #1f2421;
+  --texto-suave: #5d665f;
+  --borda: #d9dfd5;
+  --verde: #44d542;
+  --verde-escuro: #1f7f2c;
+  --azul: #246b65;
+  --grafite: #2f2f2f;
+  --grafite-profundo: #151715;
+  --alerta: #c9892f;
+  --erro: #c84c42;
+  --sombra: 0 18px 42px rgba(24, 28, 24, 0.12);
+  --sombra-leve: 0 10px 24px rgba(24, 28, 24, 0.08);
+  --raio: 10px;
+  --raio-menor: 7px;
 }
 
 :root[data-tema="escuro"] {
-  --fundo: #0b1117;
-  --superficie: #111a23;
-  --superficie-secundaria: #0f1720;
-  --texto: #edf3f8;
-  --texto-suave: #94a3b8;
-  --borda: #263545;
-  --verde: #20c47a;
-  --verde-escuro: #5ee6a0;
-  --azul: #60a5fa;
-  --grafite: #e5eef7;
-  --alerta: #f59e0b;
-  --erro: #f87171;
-  --sombra: 0 18px 44px rgba(0, 0, 0, 0.34);
-  --sombra-leve: 0 10px 26px rgba(0, 0, 0, 0.24);
+  --fundo: #101210;
+  --superficie: #181b18;
+  --superficie-secundaria: #20241f;
+  --texto: #f4f6f1;
+  --texto-suave: #aeb8aa;
+  --borda: #30362e;
+  --verde: #44d542;
+  --verde-escuro: #7beb78;
+  --azul: #61b6a9;
+  --grafite: #f4f6f1;
+  --grafite-profundo: #0d0f0d;
+  --alerta: #e0a451;
+  --erro: #e26b61;
+  --sombra: 0 20px 46px rgba(0, 0, 0, 0.38);
+  --sombra-leve: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
 
 html,
@@ -46,35 +47,39 @@ body,
 }
 
 body {
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.35;
   background: var(--fundo);
+  color: var(--texto);
 }
 
 button,
 input,
 select {
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .aplicacao {
   height: 100dvh;
   min-height: 100dvh;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
-    linear-gradient(180deg, rgba(22, 160, 100, 0.06), transparent 36%),
+    radial-gradient(circle at 18% 0%, rgba(68, 213, 66, 0.18), transparent 28%),
+    linear-gradient(180deg, rgba(47, 47, 47, 0.06), transparent 34%),
     var(--fundo);
 }
 
 .barra-superior {
   grid-template-columns: 282px minmax(360px, 1fr) auto auto;
   gap: 12px;
-  min-height: 68px;
+  min-height: 70px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--borda);
-  background: color-mix(in srgb, var(--superficie) 94%, transparent);
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(135deg, rgba(68, 213, 66, 0.16), transparent 34%),
+    var(--grafite-profundo);
+  color: #ffffff;
+  box-shadow: 0 12px 30px rgba(21, 23, 21, 0.18);
 }
 
 .marca {
@@ -84,18 +89,24 @@ select {
 .marca-simbolo {
   width: 38px;
   height: 38px;
-  border: 0;
-  border-radius: 11px;
-  background: linear-gradient(135deg, var(--verde), #0f7a53);
-  color: #ffffff;
-  box-shadow: 0 10px 22px rgba(22, 160, 100, 0.22);
-  font-size: 0.94rem;
+  border: 1px solid rgba(68, 213, 66, 0.7);
+  border-radius: 4px;
+  background: rgba(68, 213, 66, 0.12);
+  color: var(--verde);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font-size: 0.92rem;
 }
 
 .marca strong {
   font-size: 0.98rem;
   font-weight: 800;
-  letter-spacing: -0.035em;
+  letter-spacing: 0;
+  color: #ffffff;
+}
+
+.marca span,
+.barra-superior label {
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .marca span,
@@ -113,14 +124,21 @@ select {
 
 .campo-busca {
   height: 38px;
-  border-radius: 11px;
-  background: var(--superficie-secundaria);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .campo-busca input {
   font-size: 0.9rem;
   font-weight: 600;
+  color: #ffffff;
+}
+
+.campo-busca input::placeholder {
+  color: rgba(255, 255, 255, 0.46);
 }
 
 .campo-busca button,
@@ -130,16 +148,27 @@ select {
 .formulario-coordenadas button,
 .grade-exportacao button {
   min-height: 34px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--verde), #0f7a53);
-  box-shadow: 0 8px 18px rgba(22, 160, 100, 0.18);
+  border-radius: 4px;
+  background: var(--verde);
+  color: #111411;
+  box-shadow: 0 10px 22px rgba(68, 213, 66, 0.18);
   font-size: 0.86rem;
-  font-weight: 750;
+  font-weight: 800;
+}
+
+.campo-busca button:hover,
+.botao-icone:hover,
+.botao-largo:hover,
+.acoes-linha button:hover,
+.formulario-coordenadas button:hover,
+.grade-exportacao button:hover {
+  background: #57e354;
+  transform: translateY(-1px);
 }
 
 .campo-busca button {
   padding: 0 16px;
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 4px 4px 0;
 }
 
 .botao-icone {
@@ -149,23 +178,55 @@ select {
 .botao-quadrado {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  background: var(--superficie-secundaria);
-  box-shadow: var(--sombra-leve);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.botao-quadrado:hover {
+  border-color: rgba(68, 213, 66, 0.48);
+  background: rgba(68, 213, 66, 0.12);
+  color: var(--verde);
 }
 
 .status-pill {
   height: 26px;
   padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
-  background: var(--superficie-secundaria);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.78);
   font-size: 0.72rem;
+}
+
+.status-pill.sucesso {
+  border-color: rgba(68, 213, 66, 0.42);
+  color: var(--verde);
+}
+
+.status-pill.aviso {
+  border-color: rgba(224, 164, 81, 0.48);
+  color: #f3c16f;
+}
+
+.status-pill.erro {
+  border-color: rgba(226, 107, 97, 0.52);
+  color: #ff938b;
+}
+
+.campo-busca:focus-within,
+.formulario-coordenadas input:focus,
+.seletor-elemento:focus {
+  outline: 2px solid color-mix(in srgb, var(--verde) 42%, transparent);
+  outline-offset: 2px;
 }
 
 .area-trabalho {
   grid-template-columns: minmax(0, 1fr) 350px;
   gap: 12px;
-  height: calc(100dvh - 68px);
+  height: calc(100dvh - 70px);
   padding: 12px;
 }
 
@@ -179,7 +240,7 @@ select {
 .painel-baixo,
 .painel-direito {
   border-radius: var(--raio);
-  border: 1px solid color-mix(in srgb, var(--borda) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
   background: var(--superficie);
   box-shadow: var(--sombra);
 }
@@ -220,10 +281,10 @@ select {
 
 .cabecalho-secao {
   padding: 10px 6px;
-  border-radius: 9px;
+  border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 800;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .cabecalho-secao:hover {
@@ -236,7 +297,7 @@ select {
 }
 
 .controle-segmentado {
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--superficie-secundaria);
   padding: 3px;
   gap: 3px;
@@ -245,14 +306,14 @@ select {
 
 .controle-segmentado button {
   min-height: 31px;
-  border-radius: 8px;
+  border-radius: 4px;
   background: transparent;
   font-size: 0.82rem;
 }
 
 .controle-segmentado button.ativo {
-  background: var(--superficie);
-  color: var(--verde-escuro);
+  background: var(--grafite-profundo);
+  color: var(--verde);
   box-shadow: var(--sombra-leve);
 }
 
@@ -279,7 +340,7 @@ input[type="checkbox"] {
 
 .item-ferramenta {
   min-height: 30px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--superficie-secundaria);
   font-size: 0.76rem;
 }
@@ -291,7 +352,8 @@ input[type="checkbox"] {
 .formulario-coordenadas input,
 .seletor-elemento {
   min-height: 34px;
-  border-radius: 10px;
+  border-radius: 6px;
+  border-color: color-mix(in srgb, var(--borda) 88%, transparent);
   background: var(--superficie-secundaria);
   font-size: 0.84rem;
 }
@@ -299,8 +361,11 @@ input[type="checkbox"] {
 .resultado-atual {
   gap: 2px;
   padding: 10px;
-  border-radius: 11px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--verde) 8%, var(--superficie)), var(--superficie-secundaria));
+  border: 1px solid color-mix(in srgb, var(--verde) 22%, var(--borda));
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--verde) 12%, transparent), transparent 48%),
+    var(--superficie-secundaria);
 }
 
 .resultado-atual strong {
@@ -324,7 +389,7 @@ input[type="checkbox"] {
 .grade-metricas div {
   min-height: 50px;
   padding: 8px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: var(--superficie-secundaria);
 }
 
@@ -333,11 +398,11 @@ input[type="checkbox"] {
 }
 
 .sobreposicao-mapa {
-  border-radius: 11px;
-  background: rgba(17, 24, 39, 0.82);
+  border-radius: 6px;
+  background: rgba(21, 23, 21, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #ffffff;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 14px 34px rgba(21, 23, 21, 0.28);
 }
 
 .topo-esquerda {
@@ -374,6 +439,15 @@ input[type="checkbox"] {
   width: 30px !important;
   height: 30px !important;
   line-height: 30px !important;
+  background: var(--grafite-profundo) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.leaflet-control-zoom a:hover,
+.leaflet-draw-toolbar a:hover {
+  background: var(--verde) !important;
+  color: #111411 !important;
 }
 
 .popup-tecnico {
