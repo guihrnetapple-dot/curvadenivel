@@ -254,20 +254,6 @@ button:disabled {
   font-weight: 750;
 }
 
-.indicador-elevacao {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  border: 1px solid var(--borda);
-  border-radius: 8px;
-  background: var(--superficie);
-  color: var(--texto);
-  font-size: 0.84rem;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
 .status-pill {
   display: inline-flex;
   align-items: center;

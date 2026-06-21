@@ -23,7 +23,6 @@ export function BarraSuperior({ tema, aoAlternarTema, aoAbrirConfiguracoes }: Pr
       </div>
 
       <div className="acoes-topo">
-        <span className="indicador-elevacao">Elevação: Open-Elevation</span>
         <button className="botao-quadrado" type="button" onClick={aoAlternarTema} title="Alternar tema">
           {tema === "claro" ? <Moon size={18} aria-hidden="true" /> : <Sun size={18} aria-hidden="true" />}
         </button>

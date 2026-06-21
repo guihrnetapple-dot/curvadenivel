@@ -211,15 +211,6 @@ select {
   outline-offset: 2px;
 }
 
-.indicador-elevacao {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid rgba(68, 213, 66, 0.24);
-  border-radius: 6px;
-  background: rgba(68, 213, 66, 0.07);
-  color: rgba(255, 255, 255, 0.9);
-}
-
 .status-pill {
   height: 26px;
   padding: 0 9px;
