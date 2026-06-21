@@ -1,4 +1,4 @@
-import type { BboxCurvasNivel, CurvasNivelGeoJson } from "../tipos/altimetria";
+import type { BboxCurvasNivel, CurvasNivelGeoJson, ModoParametrosCurvas } from "../tipos/altimetria";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -17,6 +17,7 @@ async function lerRespostaJson<T>(resposta: Response): Promise<T> {
 
 export async function gerarCurvasNivel(
   bbox: BboxCurvasNivel,
+  modoParametros: ModoParametrosCurvas = "automatico",
   intervaloMetros = 5,
   resolucaoMetros = 100
 ): Promise<CurvasNivelGeoJson> {
@@ -25,7 +26,7 @@ export async function gerarCurvasNivel(
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ bbox, intervaloMetros, resolucaoMetros })
+    body: JSON.stringify({ bbox, modoParametros, intervaloMetros, resolucaoMetros })
   });
 
   return lerRespostaJson<CurvasNivelGeoJson>(resposta);

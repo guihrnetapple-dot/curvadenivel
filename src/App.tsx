@@ -16,6 +16,7 @@ import type {
   CurvasNivelGeoJson,
   ElementoMapa,
   LocalizacaoEncontrada,
+  ModoParametrosCurvas,
   PerfilElevacao,
   PontoPerfil,
   ResultadoAltitude,
@@ -76,6 +77,7 @@ export function Aplicacao() {
   const [, setBoundsMapa] = useState<BboxCurvasNivel | null>(null);
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
   const [selecionandoPontoAltitude, setSelecionandoPontoAltitude] = useState(false);
+  const [modoParametrosCurvas, setModoParametrosCurvas] = useState<ModoParametrosCurvas>("automatico");
   const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(5);
   const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(100);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
@@ -254,7 +256,12 @@ export function Aplicacao() {
     setSelecionandoAreaCurvas(false);
     setCarregandoCurvas(true);
     try {
-      const resultado = await gerarCurvasNivel(boundsSelecionado, intervaloCurvasMetros, resolucaoCurvasMetros);
+      const resultado = await gerarCurvasNivel(
+        boundsSelecionado,
+        modoParametrosCurvas,
+        intervaloCurvasMetros,
+        resolucaoCurvasMetros
+      );
       setCurvasNivel(resultado);
       setAlerta({
         tipo: resultado.features.length > 0 ? "sucesso" : "aviso",
@@ -359,6 +366,7 @@ export function Aplicacao() {
           carregandoCurvas={carregandoCurvas}
           selecionandoAreaCurvas={selecionandoAreaCurvas}
           selecionandoPontoAltitude={selecionandoPontoAltitude}
+          modoParametrosCurvas={modoParametrosCurvas}
           termoLocalizacao={termoLocalizacao}
           carregandoLocalizacao={carregandoLocalizacao}
           rotulosMapaAtivos={rotulosMapaAtivos}
@@ -377,6 +385,7 @@ export function Aplicacao() {
           }}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
           aoAlterarResolucaoCurvas={setResolucaoCurvasMetros}
+          aoAlterarModoParametrosCurvas={setModoParametrosCurvas}
           aoGerarCurvas={iniciarSelecaoAreaCurvas}
           aoLimparCurvas={() => {
             setCurvasNivel(null);

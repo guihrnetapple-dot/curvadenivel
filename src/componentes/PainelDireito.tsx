@@ -17,6 +17,7 @@ import type {
   CamadaImportada,
   CurvasNivelGeoJson,
   ElementoMapa,
+  ModoParametrosCurvas,
   PerfilElevacao,
   ResultadoAltitude
 } from "../tipos/altimetria";
@@ -58,6 +59,7 @@ interface PropriedadesPainelDireito {
   termoLocalizacao: string;
   carregandoLocalizacao: boolean;
   rotulosMapaAtivos: boolean;
+  modoParametrosCurvas: ModoParametrosCurvas;
   intervaloCurvasMetros: number;
   resolucaoCurvasMetros: number;
   camadasImportadas: CamadaImportada[];
@@ -70,6 +72,7 @@ interface PropriedadesPainelDireito {
   aoLimparAnalise: () => void;
   aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
   aoAlterarResolucaoCurvas: (resolucaoMetros: number) => void;
+  aoAlterarModoParametrosCurvas: (modo: ModoParametrosCurvas) => void;
   aoGerarCurvas: () => void;
   aoLimparCurvas: () => void;
   aoImportarArquivo: () => void;
@@ -114,6 +117,7 @@ export function PainelDireito({
   termoLocalizacao,
   carregandoLocalizacao,
   rotulosMapaAtivos,
+  modoParametrosCurvas,
   intervaloCurvasMetros,
   resolucaoCurvasMetros,
   camadasImportadas,
@@ -126,6 +130,7 @@ export function PainelDireito({
   aoLimparAnalise,
   aoAlterarIntervaloCurvas,
   aoAlterarResolucaoCurvas,
+  aoAlterarModoParametrosCurvas,
   aoGerarCurvas,
   aoLimparCurvas,
   aoImportarArquivo,
@@ -137,6 +142,11 @@ export function PainelDireito({
   aoExportarKml
 }: PropriedadesPainelDireito) {
   const elementoSelecionado = elementos.find((elemento) => elemento.id === elementoSelecionadoId) ?? null;
+  const intervaloMinimoRecomendado = Math.ceil(resolucaoCurvasMetros / 100);
+  const intervaloManualMuitoPequeno =
+    modoParametrosCurvas === "manual" && intervaloCurvasMetros < intervaloMinimoRecomendado;
+  const intervaloAutomaticoExibido = curvasNivel?.metadados.intervaloAutomatico ?? intervaloCurvasMetros;
+  const resolucaoAutomaticaExibida = curvasNivel?.metadados.resolucaoAutomatica ?? resolucaoCurvasMetros;
 
   return (
     <aside className="painel-direito">
@@ -300,35 +310,74 @@ export function PainelDireito({
 
       <SecaoPainel titulo="Curvas de nível" icone={<LineChart size={17} />}>
         <div className="grupo-controles">
-          <span className="rotulo-bloco">Intervalo</span>
-          <select
-            className="seletor-elemento"
-            value={intervaloCurvasMetros}
-            onChange={(evento) => aoAlterarIntervaloCurvas(Number(evento.target.value))}
-          >
-            {[1, 2, 5, 10, 20, 40, 80, 100].map((intervalo) => (
-              <option key={intervalo} value={intervalo}>
-                {intervalo} m
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grupo-controles">
-          <span className="rotulo-bloco">Resolução</span>
+          <span className="rotulo-bloco">Modo</span>
           <div className="controle-segmentado">
-            {[50, 100, 250, 500].map((resolucao) => (
-              <button
-                key={resolucao}
-                type="button"
-                className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
-                onClick={() => aoAlterarResolucaoCurvas(resolucao)}
-              >
-                {resolucao} m
-              </button>
-            ))}
+            <button
+              type="button"
+              className={modoParametrosCurvas === "automatico" ? "ativo" : ""}
+              onClick={() => aoAlterarModoParametrosCurvas("automatico")}
+            >
+              Automático
+            </button>
+            <button
+              type="button"
+              className={modoParametrosCurvas === "manual" ? "ativo" : ""}
+              onClick={() => aoAlterarModoParametrosCurvas("manual")}
+            >
+              Manual
+            </button>
           </div>
         </div>
+
+        {modoParametrosCurvas === "automatico" ? (
+          <div className="estado-vazio">
+            {curvasNivel
+              ? `Automático: intervalo ${formatarMetros(intervaloAutomaticoExibido, 0)}, resolução ${formatarMetros(
+                  resolucaoAutomaticaExibida,
+                  0
+                )}`
+              : "Automático: calculado pela área desenhada"}
+          </div>
+        ) : (
+          <>
+            <div className="grupo-controles">
+              <span className="rotulo-bloco">Intervalo</span>
+              <select
+                className="seletor-elemento"
+                value={intervaloCurvasMetros}
+                onChange={(evento) => aoAlterarIntervaloCurvas(Number(evento.target.value))}
+              >
+                {[1, 2, 5, 10, 20, 40, 80, 100].map((intervalo) => (
+                  <option key={intervalo} value={intervalo}>
+                    {intervalo} m
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grupo-controles">
+              <span className="rotulo-bloco">Resolução</span>
+              <div className="controle-segmentado">
+                {[50, 100, 250, 500].map((resolucao) => (
+                  <button
+                    key={resolucao}
+                    type="button"
+                    className={resolucaoCurvasMetros === resolucao ? "ativo" : ""}
+                    onClick={() => aoAlterarResolucaoCurvas(resolucao)}
+                  >
+                    {resolucao} m
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {intervaloManualMuitoPequeno && (
+              <div className="estado-vazio">
+                Intervalo muito pequeno para a resolução escolhida. A curva pode ficar artificial.
+              </div>
+            )}
+          </>
+        )}
 
         <div className="acoes-linha">
           <button type="button" onClick={aoGerarCurvas} disabled={carregandoCurvas || selecionandoAreaCurvas}>
@@ -375,11 +424,22 @@ export function PainelDireito({
           </div>
         </div>
 
+        {curvasNivel && (
+          <div className="estado-vazio">
+            Usado: intervalo {formatarMetros(curvasNivel.metadados.intervaloMetros, 0)}, resolução{" "}
+            {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}
+          </div>
+        )}
+
         {curvasNivel?.metadados.resolucaoAjustada && (
           <div className="estado-vazio">
             Resolução ajustada automaticamente de {formatarMetros(curvasNivel.metadados.resolucaoSolicitadaMetros, 0)} para{" "}
             {formatarMetros(curvasNivel.metadados.resolucaoEfetivaMetros, 0)}.
           </div>
+        )}
+
+        {curvasNivel?.metadados.motivoAjusteAutomatico && (
+          <div className="estado-vazio">{curvasNivel.metadados.motivoAjusteAutomatico}</div>
         )}
 
         {curvasNivel?.metadados.avisoPrecisao && (

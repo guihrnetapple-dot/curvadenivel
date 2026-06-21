@@ -9,6 +9,7 @@ export interface BboxCurvas {
 
 export interface RequisicaoCurvas {
   bbox: BboxCurvas;
+  modoParametros?: "automatico" | "manual";
   intervaloMetros?: number;
   resolucaoMetros?: number;
 }
@@ -56,6 +57,12 @@ export interface FeatureCollectionCurvas {
   metadados: {
     fonte: "Open-Elevation API";
     metodo: "open_elevation_api_marching_squares_suavizado";
+    modoParametros: "automatico" | "manual";
+    intervaloAutomatico: number | null;
+    resolucaoAutomatica: number | null;
+    motivoAjusteAutomatico: string | null;
+    maiorDimensaoMetros: number;
+    areaMetrosQuadrados: number;
     intervaloMetros: number;
     resolucaoSolicitadaMetros: number;
     resolucaoEfetivaMetros: number;

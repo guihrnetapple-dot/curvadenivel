@@ -4,6 +4,7 @@ export type StatusAltitude = "valido" | "sem_dado";
 export type FonteAltitude = "open_elevation";
 export type MetodoAltitude = "api";
 export type PrecisaoReal = "media";
+export type ModoParametrosCurvas = "automatico" | "manual";
 
 export interface ResultadoAltitude {
   latitude: number;
@@ -122,6 +123,12 @@ export interface FeatureCurvaNivel {
 export interface MetadadosCurvasNivel {
   fonte: "Open-Elevation API";
   metodo: "open_elevation_api_marching_squares_suavizado";
+  modoParametros: ModoParametrosCurvas;
+  intervaloAutomatico: number | null;
+  resolucaoAutomatica: number | null;
+  motivoAjusteAutomatico: string | null;
+  maiorDimensaoMetros: number;
+  areaMetrosQuadrados: number;
   intervaloMetros: number;
   resolucaoSolicitadaMetros: number;
   resolucaoEfetivaMetros: number;

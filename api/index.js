@@ -8,8 +8,6 @@ const RESOLUCAO_MINIMA_METROS = 50;
 const RESOLUCAO_PADRAO_METROS = 100;
 const FATOR_DENSIFICACAO = 4;
 const LIMITE_NOS_DENSIFICADOS = 300000;
-const AVISO_CURVAS =
-  "Curvas geradas a partir de amostras consultadas na Open-Elevation e suavizadas matematicamente. A suavização melhora a representação visual, mas não aumenta a precisão da fonte.";
 const cacheElevacao = new Map();
 
 class ErroAplicacao extends Error {
@@ -223,6 +221,53 @@ function calcularGradeInfo(bbox, resolucaoEntrada) {
   return { ...info, resolucaoSolicitadaMetros: solicitada, resolucaoEfetivaMetros: resolucao, ajustada: resolucao !== solicitada };
 }
 
+function calcularDimensoesMetrosCurvas(bbox) {
+  const latRef = (bbox.minLat + bbox.maxLat) / 2;
+  const fatorLng = Math.max(0.01, Math.cos((latRef * Math.PI) / 180));
+  const largura = Math.abs(bbox.maxLng - bbox.minLng) * 111320 * fatorLng;
+  const altura = Math.abs(bbox.maxLat - bbox.minLat) * 111320;
+  return {
+    maiorDimensaoMetros: Math.max(largura, altura),
+    areaMetrosQuadrados: largura * altura
+  };
+}
+
+function escolherResolucaoAutomatica(maiorDimensaoMetros) {
+  if (maiorDimensaoMetros <= 1000) return 50;
+  if (maiorDimensaoMetros <= 3000) return 100;
+  if (maiorDimensaoMetros <= 8000) return 250;
+  return 500;
+}
+
+function escolherIntervaloAutomatico(maiorDimensaoMetros) {
+  if (maiorDimensaoMetros <= 1000) return 1;
+  if (maiorDimensaoMetros <= 3000) return 2;
+  if (maiorDimensaoMetros <= 8000) return 5;
+  if (maiorDimensaoMetros <= 20000) return 10;
+  return 20;
+}
+
+function intervaloMinimoPorResolucao(resolucaoMetros) {
+  return Math.ceil(resolucaoMetros / 100);
+}
+
+function calcularParametrosAutomaticos(bbox) {
+  const dimensoes = calcularDimensoesMetrosCurvas(bbox);
+  const resolucaoOriginal = escolherResolucaoAutomatica(dimensoes.maiorDimensaoMetros);
+  const intervaloOriginal = escolherIntervaloAutomatico(dimensoes.maiorDimensaoMetros);
+  let resolucao = resolucaoOriginal;
+  let intervalo = Math.max(intervaloOriginal, intervaloMinimoPorResolucao(resolucao));
+  let motivoAjusteAutomatico = null;
+  let info = calcularGradeInfo(bbox, resolucao);
+  while (info.pontos > LIMITE_PONTOS_API) {
+    resolucao *= 1.25;
+    intervalo = Math.max(intervaloMinimoPorResolucao(resolucao), Math.ceil(intervaloOriginal * (resolucao / resolucaoOriginal)));
+    motivoAjusteAutomatico = "A resolução foi ajustada automaticamente para evitar excesso de consultas.";
+    info = calcularGradeInfo(bbox, resolucao);
+  }
+  return { ...dimensoes, resolucaoMetros: resolucao, intervaloMetros: intervalo, motivoAjusteAutomatico };
+}
+
 async function gerarGrade(bbox, resolucaoMetros) {
   const info = calcularGradeInfo(bbox, resolucaoMetros);
   const coordenadas = [];
@@ -359,8 +404,12 @@ function comprimentoLinha(linha) {
 
 async function gerarCurvas(body) {
   const bbox = validarBbox(body?.bbox);
-  const intervalo = Number(body?.intervaloMetros ?? 5);
-  const grade = await gerarGrade(bbox, body?.resolucaoMetros);
+  const modoParametros = body?.modoParametros === "manual" ? "manual" : "automatico";
+  const automaticos = calcularParametrosAutomaticos(bbox);
+  const resolucao = modoParametros === "automatico" ? automaticos.resolucaoMetros : Number(body?.resolucaoMetros ?? 100);
+  const intervaloSolicitado = modoParametros === "automatico" ? automaticos.intervaloMetros : Number(body?.intervaloMetros ?? 5);
+  const intervalo = Math.max(intervaloSolicitado, intervaloMinimoPorResolucao(resolucao));
+  const grade = await gerarGrade(bbox, resolucao);
   const nos = densificar(suavizar(grade.nos));
   const ex = extremos(grade.nos);
   const features = [];
@@ -384,6 +433,12 @@ async function gerarCurvas(body) {
     metadados: {
       fonte: "Open-Elevation API",
       metodo: "open_elevation_api_marching_squares_suavizado",
+      modoParametros,
+      intervaloAutomatico: modoParametros === "automatico" ? automaticos.intervaloMetros : null,
+      resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
+      motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
+      maiorDimensaoMetros: automaticos.maiorDimensaoMetros,
+      areaMetrosQuadrados: automaticos.areaMetrosQuadrados,
       intervaloMetros: intervalo,
       resolucaoSolicitadaMetros: grade.resolucaoSolicitadaMetros,
       resolucaoEfetivaMetros: grade.resolucaoEfetivaMetros,
@@ -398,7 +453,7 @@ async function gerarCurvas(body) {
       cacheAtivo: true,
       altitudeMinima: ex.min,
       altitudeMaxima: ex.max,
-      avisoPrecisao: AVISO_CURVAS
+      avisoPrecisao: ""
     }
   };
 }

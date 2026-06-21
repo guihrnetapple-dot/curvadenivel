@@ -4,17 +4,27 @@ import { ErroAplicacao } from "../../utilitarios/erros";
 import { densificarGrade } from "./densificarGrade";
 import { gerarGradeElevacaoApi } from "./gradeElevacaoApi";
 import { gerarSegmentosMarchingSquares } from "./marchingSquares";
+import {
+  calcularParametrosAutomaticosCurvas,
+  obterIntervaloMinimoPorResolucao
+} from "./parametrosAutomaticosCurvas";
 import { suavizarGrade } from "./suavizarGrade";
 import { prepararLinhaCurva } from "./suavizarLinhas";
 import type { FeatureCollectionCurvas, RequisicaoCurvas } from "./tiposCurvas";
 import { unirSegmentos } from "./unirSegmentos";
 
-const AVISO_PRECISAO =
-  "Curvas geradas a partir de amostras consultadas na Open-Elevation e suavizadas matematicamente. A suavização melhora a representação visual, mas não aumenta a precisão da fonte.";
-
 function normalizarIntervaloMetros(intervaloMetros: unknown): number {
   const valor = Number(intervaloMetros ?? 5);
   return Number.isFinite(valor) && valor > 0 ? valor : 5;
+}
+
+function normalizarResolucaoManual(resolucaoMetros: unknown): number {
+  const valor = Number(resolucaoMetros ?? 100);
+  return Number.isFinite(valor) && valor > 0 ? valor : 100;
+}
+
+function normalizarModoParametros(valor: unknown): "automatico" | "manual" {
+  return valor === "manual" ? "manual" : "automatico";
 }
 
 export class ServicoCurvas {
@@ -25,8 +35,18 @@ export class ServicoCurvas {
       throw new ErroAplicacao("Informe os parâmetros para gerar curvas de nível.");
     }
 
-    const intervaloMetros = normalizarIntervaloMetros(requisicao.intervaloMetros);
-    const gradeOriginal = await gerarGradeElevacaoApi(this.provedorElevacao, requisicao.bbox, requisicao.resolucaoMetros);
+    const modoParametros = normalizarModoParametros(requisicao.modoParametros);
+    const automaticos = calcularParametrosAutomaticosCurvas(requisicao.bbox);
+    const resolucaoSolicitada =
+      modoParametros === "automatico"
+        ? automaticos.resolucaoMetros
+        : normalizarResolucaoManual(requisicao.resolucaoMetros);
+    const intervaloSolicitado =
+      modoParametros === "automatico"
+        ? automaticos.intervaloMetros
+        : normalizarIntervaloMetros(requisicao.intervaloMetros);
+    const intervaloMetros = Math.max(intervaloSolicitado, obterIntervaloMinimoPorResolucao(resolucaoSolicitada));
+    const gradeOriginal = await gerarGradeElevacaoApi(this.provedorElevacao, requisicao.bbox, resolucaoSolicitada);
     const gradeSuavizada = suavizarGrade(gradeOriginal, 1);
     const gradeDensa = densificarGrade(gradeSuavizada, CURVAS_FATOR_DENSIFICACAO);
     const features: FeatureCollectionCurvas["features"] = [];
@@ -70,6 +90,12 @@ export class ServicoCurvas {
       metadados: {
         fonte: "Open-Elevation API",
         metodo: "open_elevation_api_marching_squares_suavizado",
+        modoParametros,
+        intervaloAutomatico: modoParametros === "automatico" ? automaticos.intervaloMetros : null,
+        resolucaoAutomatica: modoParametros === "automatico" ? automaticos.resolucaoMetros : null,
+        motivoAjusteAutomatico: modoParametros === "automatico" ? automaticos.motivoAjusteAutomatico : null,
+        maiorDimensaoMetros: automaticos.maiorDimensaoMetros,
+        areaMetrosQuadrados: automaticos.areaMetrosQuadrados,
         intervaloMetros,
         resolucaoSolicitadaMetros: gradeOriginal.resolucaoSolicitadaMetros,
         resolucaoEfetivaMetros: gradeOriginal.resolucaoMetros,
@@ -84,7 +110,7 @@ export class ServicoCurvas {
         cacheAtivo: true,
         altitudeMinima: gradeOriginal.altitudeMinima,
         altitudeMaxima: gradeOriginal.altitudeMaxima,
-        avisoPrecisao: AVISO_PRECISAO
+        avisoPrecisao: ""
       }
     };
   }
