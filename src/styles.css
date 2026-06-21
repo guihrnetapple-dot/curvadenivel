@@ -913,6 +913,18 @@ input[type="checkbox"] {
   color: #1d2b27;
 }
 
+.curva-nivel-normal {
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.92)) drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.curva-nivel-mestra {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 4px rgba(0, 0, 0, 0.7));
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .modo-desenho-area-curvas,
 .modo-desenho-area-curvas .leaflet-interactive,
 .modo-selecao-ponto-altitude,

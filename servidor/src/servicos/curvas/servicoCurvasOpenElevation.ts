@@ -10,8 +10,8 @@ const AVISO_PRECISAO =
   "Curvas aproximadas geradas pela API Open-Elevation. A precisão depende da base DEM usada pelo serviço e não substitui levantamento topográfico final.";
 
 function normalizarIntervaloMetros(intervaloMetros: unknown): number {
-  const valor = Number(intervaloMetros ?? 10);
-  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, INTERVALO_MINIMO_METROS) : 10;
+  const valor = Number(intervaloMetros ?? 5);
+  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, INTERVALO_MINIMO_METROS) : 5;
 }
 
 export class ServicoCurvasOpenElevation {

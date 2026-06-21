@@ -77,7 +77,7 @@ export function Aplicacao() {
   const [selecionandoAreaCurvas, setSelecionandoAreaCurvas] = useState(false);
   const [selecionandoPontoAltitude, setSelecionandoPontoAltitude] = useState(false);
   const [fonteElevacao, setFonteElevacao] = useState<FonteElevacao>("raw");
-  const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(10);
+  const [intervaloCurvasMetros, setIntervaloCurvasMetros] = useState(5);
   const [resolucaoCurvasMetros, setResolucaoCurvasMetros] = useState(250);
   const [pontoDestacado, setPontoDestacado] = useState<PontoPerfil | null>(null);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);

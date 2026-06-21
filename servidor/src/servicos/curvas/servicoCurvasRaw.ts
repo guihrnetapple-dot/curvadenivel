@@ -5,13 +5,13 @@ import { gerarSegmentosMarchingSquares } from "./marchingSquares";
 import type { FeatureCollectionCurvas, RequisicaoCurvasRaw } from "./tiposCurvas";
 import { unirSegmentos } from "./unirSegmentos";
 
-export const INTERVALO_MINIMO_METROS = 5;
+export const INTERVALO_MINIMO_METROS = 1;
 const AVISO_PRECISAO =
   "Curvas aproximadas geradas a partir de grade RAW global de baixa resolução. Não usar como curva de nível topográfica final.";
 
 function normalizarIntervaloMetros(intervaloMetros: unknown): number {
-  const valor = Number(intervaloMetros ?? 10);
-  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, INTERVALO_MINIMO_METROS) : 10;
+  const valor = Number(intervaloMetros ?? 5);
+  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, INTERVALO_MINIMO_METROS) : 5;
 }
 
 export class ServicoCurvasRaw {

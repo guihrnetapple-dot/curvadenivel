@@ -20,7 +20,7 @@ const CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO = Number(process.env.OPEN_ELEVATI
 const CURVAS_MAX_PONTOS_OPEN_ELEVATION = Number.isFinite(CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO)
   ? Math.max(4, CURVAS_LIMITE_OPEN_ELEVATION_CONFIGURADO)
   : 5000;
-const CURVAS_INTERVALO_MINIMO_METROS = 5;
+const CURVAS_INTERVALO_MINIMO_METROS = 1;
 const METROS_POR_GRAU_LATITUDE = 111320;
 const AVISO_PRECISAO_CURVAS =
   "Curvas aproximadas geradas a partir de grade RAW global de baixa resolução. Não usar como curva de nível topográfica final.";
@@ -504,8 +504,8 @@ function normalizarResolucaoCurvas(resolucaoMetros) {
 }
 
 function normalizarIntervaloCurvas(intervaloMetros) {
-  const valor = Number(intervaloMetros ?? 10);
-  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, CURVAS_INTERVALO_MINIMO_METROS) : 10;
+  const valor = Number(intervaloMetros ?? 5);
+  return Number.isFinite(valor) && valor > 0 ? Math.max(valor, CURVAS_INTERVALO_MINIMO_METROS) : 5;
 }
 
 async function gerarGradeRawInterpoladaCurvas(bboxEntrada, resolucaoEntradaMetros) {

@@ -826,8 +826,8 @@ export function MapaAltimetria({
       style: (feature) => {
         const tipo = feature?.properties?.tipo;
         return tipo === "mestra"
-          ? { color: "#5f452a", weight: 2, opacity: 0.9, interactive: true }
-          : { color: "#8a6f4d", weight: 1, opacity: 0.65, interactive: true };
+          ? { color: "#ffdd57", weight: 4, opacity: 1, interactive: true, className: "curva-nivel-mestra" }
+          : { color: "#00e5ff", weight: 2.4, opacity: 0.92, interactive: true, className: "curva-nivel-normal" };
       },
       onEachFeature: (feature, camada) => {
         const elevacao = Number(feature.properties?.elevacao);

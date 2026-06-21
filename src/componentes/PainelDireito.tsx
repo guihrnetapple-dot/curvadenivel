@@ -281,18 +281,17 @@ export function PainelDireito({
 
         <div className="grupo-controles">
           <span className="rotulo-bloco">Intervalo</span>
-          <div className="controle-segmentado">
-            {[5, 10, 20, 40].map((intervalo) => (
-              <button
-                key={intervalo}
-                type="button"
-                className={intervaloCurvasMetros === intervalo ? "ativo" : ""}
-                onClick={() => aoAlterarIntervaloCurvas(intervalo)}
-              >
+          <select
+            className="seletor-elemento"
+            value={intervaloCurvasMetros}
+            onChange={(evento) => aoAlterarIntervaloCurvas(Number(evento.target.value))}
+          >
+            {[1, 2, 5, 10, 20, 40, 80, 100].map((intervalo) => (
+              <option key={intervalo} value={intervalo}>
                 {intervalo} m
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         <div className="grupo-controles">
