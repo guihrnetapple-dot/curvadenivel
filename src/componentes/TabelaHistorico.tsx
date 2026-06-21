@@ -28,7 +28,7 @@ export function TabelaHistorico({ historico }: PropriedadesTabelaHistorico) {
             <tr key={`${item.indice}-${item.consultadoEm}`}>
               <td>{formatarNumero(item.latitude, 4)}</td>
               <td>{formatarNumero(item.longitude, 4)}</td>
-              <td>{formatarMetros(item.altitude, 0)}</td>
+              <td>{formatarMetros(item.altitude, 2)}</td>
               <td>
                 <span className={item.status === "valido" ? "marcador-status valido" : "marcador-status sem-dado"}>
                   {item.status === "valido" ? "Válido" : "Sem dado"}

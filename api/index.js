@@ -7,12 +7,15 @@ const RESOLUCAO_POR_GRAU = 12;
 const TAMANHO_ESPERADO_ARQUIVO = LARGURA_GRADE * ALTURA_GRADE;
 const VALOR_SEM_DADO = 255;
 const FATOR_ALTITUDE_METROS = 20;
+const RESOLUCAO_FONTE_METROS_APROXIMADA = 10000;
 const RAIO_TERRA_METROS = 6371008.8;
 const RADIANOS_POR_GRAU = Math.PI / 180;
 const GRAUS_POR_RADIANO = 180 / Math.PI;
-const INTERVALO_PADRAO_METROS = 1200;
-const INTERVALO_MINIMO_METROS = 150;
-const LIMITE_AMOSTRAS = 600;
+const INTERVALO_PADRAO_METROS = Number(process.env.PERFIL_INTERVALO_PADRAO_METROS ?? 50);
+const INTERVALO_MINIMO_METROS = Number(process.env.PERFIL_INTERVALO_MINIMO_METROS ?? 5);
+const LIMITE_AMOSTRAS = Number(process.env.PERFIL_LIMITE_AMOSTRAS ?? 3000);
+const MENSAGEM_INTERPOLACAO =
+  "Altitude estimada com interpolação bilinear a partir da grade data10k8b.raw. A fonte original possui baixa resolução espacial, portanto os decimais representam suavização matemática, não precisão topográfica real.";
 
 const caminhoArquivoAltitude =
   process.env.CAMINHO_ARQUIVO_ALTITUDE ??
@@ -82,37 +85,105 @@ function validarCoordenada(latitude, longitude) {
   }
 }
 
+function limitar(valor, minimo, maximo) {
+  return Math.min(Math.max(valor, minimo), maximo);
+}
+
+function lerCelula(coluna, linha) {
+  const colunaSegura = limitar(coluna, 0, LARGURA_GRADE - 1);
+  const linhaSegura = limitar(linha, 0, ALTURA_GRADE - 1);
+  const indice = linhaSegura * LARGURA_GRADE + colunaSegura;
+  if (indice < 0 || indice >= TAMANHO_ESPERADO_ARQUIVO) {
+    throw new ErroAplicacao("O índice calculado ficou fora do tamanho do arquivo RAW.");
+  }
+
+  const valorBruto = gradeAltitude[indice];
+  return {
+    coluna: colunaSegura,
+    linha: linhaSegura,
+    indice,
+    valorBruto,
+    valido: valorBruto < VALOR_SEM_DADO
+  };
+}
+
+function amostrarGradeInterpolada(latitude, longitude) {
+  validarCoordenada(latitude, longitude);
+
+  const x = limitar((longitude + 180) * RESOLUCAO_POR_GRAU, 0, LARGURA_GRADE - 1);
+  const y = limitar((90 - latitude) * RESOLUCAO_POR_GRAU, 0, ALTURA_GRADE - 1);
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = limitar(x0 + 1, 0, LARGURA_GRADE - 1);
+  const y1 = limitar(y0 + 1, 0, ALTURA_GRADE - 1);
+  const tx = x - x0;
+  const ty = y - y0;
+
+  const q00 = lerCelula(x0, y0);
+  const q10 = lerCelula(x1, y0);
+  const q01 = lerCelula(x0, y1);
+  const q11 = lerCelula(x1, y1);
+  const vizinhos = [
+    { celula: q00, peso: (1 - tx) * (1 - ty) },
+    { celula: q10, peso: tx * (1 - ty) },
+    { celula: q01, peso: (1 - tx) * ty },
+    { celula: q11, peso: tx * ty }
+  ];
+  const validos = vizinhos.filter((vizinho) => vizinho.celula.valido);
+
+  if (validos.length === 0) {
+    return {
+      coluna: q00.coluna,
+      linha: q00.linha,
+      indice: q00.indice,
+      valorBruto: q00.valorBruto,
+      valorBrutoInterpolado: null,
+      altitude: null,
+      status: "sem_dado",
+      metodo: "bilinear_parcial"
+    };
+  }
+
+  const somaPesos = validos.reduce((soma, vizinho) => soma + vizinho.peso, 0);
+  const valorBrutoInterpolado =
+    somaPesos > 0
+      ? validos.reduce((soma, vizinho) => soma + vizinho.celula.valorBruto * vizinho.peso, 0) / somaPesos
+      : validos.reduce((soma, vizinho) => soma + vizinho.celula.valorBruto, 0) / validos.length;
+
+  return {
+    coluna: q00.coluna,
+    linha: q00.linha,
+    indice: q00.indice,
+    valorBruto: q00.valorBruto,
+    valorBrutoInterpolado,
+    altitude: valorBrutoInterpolado * FATOR_ALTITUDE_METROS,
+    status: "valido",
+    metodo: validos.length === 4 ? "bilinear" : "bilinear_parcial"
+  };
+}
+
 async function consultarPonto(coordenada) {
   await carregarArquivo();
 
   const latitude = Number(coordenada.latitude);
   const longitude = Number(coordenada.longitude);
-  validarCoordenada(latitude, longitude);
+  const amostra = amostrarGradeInterpolada(latitude, longitude);
 
-  let coluna = Math.floor((longitude + 180) * RESOLUCAO_POR_GRAU);
-  let linha = Math.floor((90 - latitude) * RESOLUCAO_POR_GRAU);
-
-  if (coluna === LARGURA_GRADE && longitude === 180) coluna = LARGURA_GRADE - 1;
-  if (linha === ALTURA_GRADE && latitude === -90) linha = ALTURA_GRADE - 1;
-
-  if (coluna < 0 || coluna >= LARGURA_GRADE || linha < 0 || linha >= ALTURA_GRADE) {
-    throw new ErroAplicacao("A coordenada está fora da cobertura da grade altimétrica.");
-  }
-
-  const indice = linha * LARGURA_GRADE + coluna;
-  const valorBruto = gradeAltitude[indice];
-
-  if (valorBruto >= VALOR_SEM_DADO) {
+  if (amostra.status === "sem_dado") {
     return {
       latitude,
       longitude,
-      coluna,
-      linha,
-      indice,
-      valorBruto,
+      coluna: amostra.coluna,
+      linha: amostra.linha,
+      indice: amostra.indice,
+      valorBruto: amostra.valorBruto,
+      metodo: amostra.metodo,
+      resolucaoFonteMetrosAproximada: RESOLUCAO_FONTE_METROS_APROXIMADA,
+      precisaoReal: "baixa",
+      avisoPrecisao: "Estimativa suavizada por interpolação matemática; a precisão real depende da resolução da fonte DEM.",
       altitude: null,
       status: "sem_dado",
-      mensagem: "Ponto classificado como água, área sem dado ou valor inválido.",
+      mensagem: "Ponto classificado como água, área sem dado ou valor inválido na vizinhança da grade.",
       consultadoEm: new Date().toISOString()
     };
   }
@@ -120,13 +191,18 @@ async function consultarPonto(coordenada) {
   return {
     latitude,
     longitude,
-    coluna,
-    linha,
-    indice,
-    valorBruto,
-    altitude: valorBruto * FATOR_ALTITUDE_METROS,
+    coluna: amostra.coluna,
+    linha: amostra.linha,
+    indice: amostra.indice,
+    valorBruto: amostra.valorBruto,
+    valorBrutoInterpolado: amostra.valorBrutoInterpolado,
+    metodo: amostra.metodo,
+    resolucaoFonteMetrosAproximada: RESOLUCAO_FONTE_METROS_APROXIMADA,
+    precisaoReal: "baixa",
+    avisoPrecisao: "Estimativa suavizada por interpolação matemática; a precisão real depende da resolução da fonte DEM.",
+    altitude: amostra.altitude,
     status: "valido",
-    mensagem: "Altitude calculada com sucesso a partir da grade data10k8b.raw.",
+    mensagem: MENSAGEM_INTERPOLACAO,
     consultadoEm: new Date().toISOString()
   };
 }
@@ -261,14 +337,18 @@ function normalizarGeometria(geometria) {
 
 function amostrarCaminho(coordenadas, comprimentoTotal, intervaloMetros) {
   if (coordenadas.length === 1 || comprimentoTotal <= 0) {
-    return [{ ...coordenadas[0], distanciaMetros: 0 }];
+    return {
+      amostras: [{ ...coordenadas[0], distanciaMetros: 0 }],
+      intervaloEfetivoMetros: 0,
+      limiteAmostrasAtingido: false
+    };
   }
 
-  const quantidade = Math.min(
-    LIMITE_AMOSTRAS,
-    Math.max(2, Math.ceil(comprimentoTotal / intervaloMetros) + 1)
-  );
+  const limiteAmostras = Number.isInteger(LIMITE_AMOSTRAS) && LIMITE_AMOSTRAS >= 2 ? LIMITE_AMOSTRAS : 3000;
+  const quantidadeIdeal = Math.max(2, Math.ceil(comprimentoTotal / intervaloMetros) + 1);
+  const quantidade = Math.min(limiteAmostras, quantidadeIdeal);
   const passo = comprimentoTotal / (quantidade - 1);
+  const limiteAmostrasAtingido = quantidadeIdeal > limiteAmostras;
   const segmentos = coordenadas.slice(1).map((fim, indice) => {
     const inicio = coordenadas[indice];
     return { inicio, fim, comprimento: distanciaHaversine(inicio, fim) };
@@ -295,10 +375,17 @@ function amostrarCaminho(coordenadas, comprimentoTotal, intervaloMetros) {
     amostras.push({ ...interpolarCoordenada(segmento.inicio, segmento.fim, fracao), distanciaMetros: distanciaAlvo });
   }
 
-  return amostras;
+  return {
+    amostras,
+    intervaloEfetivoMetros: passo,
+    limiteAmostrasAtingido,
+    avisoAmostragem: limiteAmostrasAtingido
+      ? `A linha é longa para o intervalo solicitado. O perfil foi limitado a ${limiteAmostras} amostras, com intervalo efetivo de ${passo.toFixed(2)} m.`
+      : undefined
+  };
 }
 
-function calcularEstatisticas(pontos, comprimentoTotalMetros, areaMetrosQuadrados) {
+function calcularEstatisticas(pontos, comprimentoTotalMetros, areaMetrosQuadrados, amostragem) {
   const altitudesValidas = pontos
     .map((ponto) => ponto.altitude)
     .filter((altitude) => Number.isFinite(altitude));
@@ -314,7 +401,10 @@ function calcularEstatisticas(pontos, comprimentoTotalMetros, areaMetrosQuadrado
       comprimentoTotalMetros,
       areaMetrosQuadrados,
       quantidadePontos: pontos.length,
-      pontosSemDado
+      pontosSemDado,
+      limiteAmostrasAtingido: amostragem.limiteAmostrasAtingido,
+      intervaloEfetivoMetros: amostragem.intervaloEfetivoMetros,
+      avisoAmostragem: amostragem.avisoAmostragem
     };
   }
 
@@ -332,20 +422,25 @@ function calcularEstatisticas(pontos, comprimentoTotalMetros, areaMetrosQuadrado
     comprimentoTotalMetros,
     areaMetrosQuadrados,
     quantidadePontos: pontos.length,
-    pontosSemDado
+    pontosSemDado,
+    limiteAmostrasAtingido: amostragem.limiteAmostrasAtingido,
+    intervaloEfetivoMetros: amostragem.intervaloEfetivoMetros,
+    avisoAmostragem: amostragem.avisoAmostragem
   };
 }
 
 async function analisarPerfil(requisicao) {
   const caminho = normalizarGeometria(requisicao?.geometria);
   const comprimentoTotal = calcularComprimento(caminho.coordenadas);
-  const intervaloSolicitado = Number(requisicao.intervaloMetros ?? INTERVALO_PADRAO_METROS);
+  const intervaloPadrao = Number.isFinite(INTERVALO_PADRAO_METROS) && INTERVALO_PADRAO_METROS > 0 ? INTERVALO_PADRAO_METROS : 50;
+  const intervaloMinimo = Number.isFinite(INTERVALO_MINIMO_METROS) && INTERVALO_MINIMO_METROS > 0 ? INTERVALO_MINIMO_METROS : 5;
+  const intervaloSolicitado = Number(requisicao.intervaloMetros ?? intervaloPadrao);
   const intervaloSeguro = Number.isFinite(intervaloSolicitado)
-    ? Math.max(intervaloSolicitado, INTERVALO_MINIMO_METROS)
-    : INTERVALO_PADRAO_METROS;
-  const amostras = amostrarCaminho(caminho.coordenadas, comprimentoTotal, intervaloSeguro);
+    ? Math.max(intervaloSolicitado, intervaloMinimo)
+    : intervaloPadrao;
+  const amostragem = amostrarCaminho(caminho.coordenadas, comprimentoTotal, intervaloSeguro);
   const pontos = await Promise.all(
-    amostras.map(async (amostra) => ({
+    amostragem.amostras.map(async (amostra) => ({
       ...(await consultarPonto(amostra)),
       distanciaMetros: amostra.distanciaMetros
     }))
@@ -354,7 +449,7 @@ async function analisarPerfil(requisicao) {
   return {
     tipo: caminho.tipo,
     pontos,
-    estatisticas: calcularEstatisticas(pontos, comprimentoTotal, caminho.areaMetrosQuadrados)
+    estatisticas: calcularEstatisticas(pontos, comprimentoTotal, caminho.areaMetrosQuadrados, amostragem)
   };
 }
 
@@ -409,6 +504,13 @@ async function manipularRota(requisicao, resposta) {
       backendOnline: true,
       dataHora: new Date().toISOString(),
       ambiente: "vercel",
+      configuracao: {
+        fonteElevacao: process.env.FONTE_ELEVACAO ?? "raw",
+        metodoInterpolacao: process.env.METODO_INTERPOLACAO ?? "bilinear",
+        perfilIntervaloPadraoMetros: Number.isFinite(INTERVALO_PADRAO_METROS) ? INTERVALO_PADRAO_METROS : 50,
+        perfilIntervaloMinimoMetros: Number.isFinite(INTERVALO_MINIMO_METROS) ? INTERVALO_MINIMO_METROS : 5,
+        perfilLimiteAmostras: Number.isFinite(LIMITE_AMOSTRAS) ? LIMITE_AMOSTRAS : 3000
+      },
       altitude: obterStatusAltitude()
     });
     return;

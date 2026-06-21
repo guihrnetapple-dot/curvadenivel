@@ -226,7 +226,17 @@ export function PainelDireito({
 
         <div className="resultado-atual">
           <span>Última altitude</span>
-          <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 0) : "-"}</strong>
+          <strong>{resultadoAtual ? formatarMetros(resultadoAtual.altitude, 2) : "-"}</strong>
+          {resultadoAtual && (
+            <small>
+              Método: {resultadoAtual.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"} · Fonte:
+              data10k8b.raw
+            </small>
+          )}
+          <small>
+            {resultadoAtual?.avisoPrecisao ??
+              "Estimativa suavizada; a precisão real depende da resolução da fonte DEM."}
+          </small>
           <small>{resultadoAtual?.mensagem ?? "Aguardando consulta."}</small>
         </div>
 
@@ -263,19 +273,19 @@ export function PainelDireito({
         <div className="grade-metricas">
           <div>
             <span>Mínima</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMinima, 0)}</strong>
+            <strong>{formatarMetros(perfil?.estatisticas.altitudeMinima, 2)}</strong>
           </div>
           <div>
             <span>Máxima</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMaxima, 0)}</strong>
+            <strong>{formatarMetros(perfil?.estatisticas.altitudeMaxima, 2)}</strong>
           </div>
           <div>
             <span>Média</span>
-            <strong>{formatarMetros(perfil?.estatisticas.altitudeMedia, 0)}</strong>
+            <strong>{formatarMetros(perfil?.estatisticas.altitudeMedia, 2)}</strong>
           </div>
           <div>
             <span>Desnível</span>
-            <strong>{formatarMetros(perfil?.estatisticas.diferencaNivel, 0)}</strong>
+            <strong>{formatarMetros(perfil?.estatisticas.diferencaNivel, 2)}</strong>
           </div>
           <div>
             <span>Inclinação</span>
@@ -294,6 +304,9 @@ export function PainelDireito({
             <strong>{formatarNumero(perfil?.estatisticas.pontosSemDado, 0)}</strong>
           </div>
         </div>
+        {perfil?.estatisticas.avisoAmostragem && (
+          <div className="estado-vazio">{perfil.estatisticas.avisoAmostragem}</div>
+        )}
       </SecaoPainel>
 
       <SecaoPainel titulo="Exportação" icone={<FileDown size={17} />} abertaInicialmente={false}>

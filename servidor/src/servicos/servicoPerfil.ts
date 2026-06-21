@@ -9,6 +9,11 @@ import type {
 } from "../tipos";
 import { ErroAplicacao } from "../utilitarios/erros";
 import {
+  obterPerfilIntervaloMinimoMetros,
+  obterPerfilIntervaloPadraoMetros,
+  obterPerfilLimiteAmostras
+} from "../configuracao";
+import {
   calcularAreaAproximadaPoligono,
   calcularComprimento,
   calcularDestinoGeografico,
@@ -19,14 +24,17 @@ import {
 } from "../utilitarios/geometria";
 import { ServicoAltitude } from "./servicoAltitude";
 
-const INTERVALO_PADRAO_METROS = 1200;
-const INTERVALO_MINIMO_METROS = 150;
-const LIMITE_AMOSTRAS = 600;
-
 interface CaminhoNormalizado {
   tipo: GeometriaPerfil["type"];
   coordenadas: Coordenada[];
   areaMetrosQuadrados: number | null;
+}
+
+interface AmostragemPerfil {
+  amostras: CoordenadaComDistancia[];
+  intervaloEfetivoMetros: number;
+  limiteAmostrasAtingido: boolean;
+  avisoAmostragem?: string;
 }
 
 export class ServicoPerfil {
@@ -39,19 +47,21 @@ export class ServicoPerfil {
 
     const caminho = this.normalizarGeometria(requisicao.geometria);
     const comprimentoTotal = calcularComprimento(caminho.coordenadas);
-    const intervaloSolicitado = Number(requisicao.intervaloMetros ?? INTERVALO_PADRAO_METROS);
+    const intervaloPadrao = obterPerfilIntervaloPadraoMetros();
+    const intervaloMinimo = obterPerfilIntervaloMinimoMetros();
+    const intervaloSolicitado = Number(requisicao.intervaloMetros ?? intervaloPadrao);
     const intervaloSeguro = Number.isFinite(intervaloSolicitado)
-      ? Math.max(intervaloSolicitado, INTERVALO_MINIMO_METROS)
-      : INTERVALO_PADRAO_METROS;
+      ? Math.max(intervaloSolicitado, intervaloMinimo)
+      : intervaloPadrao;
 
-    const amostras = this.amostrarCaminho(
+    const amostragem = this.amostrarCaminho(
       caminho.coordenadas,
       comprimentoTotal,
       intervaloSeguro
     );
 
     const pontos = await Promise.all(
-      amostras.map(async (amostra) => {
+      amostragem.amostras.map(async (amostra) => {
         const resultado = await this.servicoAltitude.consultarPonto(amostra);
         return {
           ...resultado,
@@ -66,7 +76,8 @@ export class ServicoPerfil {
       estatisticas: this.calcularEstatisticas(
         pontos,
         comprimentoTotal,
-        caminho.areaMetrosQuadrados
+        caminho.areaMetrosQuadrados,
+        amostragem
       )
     };
   }
@@ -126,16 +137,23 @@ export class ServicoPerfil {
     coordenadas: Coordenada[],
     comprimentoTotal: number,
     intervaloMetros: number
-  ): CoordenadaComDistancia[] {
+  ): AmostragemPerfil {
     if (coordenadas.length === 1 || comprimentoTotal <= 0) {
-      return [{ ...coordenadas[0], distanciaMetros: 0 }];
+      return {
+        amostras: [{ ...coordenadas[0], distanciaMetros: 0 }],
+        intervaloEfetivoMetros: 0,
+        limiteAmostrasAtingido: false
+      };
     }
 
+    const limiteAmostras = obterPerfilLimiteAmostras();
+    const quantidadeIdeal = Math.max(2, Math.ceil(comprimentoTotal / intervaloMetros) + 1);
     const quantidade = Math.min(
-      LIMITE_AMOSTRAS,
-      Math.max(2, Math.ceil(comprimentoTotal / intervaloMetros) + 1)
+      limiteAmostras,
+      quantidadeIdeal
     );
     const passo = comprimentoTotal / (quantidade - 1);
+    const limiteAmostrasAtingido = quantidadeIdeal > limiteAmostras;
     const segmentos = coordenadas.slice(1).map((fim, indice) => {
       const inicio = coordenadas[indice];
       return {
@@ -168,13 +186,21 @@ export class ServicoPerfil {
       amostras.push({ ...coordenada, distanciaMetros: distanciaAlvo });
     }
 
-    return amostras;
+    return {
+      amostras,
+      intervaloEfetivoMetros: passo,
+      limiteAmostrasAtingido,
+      avisoAmostragem: limiteAmostrasAtingido
+        ? `A linha é longa para o intervalo solicitado. O perfil foi limitado a ${limiteAmostras} amostras, com intervalo efetivo de ${passo.toFixed(2)} m.`
+        : undefined
+    };
   }
 
   private calcularEstatisticas(
     pontos: PontoPerfil[],
     comprimentoTotalMetros: number,
-    areaMetrosQuadrados: number | null
+    areaMetrosQuadrados: number | null,
+    amostragem: AmostragemPerfil
   ): EstatisticasPerfil {
     const altitudesValidas = pontos
       .map((ponto) => ponto.altitude)
@@ -191,7 +217,10 @@ export class ServicoPerfil {
         comprimentoTotalMetros,
         areaMetrosQuadrados,
         quantidadePontos: pontos.length,
-        pontosSemDado
+        pontosSemDado,
+        limiteAmostrasAtingido: amostragem.limiteAmostrasAtingido,
+        intervaloEfetivoMetros: amostragem.intervaloEfetivoMetros,
+        avisoAmostragem: amostragem.avisoAmostragem
       };
     }
 
@@ -211,7 +240,10 @@ export class ServicoPerfil {
       comprimentoTotalMetros,
       areaMetrosQuadrados,
       quantidadePontos: pontos.length,
-      pontosSemDado
+      pontosSemDado,
+      limiteAmostrasAtingido: amostragem.limiteAmostrasAtingido,
+      intervaloEfetivoMetros: amostragem.intervaloEfetivoMetros,
+      avisoAmostragem: amostragem.avisoAmostragem
     };
   }
 }

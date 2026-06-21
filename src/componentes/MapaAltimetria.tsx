@@ -105,6 +105,7 @@ function criarGradeAltitude(): L.LayerGroup {
 
 function montarPopup(resultado: ResultadoAltitude): string {
   const classeStatus = resultado.status === "valido" ? "valido" : "sem-dado";
+  const metodo = resultado.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear";
   const status = resultado.status === "valido" ? "Válido" : "Água ou sem dado";
   return `
     <div class="popup-tecnico">
@@ -112,9 +113,13 @@ function montarPopup(resultado: ResultadoAltitude): string {
       <dl>
         <dt>Latitude</dt><dd>${formatarNumero(resultado.latitude, 6)}</dd>
         <dt>Longitude</dt><dd>${formatarNumero(resultado.longitude, 6)}</dd>
-        <dt>Altitude</dt><dd>${formatarMetros(resultado.altitude, 0)}</dd>
+        <dt>Altitude</dt><dd>${formatarMetros(resultado.altitude, 2)}</dd>
+        <dt>Método</dt><dd>${metodo}</dd>
+        <dt>Fonte</dt><dd>data10k8b.raw</dd>
         <dt>Valor bruto</dt><dd>${resultado.valorBruto}</dd>
+        <dt>Bruto interpolado</dt><dd>${formatarNumero(resultado.valorBrutoInterpolado, 4)}</dd>
         <dt>Status</dt><dd><span class="marcador-status ${classeStatus}">${status}</span></dd>
+        <dt>Observação</dt><dd>${resultado.avisoPrecisao ?? "Estimativa suavizada, baixa resolução real."}</dd>
         <dt>Data/hora</dt><dd>${formatarDataHoraIso(resultado.consultadoEm)}</dd>
       </dl>
     </div>
@@ -434,7 +439,7 @@ export function MapaAltimetria({
       <div ref={containerRef} className="mapa-altimetria" />
       <div className="sobreposicao-mapa topo-esquerda">
         <strong>Mapa operacional</strong>
-        <span>Escala global 10 km/célula</span>
+        <span>Interpolação bilinear sobre fonte global de baixa resolução</span>
       </div>
       <div className="sobreposicao-mapa cursor-mapa">{coordenadasCursor}</div>
     </section>

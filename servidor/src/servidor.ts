@@ -1,7 +1,15 @@
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
 
-import { obterCaminhoArquivoAltitude, obterPortaServidor } from "./configuracao";
+import {
+  obterCaminhoArquivoAltitude,
+  obterFonteElevacao,
+  obterMetodoInterpolacao,
+  obterPerfilIntervaloMinimoMetros,
+  obterPerfilIntervaloPadraoMetros,
+  obterPerfilLimiteAmostras,
+  obterPortaServidor
+} from "./configuracao";
 import { ServicoAltitude } from "./servicos/servicoAltitude";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
@@ -48,6 +56,13 @@ aplicacao.get(
     resposta.json({
       backendOnline: true,
       dataHora: new Date().toISOString(),
+      configuracao: {
+        fonteElevacao: obterFonteElevacao(),
+        metodoInterpolacao: obterMetodoInterpolacao(),
+        perfilIntervaloPadraoMetros: obterPerfilIntervaloPadraoMetros(),
+        perfilIntervaloMinimoMetros: obterPerfilIntervaloMinimoMetros(),
+        perfilLimiteAmostras: obterPerfilLimiteAmostras()
+      },
       altitude: servicoAltitude.obterStatus()
     });
   })

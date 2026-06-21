@@ -19,6 +19,13 @@ export async function consultarStatusApi(): Promise<StatusApi> {
   const resposta = await fetch(`${API_BASE}/api/status`);
   const dados = await lerRespostaJson<{
     backendOnline: boolean;
+    configuracao?: {
+      fonteElevacao: string;
+      metodoInterpolacao: string;
+      perfilIntervaloPadraoMetros: number;
+      perfilIntervaloMinimoMetros: number;
+      perfilLimiteAmostras: number;
+    };
     altitude: {
       arquivoCarregado: boolean;
       caminhoArquivo: string;
@@ -50,7 +57,7 @@ export async function consultarAltitude(latitude: number, longitude: number): Pr
 
 export async function consultarPerfilElevacao(
   geometria: GeometriaProjeto,
-  intervaloMetros = 1200
+  intervaloMetros = 50
 ): Promise<PerfilElevacao> {
   const resposta = await fetch(`${API_BASE}/api/elevation/profile`, {
     method: "POST",

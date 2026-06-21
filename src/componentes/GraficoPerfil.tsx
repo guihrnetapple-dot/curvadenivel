@@ -31,10 +31,11 @@ function TooltipPerfil({
   const ponto = payload[0].payload;
   return (
     <div className="tooltip-grafico">
-      <strong>{formatarMetros(ponto.altitude, 0)}</strong>
+      <strong>{formatarMetros(ponto.altitude, 2)}</strong>
       <span>Distância: {formatarNumero(ponto.distanciaMetros / 1000, 2)} km</span>
       <span>Lat: {formatarNumero(ponto.latitude, 5)}</span>
       <span>Lng: {formatarNumero(ponto.longitude, 5)}</span>
+      <span>Método: {ponto.metodo === "bilinear_parcial" ? "Bilinear parcial" : "Bilinear"}</span>
     </div>
   );
 }
@@ -70,6 +71,7 @@ export function GraficoPerfil({ perfil, carregando, aoSelecionarPonto }: Proprie
         <strong>Perfil de elevação</strong>
         <span>
           {perfil.estatisticas.quantidadePontos} pontos, {formatarNumero(perfil.estatisticas.pontosSemDado, 0)} sem dado
+          {perfil.estatisticas.limiteAmostrasAtingido ? ", limite aplicado" : ""}
         </span>
       </div>
       <ResponsiveContainer width="100%" height={190}>
@@ -95,7 +97,7 @@ export function GraficoPerfil({ perfil, carregando, aoSelecionarPonto }: Proprie
             tickFormatter={(valor) => `${formatarNumero(Number(valor) / 1000, 1)} km`}
             minTickGap={24}
           />
-          <YAxis tickFormatter={(valor) => `${formatarNumero(Number(valor), 0)} m`} width={54} />
+          <YAxis tickFormatter={(valor) => `${formatarNumero(Number(valor), 2)} m`} width={72} />
           <Tooltip content={<TooltipPerfil />} />
           <Area
             type="monotone"

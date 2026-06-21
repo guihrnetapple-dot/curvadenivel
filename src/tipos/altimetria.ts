@@ -1,6 +1,8 @@
 export type TemaVisual = "claro" | "escuro";
 export type CamadaBase = "mapa" | "satelite" | "terreno";
 export type StatusAltitude = "valido" | "sem_dado";
+export type MetodoInterpolacao = "celula" | "bilinear" | "bilinear_parcial";
+export type PrecisaoReal = "baixa" | "media" | "alta";
 
 export interface ResultadoAltitude {
   latitude: number;
@@ -9,6 +11,11 @@ export interface ResultadoAltitude {
   linha: number;
   indice: number;
   valorBruto: number;
+  valorBrutoInterpolado?: number;
+  metodo?: MetodoInterpolacao;
+  resolucaoFonteMetrosAproximada?: number;
+  precisaoReal?: PrecisaoReal;
+  avisoPrecisao?: string;
   altitude: number | null;
   status: StatusAltitude;
   mensagem: string;
@@ -103,6 +110,9 @@ export interface EstatisticasPerfil {
   areaMetrosQuadrados: number | null;
   quantidadePontos: number;
   pontosSemDado: number;
+  limiteAmostrasAtingido?: boolean;
+  intervaloEfetivoMetros?: number;
+  avisoAmostragem?: string;
 }
 
 export interface PontoPerfil extends ResultadoAltitude {

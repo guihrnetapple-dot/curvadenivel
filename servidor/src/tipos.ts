@@ -5,6 +5,9 @@ export interface Coordenada {
   longitude: number;
 }
 
+export type MetodoInterpolacao = "celula" | "bilinear" | "bilinear_parcial";
+export type PrecisaoReal = "baixa" | "media" | "alta";
+
 export interface ResultadoAltitude {
   latitude: number;
   longitude: number;
@@ -12,6 +15,11 @@ export interface ResultadoAltitude {
   linha: number;
   indice: number;
   valorBruto: number;
+  valorBrutoInterpolado?: number;
+  metodo?: MetodoInterpolacao;
+  resolucaoFonteMetrosAproximada?: number;
+  precisaoReal?: PrecisaoReal;
+  avisoPrecisao?: string;
   altitude: number | null;
   status: StatusAltitude;
   mensagem: string;
@@ -36,6 +44,9 @@ export interface EstatisticasPerfil {
   areaMetrosQuadrados: number | null;
   quantidadePontos: number;
   pontosSemDado: number;
+  limiteAmostrasAtingido?: boolean;
+  intervaloEfetivoMetros?: number;
+  avisoAmostragem?: string;
 }
 
 export type ParLngLat = [number, number];
@@ -76,4 +87,8 @@ export interface ResultadoPerfil {
   tipo: GeometriaPerfil["type"];
   pontos: PontoPerfil[];
   estatisticas: EstatisticasPerfil;
+}
+
+export interface ProvedorElevacao {
+  consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude>;
 }
