@@ -3,13 +3,11 @@ import type { ReactNode } from "react";
 
 import logoCurvaNivel from "../../assets/logo-curva-nivel.png";
 import { useAuth } from "../../context/AuthContext";
-import { limparConfirmacaoPendente, obterEmailConfirmacaoPendente } from "../../servicos/authService";
+import { limparConfirmacaoPendente, sair } from "../../servicos/authService";
 import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
 import { CarregamentoInicial } from "../CarregamentoInicial";
 import { AuthTerrainPanel } from "./AuthTerrainPanel";
 import { AuthErrorBoundary } from "./AuthErrorBoundary";
-import { CompleteProfilePage } from "./CompleteProfilePage";
-import { ConfirmEmailPage } from "./ConfirmEmailPage";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import { LoginPage } from "./LoginPage";
 import { RegisterPage } from "./RegisterPage";
@@ -93,10 +91,17 @@ function detectarErroUrl(): string | null {
 
 function detectarTelaInicial(): TelaAuth {
   const telaUrl = obterTelaPorCaminho(window.location.pathname);
-  if (telaUrl) return telaUrl;
+  if (telaUrl && telaUrl !== "confirmacao-email") return telaUrl;
   if (window.location.hash.includes("recuperar-senha")) return "nova-senha";
-  if (obterEmailConfirmacaoPendente()) return "confirmacao-email";
   return "login";
+}
+
+function detectarMensagemLogin(): string | null {
+  const parametros = new URLSearchParams(window.location.search);
+  if (parametros.get("cadastro") === "confirmado") {
+    return "E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.";
+  }
+  return null;
 }
 
 function AuthShell({ children, cadastro }: { children: ReactNode; cadastro?: boolean }) {
@@ -131,10 +136,11 @@ function AutenticacaoIndisponivel() {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { carregando, configurado, usuario, perfilPendente, recarregarPerfil } = useAuth();
+  const { carregando, configurado, usuario } = useAuth();
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
-  const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(() => obterEmailConfirmacaoPendente());
+  const [avisoLogin, setAvisoLogin] = useState<string | null>(() => detectarMensagemLogin());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
+  const [finalizandoConfirmacaoEmail, setFinalizandoConfirmacaoEmail] = useState(false);
   const resetandoSenha = useMemo(() => tela === "nova-senha", [tela]);
   const navegarAuth = useCallback((proximaTela: TelaAuth, substituir = false) => {
     setTela(proximaTela);
@@ -143,16 +149,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const pendente = obterEmailConfirmacaoPendente();
-    if (pendente) {
-      setEmailConfirmacao(pendente);
-    }
-  }, [tela]);
-
-  useEffect(() => {
     const aoVoltar = () => {
       const telaUrl = detectarTelaInicial();
       setTela(telaUrl);
+      setAvisoLogin(detectarMensagemLogin());
       atualizarTitulo(window.location.pathname);
     };
 
@@ -165,6 +165,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (carregando || !configurado) return;
 
     const caminho = caminhoAtual().toLowerCase();
+    const confirmacaoEmail = new URLSearchParams(window.location.search).get("cadastro") === "confirmado";
 
     if (usuario && resetandoSenha) {
       atualizarUrl(rotasPorTela["nova-senha"], true);
@@ -172,9 +173,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (usuario && perfilPendente) {
-      atualizarUrl("/completarcadastro", true);
-      atualizarTitulo("/completarcadastro");
+    if (usuario && confirmacaoEmail) {
+      setFinalizandoConfirmacaoEmail(true);
+      limparConfirmacaoPendente();
+      void sair().finally(() => {
+        setFinalizandoConfirmacaoEmail(false);
+        setTela("login");
+        setAvisoLogin("E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.");
+        atualizarUrl("/login", true);
+        atualizarTitulo("/login");
+      });
       return;
     }
 
@@ -184,12 +192,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (caminho === "/" || caminhoProtegido(caminho)) {
+    if (caminho === "/" || caminho === "/confirmaremail" || caminhoProtegido(caminho)) {
+      if (caminho === "/confirmaremail") {
+        setAvisoLogin("Confira seu e-mail e clique no link de confirmação para liberar o login.");
+      }
       navegarAuth("login", true);
     }
-  }, [carregando, configurado, navegarAuth, perfilPendente, resetandoSenha, usuario]);
+  }, [carregando, configurado, navegarAuth, resetandoSenha, usuario]);
 
-  if (carregando) {
+  if (carregando || finalizandoConfirmacaoEmail) {
     return <CarregamentoInicial />;
   }
 
@@ -201,14 +212,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return (
       <AuthShell>
         <ResetPasswordPage aoConcluir={() => navegarAuth("login", true)} />
-      </AuthShell>
-    );
-  }
-
-  if (usuario && perfilPendente) {
-    return (
-      <AuthShell cadastro>
-        <CompleteProfilePage />
       </AuthShell>
     );
   }
@@ -226,8 +229,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
       )}
       {tela === "login" && (
         <LoginPage
+          aviso={avisoLogin}
           aoCriarConta={() => {
             setMensagemUrl(null);
+            setAvisoLogin(null);
             navegarAuth("cadastro");
           }}
           aoRecuperarSenha={() => navegarAuth("recuperacao")}
@@ -237,21 +242,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <RegisterPage
           aoEntrar={() => navegarAuth("login")}
           aoConfirmacaoNecessaria={(email) => {
-            setEmailConfirmacao(email);
-            navegarAuth("confirmacao-email");
-          }}
-        />
-      )}
-      {tela === "confirmacao-email" && emailConfirmacao && (
-        <ConfirmEmailPage
-          email={emailConfirmacao}
-          aoConfirmado={async () => {
-            await recarregarPerfil();
-          }}
-          aoVoltarCadastro={() => {
             limparConfirmacaoPendente();
-            setEmailConfirmacao(null);
-            navegarAuth("cadastro");
+            setAvisoLogin(`Cadastro criado para ${email}. Confira seu e-mail e clique no link de confirmação antes de entrar.`);
+            navegarAuth("login");
           }}
         />
       )}

@@ -6,6 +6,7 @@ import { obterSupabase, supabaseConfigurado } from "../lib/supabaseClient";
 import type { PerfilUsuario } from "../tipos/autenticacao";
 import { garantirPerfilUsuario } from "../servicos/profileService";
 import { restaurarPerfilCadastroInicial } from "../servicos/authService";
+import { loginPersistenteAtivo } from "../servicos/persistenciaLogin";
 
 interface EstadoAuth {
   carregando: boolean;
@@ -18,6 +19,11 @@ interface EstadoAuth {
 }
 
 const AuthContext = createContext<EstadoAuth | null>(null);
+
+function paginaFoiRecarregada(): boolean {
+  const navegacao = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+  return navegacao?.type === "reload";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
@@ -82,6 +88,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!ativo) {
           return;
         }
+
+        if (data.session && paginaFoiRecarregada() && !loginPersistenteAtivo()) {
+          await supabase.auth.signOut().catch((erro) => {
+            if (import.meta.env.DEV) {
+              console.error("Falha ao limpar sessão não persistente:", erro);
+            }
+          });
+          setSessao(null);
+          setPerfil(null);
+          return;
+        }
+
         setSessao(data.session);
         await carregarPerfil(data.session?.user ?? null);
       })

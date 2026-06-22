@@ -1,4 +1,5 @@
 const CHAVE_LOGIN_PERSISTENTE = "auth.loginPersistenteNestaMaquina";
+const CHAVE_EMAIL_LEMBRADO = "auth.emailLembradoNestaMaquina";
 
 function obterLocalStorage(): Storage | null {
   try {
@@ -26,4 +27,18 @@ export function definirLoginPersistente(ativo: boolean) {
 
 export function limparPreferenciaLoginPersistente() {
   obterLocalStorage()?.removeItem(CHAVE_LOGIN_PERSISTENTE);
+}
+
+export function obterEmailLembrado(): string {
+  return obterLocalStorage()?.getItem(CHAVE_EMAIL_LEMBRADO) ?? "";
+}
+
+export function salvarEmailLembrado(email: string) {
+  const normalizado = email.trim().toLowerCase();
+  if (!normalizado) return;
+  obterLocalStorage()?.setItem(CHAVE_EMAIL_LEMBRADO, normalizado);
+}
+
+export function limparEmailLembrado() {
+  obterLocalStorage()?.removeItem(CHAVE_EMAIL_LEMBRADO);
 }

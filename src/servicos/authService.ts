@@ -4,7 +4,12 @@ import type { DadosCadastro, DadosPerfilCadastro, PerfilUsuario, ResultadoCadast
 import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuth";
 import { obterInformacaoCliente } from "./clientInfoService";
 import { salvarPerfilUsuario } from "./profileService";
-import { definirLoginPersistente, limparPreferenciaLoginPersistente } from "./persistenciaLogin";
+import {
+  definirLoginPersistente,
+  limparEmailLembrado,
+  limparPreferenciaLoginPersistente,
+  salvarEmailLembrado
+} from "./persistenciaLogin";
 
 const CHAVE_EMAIL_PENDENTE = "auth.emailConfirmacaoPendente";
 const CHAVE_TELA_PENDENTE = "auth.telaPendente";
@@ -172,7 +177,7 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
     email,
     password: dados.password,
     options: {
-      emailRedirectTo: `${obterUrlBase()}/confirmaremail`,
+      emailRedirectTo: `${obterUrlBase()}/login?cadastro=confirmado`,
       data: {
         cadastro_inicial: true,
         cadastro_perfil_pendente: {
@@ -224,7 +229,7 @@ export async function reenviarCodigoConfirmacao(email: string) {
     type: "signup",
     email: normalizarEmail(email),
     options: {
-      emailRedirectTo: `${obterUrlBase()}/confirmaremail`
+      emailRedirectTo: `${obterUrlBase()}/login?cadastro=confirmado`
     }
   });
 
@@ -279,6 +284,15 @@ export async function sair() {
   }
 
   limparPreferenciaLoginPersistente();
+}
+
+export function aplicarPreferenciaDadosLogin(email: string, lembrarDados: boolean) {
+  if (lembrarDados) {
+    salvarEmailLembrado(email);
+    return;
+  }
+
+  limparEmailLembrado();
 }
 
 export async function completarPerfilSocial(idUsuario: string, dados: DadosPerfilCadastro) {

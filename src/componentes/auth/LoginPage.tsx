@@ -1,11 +1,13 @@
 import { FormEvent, useState } from "react";
 
-import { entrarComEmailSenha, entrarComGoogle } from "../../servicos/authService";
+import { aplicarPreferenciaDadosLogin, entrarComEmailSenha, entrarComGoogle } from "../../servicos/authService";
+import { obterEmailLembrado } from "../../servicos/persistenciaLogin";
 import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
 
 interface Props {
   aoCriarConta: () => void;
   aoRecuperarSenha: () => void;
+  aviso?: string | null;
 }
 
 function GoogleIcon() {
@@ -23,9 +25,11 @@ function GoogleIcon() {
   );
 }
 
-export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
-  const [email, setEmail] = useState("");
+export function LoginPage({ aoCriarConta, aoRecuperarSenha, aviso }: Props) {
+  const emailLembrado = obterEmailLembrado();
+  const [email, setEmail] = useState(emailLembrado);
   const [password, setPassword] = useState("");
+  const [lembrarDados, setLembrarDados] = useState(Boolean(emailLembrado));
   const [manterLogin, setManterLogin] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
@@ -35,6 +39,7 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
     setCarregando(true);
     setMensagem(null);
     try {
+      aplicarPreferenciaDadosLogin(email, lembrarDados || manterLogin);
       await entrarComEmailSenha(email, password, manterLogin);
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));
@@ -71,6 +76,7 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
       </div>
 
       {mensagem && <div className="auth-feedback erro">{mensagem}</div>}
+      {aviso && <div className="auth-feedback sucesso">{aviso}</div>}
 
       <label>
         E-mail
@@ -83,8 +89,21 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
       <label className="auth-lembrar-login">
         <input
           type="checkbox"
+          checked={lembrarDados}
+          onChange={(evento) => setLembrarDados(evento.target.checked)}
+        />
+        <span>Lembrar meu e-mail nesta máquina.</span>
+      </label>
+      <label className="auth-lembrar-login">
+        <input
+          type="checkbox"
           checked={manterLogin}
-          onChange={(evento) => setManterLogin(evento.target.checked)}
+          onChange={(evento) => {
+            setManterLogin(evento.target.checked);
+            if (evento.target.checked) {
+              setLembrarDados(true);
+            }
+          }}
         />
         <span>Não pedir login nesta máquina novamente.</span>
       </label>
