@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { obterSupabase, supabaseConfigurado } from "../lib/supabaseClient";
 import type { PerfilUsuario } from "../tipos/autenticacao";
 import { garantirPerfilUsuario } from "../servicos/profileService";
-import { restaurarPerfilConfirmacaoPendente } from "../servicos/authService";
+import { restaurarPerfilCadastroInicial } from "../servicos/authService";
 
 interface EstadoAuth {
   carregando: boolean;
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const perfilRestaurado = await restaurarPerfilConfirmacaoPendente(usuario.id, usuario.email);
+      const perfilRestaurado = await restaurarPerfilCadastroInicial(usuario);
       setPerfil(perfilRestaurado);
     } catch (erro) {
       if (import.meta.env.DEV) {

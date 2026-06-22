@@ -33,6 +33,7 @@ import {
   cadastrarComEmailSenha,
   entrarComEmailSenha,
   obterUltimoReenvioConfirmacao,
+  restaurarPerfilCadastroInicial,
   restaurarPerfilConfirmacaoPendente,
   reenviarCodigoConfirmacao
 } from "./authService";
@@ -87,6 +88,21 @@ describe("authService", () => {
     mocks.signUp.mockResolvedValueOnce({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
     const resultado = await cadastrarComEmailSenha(criarCadastro());
     expect(resultado).toEqual({ status: "confirmacao_necessaria", email: "usuario@exemplo.com" });
+    expect(mocks.signUp).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({
+        data: expect.objectContaining({
+          cadastro_inicial: true,
+          cadastro_perfil_pendente: expect.objectContaining({
+            email: "usuario@exemplo.com",
+            perfil: expect.objectContaining({
+              whatsapp: "+5538999999999",
+              city: "Montes Claros"
+            })
+          })
+        })
+      })
+    }));
+    expect(JSON.stringify(mocks.signUp.mock.calls[0][0].options.data)).not.toContain("senha123");
   });
 
   it("retorna autenticado quando o cadastro cria sessão", async () => {
@@ -126,7 +142,47 @@ describe("authService", () => {
     expect(localStorage.getItem("auth.perfilConfirmacaoPendente")).toBeNull();
   });
 
-  it("usa preferÃªncia persistente somente quando o usuÃ¡rio pede para nÃ£o solicitar login novamente", async () => {
+  it("restaura perfil do metadata apÃ³s confirmaÃ§Ã£o em nova sessÃ£o", async () => {
+    const cadastro = criarCadastro();
+    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+
+    const perfil = await restaurarPerfilCadastroInicial({
+      id: "u1",
+      email: "usuario@exemplo.com",
+      user_metadata: {
+        cadastro_perfil_pendente: {
+          email: "usuario@exemplo.com",
+          criadoEm: Date.now(),
+          perfil: {
+            full_name: cadastro.full_name,
+            profession: cadastro.profession,
+            work_area: cadastro.work_area,
+            company_name: cadastro.company_name,
+            whatsapp: cadastro.whatsapp,
+            city: cadastro.city,
+            state: cadastro.state,
+            country: cadastro.country,
+            countryCode: cadastro.countryCode,
+            stateCode: cadastro.stateCode,
+            whatsappCountryCode: cadastro.whatsappCountryCode,
+            aceitaTermos: cadastro.aceitaTermos,
+            aceitaPrivacidadeLgpd: cadastro.aceitaPrivacidadeLgpd,
+            aceitaCookies: cadastro.aceitaCookies,
+            aceitaComunicacoes: cadastro.aceitaComunicacoes
+          }
+        }
+      }
+    } as never);
+
+    expect(perfil).toEqual({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    expect(mocks.salvarPerfilUsuario).toHaveBeenCalledWith(
+      "u1",
+      expect.objectContaining({ whatsapp: "+5538999999999", city: "Montes Claros" }),
+      expect.objectContaining({ userAgent: "vitest" })
+    );
+  });
+
+  it("usa preferÃªncia persistente somente quando o usuário pede para não solicitar login novamente", async () => {
     mocks.signInWithPassword.mockResolvedValueOnce({ error: null });
 
     await entrarComEmailSenha("usuario@exemplo.com", "senha123", true);

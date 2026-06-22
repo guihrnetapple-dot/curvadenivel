@@ -1,4 +1,5 @@
 import { obterSupabase } from "../lib/supabaseClient";
+import type { User } from "@supabase/supabase-js";
 import type { DadosCadastro, DadosPerfilCadastro, PerfilUsuario, ResultadoCadastro } from "../tipos/autenticacao";
 import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuth";
 import { obterInformacaoCliente } from "./clientInfoService";
@@ -63,6 +64,22 @@ function salvarPerfilConfirmacaoPendente(email: string, dados: DadosCadastro) {
   obterLocalStorage()?.setItem(CHAVE_PERFIL_PENDENTE, JSON.stringify(payload));
 }
 
+function obterPerfilMetadataUsuario(usuario: Pick<User, "email" | "user_metadata">): PerfilConfirmacaoPendente | null {
+  const metadata = usuario.user_metadata?.cadastro_perfil_pendente;
+  if (!metadata || typeof metadata !== "object") return null;
+
+  const payload = metadata as PerfilConfirmacaoPendente;
+  const email = normalizarEmail(String(payload.email || usuario.email || ""));
+  const expirado = Date.now() - Number(payload.criadoEm) > TEMPO_MAXIMO_PERFIL_PENDENTE_MS;
+  if (expirado || !email || !payload.perfil) return null;
+
+  return {
+    email,
+    criadoEm: Number(payload.criadoEm),
+    perfil: payload.perfil
+  };
+}
+
 export function salvarConfirmacaoPendente(email: string, dados?: DadosCadastro) {
   sessionStorage.setItem(CHAVE_EMAIL_PENDENTE, normalizarEmail(email));
   sessionStorage.setItem(CHAVE_TELA_PENDENTE, "confirmacao-email");
@@ -121,6 +138,17 @@ export async function restaurarPerfilConfirmacaoPendente(idUsuario: string, emai
   return perfil;
 }
 
+export async function restaurarPerfilCadastroInicial(usuario: Pick<User, "id" | "email" | "user_metadata">): Promise<PerfilUsuario | null> {
+  const pendenteLocal = obterPerfilConfirmacaoPendente(usuario.email);
+  const pendenteMetadata = obterPerfilMetadataUsuario(usuario);
+  const pendente = pendenteLocal ?? pendenteMetadata;
+  if (!pendente) return null;
+
+  const perfil = await salvarPerfilUsuario(usuario.id, pendente.perfil, await obterInformacaoCliente());
+  limparConfirmacaoPendente();
+  return perfil;
+}
+
 export async function entrarComEmailSenha(email: string, password: string, manterLogin = false) {
   definirLoginPersistente(manterLogin);
   const supabase = obterSupabase();
@@ -146,7 +174,12 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
     options: {
       emailRedirectTo: `${obterUrlBase()}/confirmaremail`,
       data: {
-        cadastro_inicial: true
+        cadastro_inicial: true,
+        cadastro_perfil_pendente: {
+          email,
+          criadoEm: Date.now(),
+          perfil: criarPerfilPendente(dados)
+        }
       }
     }
   });
