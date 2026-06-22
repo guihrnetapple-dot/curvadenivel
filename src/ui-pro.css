@@ -893,6 +893,13 @@ input[type="checkbox"] {
   box-shadow: var(--sombra);
 }
 
+.auth-card-cadastro .auth-painel-formulario {
+  align-content: start;
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
 .auth-terreno {
   position: relative;
   display: grid;
@@ -968,7 +975,7 @@ input[type="checkbox"] {
 
 .auth-formulario-cadastro {
   width: min(720px, 100%);
-  gap: 14px;
+  gap: 12px;
 }
 
 .auth-formulario-login {
@@ -1321,18 +1328,62 @@ input[type="checkbox"] {
 
 .auth-consentimentos {
   display: grid;
-  gap: 8px;
+  gap: 9px;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
   border-radius: var(--raio);
   background: var(--superficie-secundaria);
 }
 
+.auth-consentimentos-topo {
+  display: grid;
+  gap: 3px;
+}
+
+.auth-consentimentos-topo strong {
+  color: #ffffff;
+  font-size: 0.86rem;
+}
+
+.auth-consentimentos-topo span {
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.auth-termos-legais {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-termos-legais details {
+  border: 1px solid color-mix(in srgb, var(--borda) 80%, transparent);
+  border-radius: var(--raio-menor);
+  background: color-mix(in srgb, var(--superficie) 72%, transparent);
+}
+
+.auth-termos-legais summary {
+  cursor: pointer;
+  padding: 7px 9px;
+  color: var(--verde-escuro);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.auth-termos-legais p {
+  margin: 0;
+  padding: 0 9px 9px;
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
 .auth-consentimentos label {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   color: var(--texto);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 650;
   line-height: 1.35;
 }
@@ -1680,6 +1731,11 @@ input[type="checkbox"] {
     padding: 14px;
   }
 
+  .auth-card-cadastro .auth-painel-formulario {
+    max-height: none;
+    overflow: visible;
+  }
+
   .auth-terreno {
     min-height: 260px;
   }
@@ -1701,8 +1757,52 @@ input[type="checkbox"] {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .auth-formulario-cadastro {
+    gap: 10px;
+  }
+
+  .auth-consentimentos {
+    padding: 9px;
+  }
+
   .auth-links {
     display: grid;
     justify-content: stretch;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 761px) {
+  .auth-card-cadastro .auth-painel-formulario {
+    padding: 22px;
+  }
+
+  .auth-formulario-cadastro {
+    gap: 9px;
+  }
+
+  .auth-formulario-topo strong {
+    font-size: 1.7rem;
+  }
+
+  .auth-formulario input,
+  .auth-formulario button {
+    min-height: 34px;
+  }
+
+  .auth-stepper span {
+    height: 4px;
+  }
+
+  .auth-consentimentos {
+    gap: 7px;
+    padding: 9px;
+  }
+
+  .auth-termos-legais summary {
+    padding: 6px 8px;
+  }
+
+  .auth-termos-legais p {
+    padding: 0 8px 8px;
   }
 }

@@ -52,6 +52,10 @@ function idsCamposComErro(erros: ErrosCamposAuth): string[] {
   return Object.keys(erros).map((campo) => `cadastro-${campo}`);
 }
 
+function consentimentosObrigatoriosAceitos(perfil: DadosPerfilCadastro): boolean {
+  return perfil.aceitaTermos && perfil.aceitaPrivacidadeLgpd && perfil.aceitaCookies && perfil.aceitaComunicacoes;
+}
+
 export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
   const [etapa, setEtapa] = useState(1);
   const [email, setEmail] = useState("");
@@ -175,6 +179,7 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
         ? "As senhas coincidem."
         : "As senhas ainda não coincidem."
       : null;
+  const podeEnviarEtapaAtual = etapa !== 3 || consentimentosObrigatoriosAceitos(perfil);
 
   return (
     <form className="auth-formulario auth-formulario-cadastro" onSubmit={enviar} noValidate>
@@ -285,7 +290,7 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
             Voltar
           </button>
         )}
-        <button type="submit" disabled={carregando}>
+        <button type="submit" disabled={carregando || !podeEnviarEtapaAtual}>
           {carregando ? "Criando conta..." : etapa === 3 ? "Criar conta" : "Continuar"}
         </button>
       </div>

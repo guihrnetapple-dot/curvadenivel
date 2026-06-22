@@ -34,6 +34,10 @@ function criarPerfilInicial(nome = ""): DadosPerfilCadastro {
   };
 }
 
+function consentimentosObrigatoriosAceitos(perfil: DadosPerfilCadastro): boolean {
+  return perfil.aceitaTermos && perfil.aceitaPrivacidadeLgpd && perfil.aceitaCookies && perfil.aceitaComunicacoes;
+}
+
 export function CompleteProfilePage() {
   const { usuario, recarregarPerfil } = useAuth();
   const [perfil, setPerfil] = useState<DadosPerfilCadastro>(() =>
@@ -43,6 +47,7 @@ export function CompleteProfilePage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erros, setErros] = useState<ErrosCamposAuth>({});
+  const podeEnviarPerfil = consentimentosObrigatoriosAceitos(perfil);
 
   function alterarPerfil(campo: keyof DadosPerfilCadastro, valor: string | boolean) {
     setPerfil((atual) => ({ ...atual, [campo]: valor }));
@@ -111,7 +116,7 @@ export function CompleteProfilePage() {
       />
       <ConsentBox valores={perfil} erro={erros.consentimentos} aoAlterar={(campo, valor) => alterarPerfil(campo, valor)} />
 
-      <button type="submit" disabled={carregando}>
+      <button type="submit" disabled={carregando || !podeEnviarPerfil}>
         {carregando ? "Salvando..." : "Liberar acesso"}
       </button>
     </form>
