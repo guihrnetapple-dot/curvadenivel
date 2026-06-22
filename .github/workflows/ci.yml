@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - security/auth-open-elevation-supabase
 
 jobs:
   build-test-security:
