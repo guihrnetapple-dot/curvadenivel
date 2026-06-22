@@ -1,6 +1,3 @@
-import type { IncomingHttpHeaders } from "node:http";
-import { request as requisicaoHttps } from "node:https";
-
 import {
   obterOpenElevationCacheMaxItens,
   obterOpenElevationCacheTtlMs,
@@ -8,45 +5,22 @@ import {
   obterOpenElevationTamanhoLote,
   obterOpenElevationTimeoutMs
 } from "../../configuracao";
-import type { Coordenada, ProvedorElevacao, ResultadoAltitude } from "../../tipos";
+import type { Coordenada, OpcoesConsultaElevacao, ProvedorElevacao, ResultadoAltitude } from "../../tipos";
+import { obterTokenUsuarioAtual } from "../../utilitarios/contextoRequisicaoApi";
 import { ErroAplicacao } from "../../utilitarios/erros";
 import { CacheElevacao, criarChaveCacheElevacao } from "./cacheElevacao";
 import type { RespostaOpenElevation } from "./tiposElevacao";
 
-const URL_PADRAO_OPEN_ELEVATION = "https://api.open-elevation.com/api/v1/lookup";
 const STATUS_RETRY = new Set([429, 502, 503, 504]);
 const AVISO_PRECISAO =
   "Altitude consultada. A precisão depende da base altimétrica disponível.";
-const CODIGOS_ERRO_CERTIFICADO = new Set([
-  "CERT_HAS_EXPIRED",
-  "DEPTH_ZERO_SELF_SIGNED_CERT",
-  "ERR_TLS_CERT_ALTNAME_INVALID",
-  "SELF_SIGNED_CERT_IN_CHAIN",
-  "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
-]);
-
 function aguardar(ms: number): Promise<void> {
   return new Promise((resolver) => setTimeout(resolver, ms));
-}
-
-function obterMensagemErro(erro: unknown): string {
-  return erro instanceof Error ? erro.message : "Falha desconhecida na API Open-Elevation.";
-}
-
-function obterCodigoErro(erro: unknown): string {
-  const causa = erro instanceof Error ? (erro as { cause?: unknown }).cause : null;
-  const origem = causa && typeof causa === "object" ? causa : erro;
-  return origem && typeof origem === "object" && "code" in origem ? String((origem as { code: unknown }).code) : "";
 }
 
 function extrairRetryAfterMs(resposta: Response): number | null {
   const valor = resposta.headers.get("retry-after");
   return extrairRetryAfterMsDoValor(valor);
-}
-
-function extrairRetryAfterMsDeCabecalhos(cabecalhos: IncomingHttpHeaders): number | null {
-  const valor = cabecalhos["retry-after"];
-  return extrairRetryAfterMsDoValor(Array.isArray(valor) ? valor[0] : valor);
 }
 
 function extrairRetryAfterMsDoValor(valor: string | undefined | null): number | null {
@@ -61,23 +35,6 @@ function extrairRetryAfterMsDoValor(valor: string | undefined | null): number | 
 
   const data = Date.parse(valor);
   return Number.isFinite(data) ? Math.max(0, data - Date.now()) : null;
-}
-
-function deveTentarOpenElevationSemValidarCertificado(urlApi: string, erro: unknown): boolean {
-  let hostname = "";
-  try {
-    hostname = new URL(urlApi).hostname;
-  } catch {
-    return false;
-  }
-
-  const mensagem = obterMensagemErro(erro).toLowerCase();
-  return (
-    hostname === "api.open-elevation.com" &&
-    (CODIGOS_ERRO_CERTIFICADO.has(obterCodigoErro(erro)) ||
-      mensagem.includes("certificate") ||
-      mensagem.includes("certificado"))
-  );
 }
 
 function criarResultadoOpenElevation(coordenada: Coordenada, altitude: number | null): ResultadoAltitude {
@@ -107,19 +64,19 @@ export class ServicoOpenElevation implements ProvedorElevacao {
   private readonly requisicoesPendentes = new Map<string, Promise<ResultadoAltitude>>();
 
   constructor() {
-    this.urlApi = process.env.OPEN_ELEVATION_API_URL ?? URL_PADRAO_OPEN_ELEVATION;
+    this.urlApi = process.env.SUPABASE_ELEVATION_PROXY_URL ?? "";
     this.tamanhoLote = obterOpenElevationTamanhoLote();
     this.timeoutMs = obterOpenElevationTimeoutMs();
     this.maxConcorrencia = obterOpenElevationMaxConcorrencia();
     this.cache = new CacheElevacao(obterOpenElevationCacheTtlMs(), obterOpenElevationCacheMaxItens());
   }
 
-  async consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude> {
-    const [resultado] = await this.consultarLote([coordenada]);
+  async consultarPonto(coordenada: Coordenada, opcoes: OpcoesConsultaElevacao = {}): Promise<ResultadoAltitude> {
+    const [resultado] = await this.consultarLote([coordenada], opcoes);
     return resultado;
   }
 
-  async consultarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
+  async consultarLote(coordenadas: Coordenada[], opcoes: OpcoesConsultaElevacao = {}): Promise<ResultadoAltitude[]> {
     if (!Array.isArray(coordenadas) || coordenadas.length === 0) {
       return [];
     }
@@ -142,7 +99,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     });
 
     const faltantes = [...faltantesPorChave.entries()];
-    const respostasFaltantes = await this.consultarFaltantes(faltantes);
+    const respostasFaltantes = await this.consultarFaltantes(faltantes, this.obterTokenUsuario(opcoes));
 
     for (const [chave, resultado] of respostasFaltantes) {
       for (const indice of indicesPorChave.get(chave) ?? []) {
@@ -161,7 +118,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
   obterStatus() {
     return {
       fonte: "Open-Elevation API",
-      configurada: true,
+      configurada: Boolean(this.urlApi),
       tamanhoLote: this.tamanhoLote,
       timeoutMs: this.timeoutMs,
       cacheAtivo: true,
@@ -186,7 +143,22 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     return { latitude, longitude };
   }
 
-  private async consultarFaltantes(faltantes: Array<[string, Coordenada]>): Promise<Map<string, ResultadoAltitude>> {
+  private obterTokenUsuario(opcoes: OpcoesConsultaElevacao): string {
+    const token = opcoes.tokenUsuario ?? obterTokenUsuarioAtual();
+    if (!token) {
+      throw new ErroAplicacao("Autenticação obrigatória para consultar altitude.", 401);
+    }
+    return token;
+  }
+
+  private obterUrlProxy(): string {
+    if (!this.urlApi) {
+      throw new ErroAplicacao("Proxy de altitude do Supabase não configurado.", 503);
+    }
+    return this.urlApi;
+  }
+
+  private async consultarFaltantes(faltantes: Array<[string, Coordenada]>, tokenUsuario: string): Promise<Map<string, ResultadoAltitude>> {
     const respostas = new Map<string, ResultadoAltitude>();
     const lotes: Array<Array<[string, Coordenada]>> = [];
 
@@ -199,7 +171,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       while (cursor < lotes.length) {
         const lote = lotes[cursor];
         cursor += 1;
-        const resultadoLote = await this.consultarLoteUnico(lote);
+        const resultadoLote = await this.consultarLoteUnico(lote, tokenUsuario);
         for (const [chave, resultado] of resultadoLote) {
           respostas.set(chave, resultado);
         }
@@ -211,7 +183,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     return respostas;
   }
 
-  private async consultarLoteUnico(lote: Array<[string, Coordenada]>): Promise<Map<string, ResultadoAltitude>> {
+  private async consultarLoteUnico(lote: Array<[string, Coordenada]>, tokenUsuario: string): Promise<Map<string, ResultadoAltitude>> {
     const resultados = new Map<string, ResultadoAltitude>();
     const pendentes: Array<[string, Coordenada]> = [];
 
@@ -228,7 +200,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       return resultados;
     }
 
-    const promessa = this.enviarLoteComRetry(pendentes.map(([, coordenada]) => coordenada));
+    const promessa = this.enviarLoteComRetry(pendentes.map(([, coordenada]) => coordenada), tokenUsuario);
     pendentes.forEach(([chave], indice) => {
       this.requisicoesPendentes.set(
         chave,
@@ -252,12 +224,12 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     return resultados;
   }
 
-  private async enviarLoteComRetry(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
+  private async enviarLoteComRetry(coordenadas: Coordenada[], tokenUsuario: string): Promise<ResultadoAltitude[]> {
     let ultimoErro: unknown;
 
     for (let tentativa = 0; tentativa <= 2; tentativa += 1) {
       try {
-        return await this.enviarLote(coordenadas);
+        return await this.enviarLote(coordenadas, tokenUsuario);
       } catch (erro) {
         ultimoErro = erro;
         const status = erro instanceof ErroAplicacao ? erro.statusHttp : 0;
@@ -274,15 +246,16 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     throw ultimoErro;
   }
 
-  private async enviarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
+  private async enviarLote(coordenadas: Coordenada[], tokenUsuario: string): Promise<ResultadoAltitude[]> {
     const controlador = new AbortController();
     const temporizador = setTimeout(() => controlador.abort(), this.timeoutMs);
 
     try {
-      const resposta = await fetch(this.urlApi, {
+      const resposta = await fetch(this.obterUrlProxy(), {
         method: "POST",
         headers: {
           Accept: "application/json",
+          Authorization: `Bearer ${tokenUsuario}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -297,14 +270,14 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       const corpo = (await resposta.json().catch(() => null)) as RespostaOpenElevation | null;
 
       if (!resposta.ok) {
-        throw new ErroAplicacao(`Open-Elevation respondeu com status ${resposta.status}.`, resposta.status, {
+        throw new ErroAplicacao(`Proxy de altitude respondeu com status ${resposta.status}.`, resposta.status, {
           corpo,
           retryAfterMs: extrairRetryAfterMs(resposta)
         });
       }
 
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-        throw new ErroAplicacao("A resposta da Open-Elevation veio em formato inesperado.", 502, corpo);
+        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502, corpo);
       }
 
       return corpo.results.map((resultado, indice) => {
@@ -312,95 +285,13 @@ export class ServicoOpenElevation implements ProvedorElevacao {
         return criarResultadoOpenElevation(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
       });
     } catch (erro) {
-      if (deveTentarOpenElevationSemValidarCertificado(this.urlApi, erro)) {
-        return this.enviarLoteSemValidarCertificadoOpenElevation(coordenadas);
-      }
 
       if (erro instanceof ErroAplicacao) {
         throw erro;
       }
-      throw new ErroAplicacao("Não foi possível consultar a Open-Elevation. Verifique sua conexão e tente novamente.", 502);
+      throw new ErroAplicacao("Não foi possível consultar o proxy de altitude. Verifique sua conexão e tente novamente.", 502);
     } finally {
       clearTimeout(temporizador);
     }
-  }
-
-  private enviarLoteSemValidarCertificadoOpenElevation(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
-    const url = new URL(this.urlApi);
-    const corpoRequisicao = JSON.stringify({
-      locations: coordenadas.map((coordenada) => ({
-        latitude: coordenada.latitude,
-        longitude: coordenada.longitude
-      }))
-    });
-
-    return new Promise((resolver, rejeitar) => {
-      const requisicao = requisicaoHttps(
-        {
-          hostname: url.hostname,
-          path: `${url.pathname}${url.search}`,
-          method: "POST",
-          port: url.port || 443,
-          rejectUnauthorized: false,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(corpoRequisicao)
-          },
-          timeout: this.timeoutMs
-        },
-        (resposta) => {
-          const partes: Buffer[] = [];
-          resposta.on("data", (parte) => partes.push(Buffer.from(parte)));
-          resposta.on("end", () => {
-            let corpo: RespostaOpenElevation | null = null;
-            try {
-              const texto = Buffer.concat(partes).toString("utf8");
-              corpo = texto ? (JSON.parse(texto) as RespostaOpenElevation) : null;
-            } catch (erro) {
-              rejeitar(
-                new ErroAplicacao(
-                  "A resposta da Open-Elevation veio em formato inválido.",
-                  502,
-                  obterMensagemErro(erro)
-                )
-              );
-              return;
-            }
-
-            const status = resposta.statusCode ?? 502;
-
-            if (status < 200 || status >= 300) {
-              rejeitar(
-                new ErroAplicacao(`Open-Elevation respondeu com status ${status}.`, status, {
-                  corpo,
-                  retryAfterMs: extrairRetryAfterMsDeCabecalhos(resposta.headers)
-                })
-              );
-              return;
-            }
-
-            if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-              rejeitar(new ErroAplicacao("A resposta da Open-Elevation veio em formato inesperado.", 502, corpo));
-              return;
-            }
-
-            resolver(
-              corpo.results.map((resultado, indice) => {
-                const altitude = Number(resultado.elevation);
-                return criarResultadoOpenElevation(coordenadas[indice], Number.isFinite(altitude) ? altitude : null);
-              })
-            );
-          });
-        }
-      );
-
-      requisicao.on("timeout", () => {
-        requisicao.destroy(new ErroAplicacao("A consulta à Open-Elevation excedeu o tempo limite.", 504));
-      });
-      requisicao.on("error", rejeitar);
-      requisicao.write(corpoRequisicao);
-      requisicao.end();
-    });
   }
 }

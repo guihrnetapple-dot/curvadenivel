@@ -115,7 +115,11 @@ export interface ResultadoPropriedade {
   aviso?: string;
 }
 
+export interface OpcoesConsultaElevacao {
+  tokenUsuario?: string;
+}
+
 export interface ProvedorElevacao {
-  consultarPonto(coordenada: Coordenada): Promise<ResultadoAltitude>;
-  consultarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]>;
+  consultarPonto(coordenada: Coordenada, opcoes?: OpcoesConsultaElevacao): Promise<ResultadoAltitude>;
+  consultarLote(coordenadas: Coordenada[], opcoes?: OpcoesConsultaElevacao): Promise<ResultadoAltitude[]>;
 }

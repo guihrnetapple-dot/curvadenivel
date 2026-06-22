@@ -1,10 +1,10 @@
-import type { Session, User } from "@supabase/supabase-js";
+import type { Session, SupabaseClient, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { obterSupabase, supabaseConfigurado } from "../lib/supabaseClient";
 import type { PerfilUsuario } from "../tipos/autenticacao";
-import { buscarPerfilUsuario } from "../servicos/profileService";
+import { garantirPerfilUsuario } from "../servicos/profileService";
 
 interface EstadoAuth {
   carregando: boolean;
@@ -30,15 +30,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const perfilUsuario = await buscarPerfilUsuario(usuario.id);
+      const perfilUsuario = await garantirPerfilUsuario(usuario);
       setPerfil(perfilUsuario);
-    } catch {
+    } catch (erro) {
+      if (import.meta.env.DEV) {
+        console.error("Falha ao buscar perfil do usuário:", erro);
+      }
       setPerfil(null);
     }
   }, []);
 
   const recarregarPerfil = useCallback(async () => {
-    await carregarPerfil(sessao?.user ?? null);
+    try {
+      await carregarPerfil(sessao?.user ?? null);
+    } catch (erro) {
+      if (import.meta.env.DEV) {
+        console.error("Falha ao recarregar perfil do usuário:", erro);
+      }
+    }
   }, [carregarPerfil, sessao]);
 
   useEffect(() => {
@@ -47,26 +56,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const supabase = obterSupabase();
+    let supabase: SupabaseClient;
+    try {
+      supabase = obterSupabase();
+    } catch (erro) {
+      if (import.meta.env.DEV) {
+        console.error("Falha ao inicializar Supabase:", erro);
+      }
+      setCarregando(false);
+      return;
+    }
+
     let ativo = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!ativo) {
-        return;
-      }
-      setSessao(data.session);
-      await carregarPerfil(data.session?.user ?? null);
-      setCarregando(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!ativo) {
+          return;
+        }
+        setSessao(data.session);
+        await carregarPerfil(data.session?.user ?? null);
+      })
+      .catch((erro) => {
+        if (import.meta.env.DEV) {
+          console.error("Falha ao obter sessão do Supabase:", erro);
+        }
+        if (ativo) {
+          setSessao(null);
+          setPerfil(null);
+        }
+      })
+      .finally(() => {
+        if (ativo) {
+          setCarregando(false);
+        }
+      });
 
-    const { data: assinatura } = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
-      setSessao(novaSessao);
-      carregarPerfil(novaSessao?.user ?? null).finally(() => setCarregando(false));
-    });
+    let assinatura: { subscription: { unsubscribe: () => void } } | null = null;
+
+    try {
+      const retornoAssinatura = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
+        void (async () => {
+          try {
+            setSessao(novaSessao);
+            await carregarPerfil(novaSessao?.user ?? null);
+          } catch (erro) {
+            if (import.meta.env.DEV) {
+              console.error("Falha ao processar mudança de autenticação:", erro);
+            }
+            setPerfil(null);
+          } finally {
+            setCarregando(false);
+          }
+        })();
+      });
+      assinatura = retornoAssinatura.data;
+    } catch (erro) {
+      if (import.meta.env.DEV) {
+        console.error("Falha ao assinar mudanças de autenticação:", erro);
+      }
+      setCarregando(false);
+    }
 
     return () => {
       ativo = false;
-      assinatura.subscription.unsubscribe();
+      assinatura?.subscription.unsubscribe();
     };
   }, [carregarPerfil]);
 

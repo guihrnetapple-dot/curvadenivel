@@ -3,11 +3,16 @@ import type { DadosPerfilCadastro } from "../../tipos/autenticacao";
 interface Props {
   valores: DadosPerfilCadastro;
   aoAlterar: (campo: keyof DadosPerfilCadastro, valor: boolean) => void;
+  erro?: string;
 }
 
-export function ConsentBox({ valores, aoAlterar }: Props) {
+export function ConsentBox({ valores, aoAlterar, erro }: Props) {
   return (
-    <div className="auth-consentimentos">
+    <div
+      className="auth-consentimentos"
+      aria-invalid={Boolean(erro)}
+      aria-describedby={erro ? "consentimentos-erro" : undefined}
+    >
       <label>
         <input
           type="checkbox"
@@ -41,11 +46,14 @@ export function ConsentBox({ valores, aoAlterar }: Props) {
           checked={valores.aceitaComunicacoes}
           onChange={(evento) => aoAlterar("aceitaComunicacoes", evento.target.checked)}
         />
-        <span>
-          Entendo que o sistema é gratuito e autorizo o recebimento de comunicações profissionais, informativas,
-          promocionais e comerciais por e-mail e WhatsApp como condição para uso da plataforma.
-        </span>
+        <span>Autorizo o recebimento de comunicações profissionais por e-mail e WhatsApp.</span>
       </label>
+
+      {erro && (
+        <small id="consentimentos-erro" className="auth-erro-campo">
+          {erro}
+        </small>
+      )}
     </div>
   );
 }

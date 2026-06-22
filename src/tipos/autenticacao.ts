@@ -29,6 +29,11 @@ export interface DadosPerfilCadastro {
   city: string;
   state: string;
   country: string;
+  countryCode?: string;
+  stateCode?: string;
+  whatsappCountryCode?: string;
+  cidadeManual?: boolean;
+  estadoManual?: boolean;
   aceitaTermos: boolean;
   aceitaPrivacidadeLgpd: boolean;
   aceitaCookies: boolean;
@@ -43,4 +48,9 @@ export interface DadosCadastro extends DadosPerfilCadastro {
 export interface InformacaoCliente {
   ip: string | null;
   userAgent: string | null;
+  countryCode?: string;
 }
+
+export type ResultadoCadastro =
+  | { status: "autenticado" }
+  | { status: "confirmacao_necessaria"; email: string };

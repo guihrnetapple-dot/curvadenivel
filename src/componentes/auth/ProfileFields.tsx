@@ -1,51 +1,44 @@
 import type { DadosPerfilCadastro } from "../../tipos/autenticacao";
+import type { ErrosCamposAuth } from "../../utilitarios/validacaoAuth";
 
 interface Props {
   valores: DadosPerfilCadastro;
+  erros?: ErrosCamposAuth;
   aoAlterar: (campo: keyof DadosPerfilCadastro, valor: string) => void;
 }
 
-export function ProfileFields({ valores, aoAlterar }: Props) {
+const campos = [
+  ["full_name", "Nome completo", "Seu nome e sobrenome"],
+  ["profession", "Profissão", "Ex.: Engenheiro agrônomo"],
+  ["work_area", "Área de atuação", "Ex.: Topografia rural"],
+  ["company_name", "Nome da empresa", "Empresa, escritório ou propriedade"]
+] as const;
+
+export function ProfileFields({ valores, erros, aoAlterar }: Props) {
   return (
     <div className="auth-grade-campos">
-      <label>
-        Nome completo
-        <input value={valores.full_name} onChange={(e) => aoAlterar("full_name", e.target.value)} required />
-      </label>
-      <label>
-        Profissão
-        <input value={valores.profession} onChange={(e) => aoAlterar("profession", e.target.value)} required />
-      </label>
-      <label>
-        Área de atuação
-        <input value={valores.work_area} onChange={(e) => aoAlterar("work_area", e.target.value)} required />
-      </label>
-      <label>
-        Nome da empresa
-        <input value={valores.company_name} onChange={(e) => aoAlterar("company_name", e.target.value)} required />
-      </label>
-      <label>
-        WhatsApp
-        <input
-          value={valores.whatsapp}
-          onChange={(e) => aoAlterar("whatsapp", e.target.value)}
-          placeholder="+55 38 99999-9999"
-          inputMode="tel"
-          required
-        />
-      </label>
-      <label>
-        Cidade
-        <input value={valores.city} onChange={(e) => aoAlterar("city", e.target.value)} required />
-      </label>
-      <label>
-        Estado
-        <input value={valores.state} onChange={(e) => aoAlterar("state", e.target.value)} required />
-      </label>
-      <label>
-        País
-        <input value={valores.country} onChange={(e) => aoAlterar("country", e.target.value)} required />
-      </label>
+      {campos.map(([campo, rotulo, placeholder]) => {
+        const erro = erros?.[campo];
+        const erroId = `${campo}-erro`;
+        return (
+          <label key={campo}>
+            {rotulo}
+            <input
+              id={`cadastro-${campo}`}
+              value={valores[campo]}
+              onChange={(evento) => aoAlterar(campo, evento.target.value)}
+              placeholder={placeholder}
+              aria-invalid={Boolean(erro)}
+              aria-describedby={erro ? erroId : undefined}
+            />
+            {erro && (
+              <small id={erroId} className="auth-erro-campo">
+                {erro}
+              </small>
+            )}
+          </label>
+        );
+      })}
     </div>
   );
 }

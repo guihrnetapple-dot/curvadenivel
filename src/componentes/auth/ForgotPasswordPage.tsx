@@ -19,7 +19,7 @@ export function ForgotPasswordPage({ aoEntrar }: { aoEntrar: () => void }) {
       await enviarRecuperacaoSenha(email);
       setSucesso("Enviamos o link de recuperação para o e-mail informado.");
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro instanceof Error ? erro.message : ""));
+      setMensagem(traduzirErroAuth(erro));
     } finally {
       setCarregando(false);
     }

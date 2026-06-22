@@ -1,22 +1,10 @@
 import type { AnalisePropriedade, ElementoMapa } from "../tipos/altimetria";
+import { fetchApiProtegida, lerRespostaJson } from "./apiClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-async function lerRespostaJson<T>(resposta: Response): Promise<T> {
-  const corpo = await resposta.json().catch(() => null);
-  if (!resposta.ok) {
-    const mensagem =
-      corpo && typeof corpo === "object" && "erro" in corpo
-        ? String((corpo as { erro: unknown }).erro)
-        : "Falha ao analisar a propriedade.";
-    throw new Error(mensagem);
-  }
-
-  return corpo as T;
-}
+const MENSAGEM_ERRO_PROPRIEDADE = "Falha ao analisar a propriedade.";
 
 export async function analisarPropriedadeElemento(elemento: ElementoMapa): Promise<AnalisePropriedade> {
-  const resposta = await fetch(`${API_BASE}/api/properties/analyze`, {
+  const resposta = await fetchApiProtegida("/api/properties/analyze", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -28,5 +16,5 @@ export async function analisarPropriedadeElemento(elemento: ElementoMapa): Promi
     })
   });
 
-  return lerRespostaJson<AnalisePropriedade>(resposta);
+  return lerRespostaJson<AnalisePropriedade>(resposta, MENSAGEM_ERRO_PROPRIEDADE);
 }

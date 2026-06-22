@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-test-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Block insecure runtime patterns
+        run: |
+          ! grep -R -E "api\.open-elevation\.com|rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED" api servidor src index.html
+          ! grep -R -E "OPEN_ELEVATION_API_URL|SUPABASE_SERVICE_ROLE_KEY|service_role" api servidor src index.html
+

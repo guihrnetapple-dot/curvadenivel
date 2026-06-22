@@ -180,7 +180,7 @@ export function Aplicacao() {
   }
 
   function desfazerElementos() {
-    const estadoAnterior = historicoElementosRef.current.at(-1);
+    const estadoAnterior = historicoElementosRef.current[historicoElementosRef.current.length - 1];
     if (!estadoAnterior) {
       return;
     }
@@ -194,7 +194,7 @@ export function Aplicacao() {
   }
 
   function refazerElementos() {
-    const proximoEstado = refazimentoElementosRef.current.at(-1);
+    const proximoEstado = refazimentoElementosRef.current[refazimentoElementosRef.current.length - 1];
     if (!proximoEstado) {
       return;
     }

@@ -1,25 +1,13 @@
 import type { BboxCurvasNivel, CurvasNivelGeoJson, GeometriaProjeto } from "../tipos/altimetria";
+import { fetchApiProtegida, lerRespostaJson } from "./apiClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-async function lerRespostaJson<T>(resposta: Response): Promise<T> {
-  const corpo = await resposta.json().catch(() => null);
-  if (!resposta.ok) {
-    const mensagem =
-      corpo && typeof corpo === "object" && "erro" in corpo
-        ? String((corpo as { erro: unknown }).erro)
-        : "Falha ao gerar curvas de nível.";
-    throw new Error(mensagem);
-  }
-
-  return corpo as T;
-}
+const MENSAGEM_ERRO_CURVAS = "Falha ao gerar curvas de n?vel.";
 
 export async function gerarCurvasNivel(
   bbox: BboxCurvasNivel,
   intervaloMetros = 5
 ): Promise<CurvasNivelGeoJson> {
-  const resposta = await fetch(`${API_BASE}/api/contours`, {
+  const resposta = await fetchApiProtegida("/api/contours", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -27,14 +15,14 @@ export async function gerarCurvasNivel(
     body: JSON.stringify({ bbox, intervaloMetros })
   });
 
-  return lerRespostaJson<CurvasNivelGeoJson>(resposta);
+  return lerRespostaJson<CurvasNivelGeoJson>(resposta, MENSAGEM_ERRO_CURVAS);
 }
 
 export async function gerarCurvasNivelPorGeometria(
   geometria: Extract<GeometriaProjeto, { type: "Polygon" | "Circle" }>,
   intervaloMetros = 5
 ): Promise<CurvasNivelGeoJson> {
-  const resposta = await fetch(`${API_BASE}/api/contours`, {
+  const resposta = await fetchApiProtegida("/api/contours", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -42,5 +30,5 @@ export async function gerarCurvasNivelPorGeometria(
     body: JSON.stringify({ geometria, intervaloMetros })
   });
 
-  return lerRespostaJson<CurvasNivelGeoJson>(resposta);
+  return lerRespostaJson<CurvasNivelGeoJson>(resposta, MENSAGEM_ERRO_CURVAS);
 }

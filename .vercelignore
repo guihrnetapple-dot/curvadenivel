@@ -5,3 +5,10 @@ dist
 relatorios
 servidor-dev.out.log
 servidor-dev.err.log
+.env
+.env.*
+!.env.example
+.vercel
+supabase/.temp
+supabase/functions/.env
+supabase/functions/.env.*
