@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-const URL_PROXY_ELEVACAO = process.env.SUPABASE_ELEVATION_PROXY_URL ?? "";
+const URL_OPEN_ELEVATION = process.env.OPEN_ELEVATION_API_URL ?? "";
 const CACHE_TTL_MS = Number(process.env.OPEN_ELEVATION_CACHE_TTL_MS ?? 24 * 60 * 60 * 1000);
 const CACHE_MAX_ITENS = Number(process.env.OPEN_ELEVATION_CACHE_MAX_ITENS ?? 20000);
 const TAMANHO_LOTE = Number(process.env.OPEN_ELEVATION_TAMANHO_LOTE ?? 400);
@@ -87,11 +87,11 @@ function obterTokenUsuarioAtual() {
   return token;
 }
 
-function obterUrlProxyElevacao() {
-  if (!URL_PROXY_ELEVACAO) {
-    throw new ErroAplicacao("Proxy de altitude do Supabase não configurado.", 503);
+function obterUrlOpenElevation() {
+  if (!URL_OPEN_ELEVATION) {
+    throw new ErroAplicacao("API de altitude não configurada.", 503);
   }
-  return URL_PROXY_ELEVACAO;
+  return URL_OPEN_ELEVATION;
 }
 
 function normalizarCountryCode(valor) {
@@ -180,14 +180,13 @@ async function aguardar(ms) {
 
 
 async function consultarProxyElevacaoLoteUnico(coordenadas) {
-  const tokenUsuario = obterTokenUsuarioAtual();
   for (let tentativa = 0; tentativa <= 2; tentativa += 1) {
     const controlador = new AbortController();
     const temporizador = setTimeout(() => controlador.abort(), TIMEOUT_MS);
     try {
-      const resposta = await fetch(obterUrlProxyElevacao(), {
+      const resposta = await fetch(obterUrlOpenElevation(), {
         method: "POST",
-        headers: { Accept: "application/json", Authorization: `Bearer ${tokenUsuario}`, "Content-Type": "application/json" },
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ locations: coordenadas }),
         signal: controlador.signal
       });
@@ -201,7 +200,7 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
         if (typeof corpo?.erro === "string" && corpo.erro.trim()) {
           throw new ErroAplicacao(corpo.erro, resposta.status);
         }
-        throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", resposta.status);
+        throw new ErroAplicacao("Não foi possível consultar a API de altitude.", resposta.status);
       }
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
         throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
@@ -1051,7 +1050,7 @@ export default async function handler(req, res) {
       return await executarComAutenticacaoApi(req, () => responder(res, 200, {
         backendOnline: true,
         dataHora: new Date().toISOString(),
-        elevacao: { fonte: "Open-Elevation API", configurada: Boolean(URL_PROXY_ELEVACAO), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
+        elevacao: { fonte: "Open-Elevation API", configurada: Boolean(URL_OPEN_ELEVATION), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
         curvas: {
           limitePontosApi: LIMITE_PONTOS_API,
           resolucaoGradeGlobalMetros: RESOLUCAO_GLOBAL_METROS,

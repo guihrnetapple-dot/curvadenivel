@@ -64,7 +64,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
   private readonly requisicoesPendentes = new Map<string, Promise<ResultadoAltitude>>();
 
   constructor() {
-    this.urlApi = process.env.SUPABASE_ELEVATION_PROXY_URL ?? "";
+    this.urlApi = process.env.OPEN_ELEVATION_API_URL ?? "";
     this.tamanhoLote = obterOpenElevationTamanhoLote();
     this.timeoutMs = obterOpenElevationTimeoutMs();
     this.maxConcorrencia = obterOpenElevationMaxConcorrencia();
@@ -99,7 +99,8 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     });
 
     const faltantes = [...faltantesPorChave.entries()];
-    const respostasFaltantes = await this.consultarFaltantes(faltantes, this.obterTokenUsuario(opcoes));
+    this.obterTokenUsuario(opcoes);
+    const respostasFaltantes = await this.consultarFaltantes(faltantes);
 
     for (const [chave, resultado] of respostasFaltantes) {
       for (const indice of indicesPorChave.get(chave) ?? []) {
@@ -153,12 +154,12 @@ export class ServicoOpenElevation implements ProvedorElevacao {
 
   private obterUrlProxy(): string {
     if (!this.urlApi) {
-      throw new ErroAplicacao("Proxy de altitude do Supabase não configurado.", 503);
+      throw new ErroAplicacao("API de altitude não configurada.", 503);
     }
     return this.urlApi;
   }
 
-  private async consultarFaltantes(faltantes: Array<[string, Coordenada]>, tokenUsuario: string): Promise<Map<string, ResultadoAltitude>> {
+  private async consultarFaltantes(faltantes: Array<[string, Coordenada]>): Promise<Map<string, ResultadoAltitude>> {
     const respostas = new Map<string, ResultadoAltitude>();
     const lotes: Array<Array<[string, Coordenada]>> = [];
 
@@ -171,7 +172,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       while (cursor < lotes.length) {
         const lote = lotes[cursor];
         cursor += 1;
-        const resultadoLote = await this.consultarLoteUnico(lote, tokenUsuario);
+        const resultadoLote = await this.consultarLoteUnico(lote);
         for (const [chave, resultado] of resultadoLote) {
           respostas.set(chave, resultado);
         }
@@ -183,7 +184,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     return respostas;
   }
 
-  private async consultarLoteUnico(lote: Array<[string, Coordenada]>, tokenUsuario: string): Promise<Map<string, ResultadoAltitude>> {
+  private async consultarLoteUnico(lote: Array<[string, Coordenada]>): Promise<Map<string, ResultadoAltitude>> {
     const resultados = new Map<string, ResultadoAltitude>();
     const pendentes: Array<[string, Coordenada]> = [];
 
@@ -200,7 +201,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       return resultados;
     }
 
-    const promessa = this.enviarLoteComRetry(pendentes.map(([, coordenada]) => coordenada), tokenUsuario);
+    const promessa = this.enviarLoteComRetry(pendentes.map(([, coordenada]) => coordenada));
     pendentes.forEach(([chave], indice) => {
       this.requisicoesPendentes.set(
         chave,
@@ -224,12 +225,12 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     return resultados;
   }
 
-  private async enviarLoteComRetry(coordenadas: Coordenada[], tokenUsuario: string): Promise<ResultadoAltitude[]> {
+  private async enviarLoteComRetry(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
     let ultimoErro: unknown;
 
     for (let tentativa = 0; tentativa <= 2; tentativa += 1) {
       try {
-        return await this.enviarLote(coordenadas, tokenUsuario);
+        return await this.enviarLote(coordenadas);
       } catch (erro) {
         ultimoErro = erro;
         const status = erro instanceof ErroAplicacao ? erro.statusHttp : 0;
@@ -246,7 +247,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
     throw ultimoErro;
   }
 
-  private async enviarLote(coordenadas: Coordenada[], tokenUsuario: string): Promise<ResultadoAltitude[]> {
+  private async enviarLote(coordenadas: Coordenada[]): Promise<ResultadoAltitude[]> {
     const controlador = new AbortController();
     const temporizador = setTimeout(() => controlador.abort(), this.timeoutMs);
 
@@ -255,7 +256,6 @@ export class ServicoOpenElevation implements ProvedorElevacao {
         method: "POST",
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${tokenUsuario}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -272,7 +272,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       if (!resposta.ok) {
         const mensagem = typeof (corpo as { erro?: unknown } | null)?.erro === "string"
           ? String((corpo as { erro: string }).erro)
-          : `Proxy de altitude respondeu com status ${resposta.status}.`;
+          : `API de altitude respondeu com status ${resposta.status}.`;
         throw new ErroAplicacao(mensagem, resposta.status, {
           retryAfterMs: extrairRetryAfterMs(resposta)
         });
