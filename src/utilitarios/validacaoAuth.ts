@@ -207,6 +207,10 @@ function obterCodigoErroAuth(erro: unknown): string {
 export function traduzirErroAuth(erro: unknown): string {
   const codigo = obterCodigoErroAuth(erro);
 
+  if (codigo === "otp_expired") {
+    return "O código de confirmação expirou ou já foi usado. Solicite um novo código de confirmação.";
+  }
+
   const mensagensPorCodigo: Record<string, string> = {
     email_exists: "Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.",
     user_already_exists: "Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.",

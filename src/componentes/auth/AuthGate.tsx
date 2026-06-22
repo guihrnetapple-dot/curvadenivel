@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 
 import logoCurvaNivel from "../../assets/logo-curva-nivel.png";
 import { useAuth } from "../../context/AuthContext";
-import { limparConfirmacaoPendente, sair } from "../../servicos/authService";
+import { limparConfirmacaoPendente, obterEmailConfirmacaoPendente, sair } from "../../servicos/authService";
 import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
 import { CarregamentoInicial } from "../CarregamentoInicial";
 import { AuthTerrainPanel } from "./AuthTerrainPanel";
 import { AuthErrorBoundary } from "./AuthErrorBoundary";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import { LoginPage } from "./LoginPage";
+import { ConfirmEmailPage } from "./ConfirmEmailPage";
 import { RegisterPage } from "./RegisterPage";
 import { ResetPasswordPage } from "./ResetPasswordPage";
 
@@ -91,7 +92,7 @@ function detectarErroUrl(): string | null {
 
 function detectarTelaInicial(): TelaAuth {
   const telaUrl = obterTelaPorCaminho(window.location.pathname);
-  if (telaUrl && telaUrl !== "confirmacao-email") return telaUrl;
+  if (telaUrl) return telaUrl;
   if (window.location.hash.includes("recuperar-senha")) return "nova-senha";
   return "login";
 }
@@ -162,6 +163,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
   const [avisoLogin, setAvisoLogin] = useState<string | null>(() => mensagemUrl ? null : detectarMensagemLogin());
+  const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(() => obterEmailConfirmacaoPendente());
   const [finalizandoConfirmacaoEmail, setFinalizandoConfirmacaoEmail] = useState(false);
   const resetandoSenha = useMemo(() => tela === "nova-senha", [tela]);
   const navegarAuth = useCallback((proximaTela: TelaAuth, substituir = false) => {
@@ -177,6 +179,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setTela(telaUrl);
       setMensagemUrl(erroUrl);
       setAvisoLogin(erroUrl ? null : detectarMensagemLogin());
+      setEmailConfirmacao(obterEmailConfirmacaoPendente());
       atualizarTitulo(window.location.pathname);
     };
 
@@ -212,12 +215,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!usuario && rotaConfirmacao) {
+    if (!usuario && rotaConfirmacao && urlTemRespostaAutenticacao()) {
       setAvisoLogin(null);
       if (!mensagemUrl) {
-        setMensagemUrl("Não foi possível confirmar este e-mail automaticamente. O link pode ter expirado ou já ter sido usado. Solicite um novo link de confirmação.");
+        setMensagemUrl("Não foi possível confirmar este e-mail automaticamente. Use o código recebido por e-mail ou solicite um novo código.");
       }
-      navegarAuth("login", true);
+      setTela("confirmacao-email");
+      atualizarUrl("/confirmaremail", true);
+      atualizarTitulo("/confirmaremail");
       return;
     }
 
@@ -227,10 +232,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (caminho === "/" || caminho === "/confirmaremail" || caminhoProtegido(caminho)) {
-      if (caminho === "/confirmaremail") {
-        setAvisoLogin("Confira seu e-mail e clique no link de confirmação para liberar o login.");
-      }
+    if (caminho === "/confirmaremail") {
+      setTela("confirmacao-email");
+      atualizarTitulo("/confirmaremail");
+      return;
+    }
+
+    if (caminho === "/" || caminhoProtegido(caminho)) {
       navegarAuth("login", true);
     }
   }, [carregando, configurado, mensagemUrl, navegarAuth, resetandoSenha, usuario]);
@@ -277,10 +285,32 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <RegisterPage
           aoEntrar={() => navegarAuth("login")}
           aoConfirmacaoNecessaria={(email) => {
-            limparConfirmacaoPendente();
-            setAvisoLogin(`Cadastro criado para ${email}. Confira seu e-mail e clique no link de confirmação antes de entrar.`);
-            navegarAuth("login");
+            setEmailConfirmacao(email);
+            setMensagemUrl(null);
+            setAvisoLogin(null);
+            navegarAuth("confirmacao-email");
           }}
+        />
+      )}
+      {tela === "confirmacao-email" && (
+        <ConfirmEmailPage
+          email={emailConfirmacao}
+          aoEmailDefinido={(email) => setEmailConfirmacao(email)}
+          aoConfirmado={() => {
+            const emailConfirmado = emailConfirmacao;
+            setFinalizandoConfirmacaoEmail(true);
+            limparConfirmacaoPendente();
+            setEmailConfirmacao(null);
+            void sair()
+              .catch(() => undefined)
+              .finally(() => {
+                setFinalizandoConfirmacaoEmail(false);
+                setMensagemUrl(null);
+                setAvisoLogin(mensagemEmailConfirmado(emailConfirmado));
+                navegarAuth("login", true);
+              });
+          }}
+          aoVoltarCadastro={() => navegarAuth("cadastro")}
         />
       )}
       {tela === "recuperacao" && <ForgotPasswordPage aoEntrar={() => navegarAuth("login")} />}

@@ -241,7 +241,7 @@ export async function confirmarEmailComCodigo(email: string, token: string) {
   const { data, error } = await supabase.auth.verifyOtp({
     email: normalizarEmail(email),
     token,
-    type: "email"
+    type: "signup"
   });
 
   if (error) {
