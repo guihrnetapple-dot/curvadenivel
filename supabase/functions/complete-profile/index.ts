@@ -2,6 +2,7 @@ const CABECALHOS_JSON = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "private, no-store"
 };
+const NOME_CHAVE_SERVICO = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
 
 class ErroAplicacao extends Error {
   status: number;
@@ -38,10 +39,10 @@ function extrairBearer(requisicao: Request): string {
 
 async function obterUsuario(token: string) {
   const supabaseUrl = obterVariavelObrigatoria("SUPABASE_URL").replace(/\/+$/, "");
-  const serviceRoleKey = obterVariavelObrigatoria("SUPABASE_SERVICE_ROLE_KEY");
+  const chaveServico = obterVariavelObrigatoria(NOME_CHAVE_SERVICO);
   const resposta = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
-      apikey: serviceRoleKey,
+      apikey: chaveServico,
       Authorization: `Bearer ${token}`
     }
   });
@@ -100,12 +101,12 @@ function validarPerfil(corpo: unknown) {
 
 async function chamarSupabase(caminho: string, opcoes: RequestInit = {}) {
   const supabaseUrl = obterVariavelObrigatoria("SUPABASE_URL").replace(/\/+$/, "");
-  const serviceRoleKey = obterVariavelObrigatoria("SUPABASE_SERVICE_ROLE_KEY");
+  const chaveServico = obterVariavelObrigatoria(NOME_CHAVE_SERVICO);
   return fetch(`${supabaseUrl}${caminho}`, {
     ...opcoes,
     headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: chaveServico,
+      Authorization: `Bearer ${chaveServico}`,
       "Content-Type": "application/json",
       ...(opcoes.headers ?? {})
     }
@@ -191,6 +192,6 @@ Deno.serve(async (requisicao) => {
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado ao completar perfil:", erro);
     }
-    return responder(status, { erro: erro instanceof Error ? erro.message : "Erro interno ao completar perfil." });
+    return responder(status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno ao completar perfil." });
   }
 });

@@ -271,13 +271,12 @@ export class ServicoOpenElevation implements ProvedorElevacao {
 
       if (!resposta.ok) {
         throw new ErroAplicacao(`Proxy de altitude respondeu com status ${resposta.status}.`, resposta.status, {
-          corpo,
           retryAfterMs: extrairRetryAfterMs(resposta)
         });
       }
 
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502, corpo);
+        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
       }
 
       return corpo.results.map((resultado, indice) => {

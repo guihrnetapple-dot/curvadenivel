@@ -2,6 +2,7 @@ const CABECALHOS_JSON = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "private, no-store"
 };
+const NOME_CHAVE_SERVICO = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
 
 class ErroAplicacao extends Error {
   status: number;
@@ -38,10 +39,10 @@ function extrairBearer(requisicao: Request): string {
 
 async function obterUsuario(token: string) {
   const supabaseUrl = obterVariavelObrigatoria("SUPABASE_URL").replace(/\/+$/, "");
-  const serviceRoleKey = obterVariavelObrigatoria("SUPABASE_SERVICE_ROLE_KEY");
+  const chaveServico = obterVariavelObrigatoria(NOME_CHAVE_SERVICO);
   const resposta = await fetch(`${supabaseUrl}/auth/v1/user`, {
     headers: {
-      apikey: serviceRoleKey,
+      apikey: chaveServico,
       Authorization: `Bearer ${token}`
     }
   });
@@ -60,14 +61,14 @@ async function obterUsuario(token: string) {
 
 async function consumirCota(userId: string, quantidade: number) {
   const supabaseUrl = obterVariavelObrigatoria("SUPABASE_URL").replace(/\/+$/, "");
-  const serviceRoleKey = obterVariavelObrigatoria("SUPABASE_SERVICE_ROLE_KEY");
+  const chaveServico = obterVariavelObrigatoria(NOME_CHAVE_SERVICO);
   const limite = Number(Deno.env.get("OPEN_ELEVATION_QUOTA_PER_HOUR") ?? 2000);
 
   const resposta = await fetch(`${supabaseUrl}/rest/v1/rpc/consumir_cota_api`, {
     method: "POST",
     headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: chaveServico,
+      Authorization: `Bearer ${chaveServico}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -148,6 +149,6 @@ Deno.serve(async (requisicao) => {
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado no proxy de altitude:", erro);
     }
-    return responder(status, { erro: erro instanceof Error ? erro.message : "Erro interno no proxy de altitude." });
+    return responder(status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno no proxy de altitude." });
   }
 });

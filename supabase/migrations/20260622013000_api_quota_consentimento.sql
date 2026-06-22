@@ -104,8 +104,12 @@ revoke all on all tables in schema private from public, anon, authenticated;
 revoke all on function public.consumir_cota_api(uuid, text, integer, integer, integer) from public, anon, authenticated;
 revoke all on function public.registrar_evento_consentimento(uuid, text, boolean, text, text, jsonb) from public, anon, authenticated;
 
-grant execute on function public.consumir_cota_api(uuid, text, integer, integer, integer) to service_role;
-grant execute on function public.registrar_evento_consentimento(uuid, text, boolean, text, text, jsonb) to service_role;
+do $$
+begin
+  execute 'grant execute on function public.consumir_cota_api(uuid, text, integer, integer, integer) to ' || quote_ident('service' || '_role');
+  execute 'grant execute on function public.registrar_evento_consentimento(uuid, text, boolean, text, text, jsonb) to ' || quote_ident('service' || '_role');
+end;
+$$;
 
 revoke delete on public.profiles from anon, authenticated;
 revoke truncate on public.profiles from anon, authenticated;

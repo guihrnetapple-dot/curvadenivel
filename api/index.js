@@ -71,8 +71,12 @@ async function exigirAutenticacaoApi(req) {
     throw new ErroAplicacao("Autenticação inválida.", 401);
   }
 
-  contextoApi.enterWith({ tokenUsuario: token });
   return { id: usuario.id, email: typeof usuario.email === "string" ? usuario.email : undefined, token };
+}
+
+async function executarComAutenticacaoApi(req, acao) {
+  const usuario = await exigirAutenticacaoApi(req);
+  return contextoApi.run({ tokenUsuario: usuario.token }, acao);
 }
 
 function obterTokenUsuarioAtual() {
@@ -187,17 +191,17 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
         body: JSON.stringify({ locations: coordenadas }),
         signal: controlador.signal
       });
-      const corpo = await resposta.json().catch(() => null);
       if (!resposta.ok) {
         if ([429, 502, 503, 504].includes(resposta.status) && tentativa < 2) {
           const retryAfter = Number(resposta.headers.get("retry-after"));
           await aguardar(Number.isFinite(retryAfter) ? retryAfter * 1000 : 500 * (tentativa + 1));
           continue;
         }
-        throw new ErroAplicacao(`Proxy de altitude respondeu com status ${resposta.status}.`, resposta.status, corpo);
+        throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", resposta.status);
       }
+      const corpo = await resposta.json().catch(() => null);
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502, corpo);
+        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
       }
       return corpo.results.map((item, indice) => {
         const altitude = Number(item.elevation);
@@ -1041,8 +1045,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/status") {
-      await exigirAutenticacaoApi(req);
-      return responder(res, 200, {
+      return executarComAutenticacaoApi(req, () => responder(res, 200, {
         backendOnline: true,
         dataHora: new Date().toISOString(),
         elevacao: { fonte: "Open-Elevation API", configurada: Boolean(URL_PROXY_ELEVACAO), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
@@ -1053,7 +1056,7 @@ export default async function handler(req, res) {
           sistemaGrade: "web_mercator_global",
           fatorDensificacao: FATOR_DENSIFICACAO
         }
-      });
+      }));
     }
 
     if (req.method === "GET" && url.pathname === "/api/client-info") {
@@ -1063,54 +1066,55 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/elevation") {
-      await exigirAutenticacaoApi(req);
-      const [resultado] = await consultarLote([{ latitude: url.searchParams.get("lat") ?? url.searchParams.get("latitude"), longitude: url.searchParams.get("lng") ?? url.searchParams.get("longitude") }]);
-      return responder(res, 200, resultado);
+      return executarComAutenticacaoApi(req, async () => {
+        const [resultado] = await consultarLote([{ latitude: url.searchParams.get("lat") ?? url.searchParams.get("latitude"), longitude: url.searchParams.get("lng") ?? url.searchParams.get("longitude") }]);
+        return responder(res, 200, resultado);
+      });
     }
 
     if (req.method === "POST" && url.pathname === "/api/elevation/batch") {
-      await exigirAutenticacaoApi(req);
-      const coordenadas = req.body?.coordenadas ?? [];
-      if (!Array.isArray(coordenadas)) {
-        throw new ErroAplicacao("Envie uma lista no campo coordenadas.");
-      }
-      if (coordenadas.length > LIMITE_PONTOS_API) {
-        throw new ErroAplicacao("A consulta em lote aceita at? 5000 pontos por requisi??o.", 413);
-      }
-      return responder(res, 200, { resultados: await consultarLote(coordenadas) });
+      return executarComAutenticacaoApi(req, async () => {
+        const coordenadas = req.body?.coordenadas ?? [];
+        if (!Array.isArray(coordenadas)) {
+          throw new ErroAplicacao("Envie uma lista no campo coordenadas.");
+        }
+        if (coordenadas.length > LIMITE_PONTOS_API) {
+          throw new ErroAplicacao("A consulta em lote aceita até 5000 pontos por requisição.", 413);
+        }
+        return responder(res, 200, { resultados: await consultarLote(coordenadas) });
+      });
     }
 
     if (req.method === "POST" && url.pathname === "/api/elevation/profile") {
-      await exigirAutenticacaoApi(req);
-      const amostras = normalizarGeometria(req.body?.geometria);
-      const resultados = await consultarLote(amostras);
-      const pontos = resultados.map((ponto, indice) => ({ ...ponto, distanciaMetros: amostras[indice].distanciaMetros }));
-      const altitudes = pontos.map((p) => p.altitude).filter(Number.isFinite);
-      return responder(res, 200, {
-        tipo: req.body?.geometria?.type,
-        pontos,
-        estatisticas: {
-          altitudeMinima: altitudes.length ? Math.min(...altitudes) : null,
-          altitudeMaxima: altitudes.length ? Math.max(...altitudes) : null,
-          altitudeMedia: altitudes.length ? altitudes.reduce((s, v) => s + v, 0) / altitudes.length : null,
-          diferencaNivel: altitudes.length ? Math.max(...altitudes) - Math.min(...altitudes) : null,
-          inclinacaoMediaPercentual: null,
-          comprimentoTotalMetros: amostras.at(-1)?.distanciaMetros ?? 0,
-          areaMetrosQuadrados: null,
-          quantidadePontos: pontos.length,
-          pontosSemDado: pontos.length - altitudes.length
-        }
+      return executarComAutenticacaoApi(req, async () => {
+        const amostras = normalizarGeometria(req.body?.geometria);
+        const resultados = await consultarLote(amostras);
+        const pontos = resultados.map((ponto, indice) => ({ ...ponto, distanciaMetros: amostras[indice].distanciaMetros }));
+        const altitudes = pontos.map((p) => p.altitude).filter(Number.isFinite);
+        return responder(res, 200, {
+          tipo: req.body?.geometria?.type,
+          pontos,
+          estatisticas: {
+            altitudeMinima: altitudes.length ? Math.min(...altitudes) : null,
+            altitudeMaxima: altitudes.length ? Math.max(...altitudes) : null,
+            altitudeMedia: altitudes.length ? altitudes.reduce((s, v) => s + v, 0) / altitudes.length : null,
+            diferencaNivel: altitudes.length ? Math.max(...altitudes) - Math.min(...altitudes) : null,
+            inclinacaoMediaPercentual: null,
+            comprimentoTotalMetros: amostras.at(-1)?.distanciaMetros ?? 0,
+            areaMetrosQuadrados: null,
+            quantidadePontos: pontos.length,
+            pontosSemDado: pontos.length - altitudes.length
+          }
+        });
       });
     }
 
     if (req.method === "POST" && url.pathname === "/api/properties/analyze") {
-      await exigirAutenticacaoApi(req);
-      return responder(res, 200, await analisarPropriedade(req.body));
+      return executarComAutenticacaoApi(req, async () => responder(res, 200, await analisarPropriedade(req.body)));
     }
 
     if (req.method === "POST" && url.pathname === "/api/contours") {
-      await exigirAutenticacaoApi(req);
-      return responder(res, 200, await gerarCurvas(req.body));
+      return executarComAutenticacaoApi(req, async () => responder(res, 200, await gerarCurvas(req.body)));
     }
 
     throw new ErroAplicacao("Rota n?o encontrada.", 404);
@@ -1119,6 +1123,6 @@ export default async function handler(req, res) {
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado na API Vercel:", erro);
     }
-    return responder(res, status, { erro: erro instanceof Error ? erro.message : "Erro interno na API de altimetria." });
+    return responder(res, status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno na API de altimetria." });
   }
 }
