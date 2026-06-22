@@ -211,7 +211,8 @@ aplicacao.use((_requisicao, _resposta, proximo) => {
 aplicacao.use((erro: unknown, _requisicao: Request, resposta: Response, _proximo: NextFunction) => {
   if (erro instanceof ErroAplicacao) {
     resposta.status(erro.statusHttp).json({
-      erro: erro.message
+      erro: erro.message,
+      detalhes: erro.detalhes ?? null
     });
     return;
   }

@@ -199,7 +199,7 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
           continue;
         }
         if (typeof corpo?.erro === "string" && corpo.erro.trim()) {
-          throw new ErroAplicacao(corpo.erro, resposta.status);
+          throw new ErroAplicacao(corpo.erro, resposta.status, corpo.detalhes ?? null);
         }
         throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", resposta.status);
       }
@@ -1126,6 +1126,9 @@ export default async function handler(req, res) {
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado na API Vercel:", erro);
     }
-    return responder(res, status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno na API de altimetria." });
+    return responder(res, status, {
+      erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno na API de altimetria.",
+      detalhes: erro instanceof ErroAplicacao ? erro.detalhes ?? null : null
+    });
   }
 }

@@ -34,10 +34,12 @@ const COTA_PADRAO_POR_HORA = 100000;
 
 class ErroAplicacao extends Error {
   status: number;
+  detalhes?: Record<string, unknown>;
 
-  constructor(mensagem: string, status = 400) {
+  constructor(mensagem: string, status = 400, detalhes?: Record<string, unknown>) {
     super(mensagem);
     this.status = status;
+    this.detalhes = detalhes;
   }
 }
 
@@ -49,6 +51,13 @@ function responder(requisicao: Request, status: number, corpo: unknown) {
       ...criarCabecalhosCors(requisicao)
     }
   });
+}
+
+function calcularSegundosRestantes(resetAt: string | undefined): number | null {
+  if (!resetAt) return null;
+  const data = Date.parse(resetAt);
+  if (!Number.isFinite(data)) return null;
+  return Math.max(0, Math.ceil((data - Date.now()) / 1000));
 }
 
 function obterVariavelObrigatoria(nome: string): string {
@@ -117,7 +126,13 @@ async function consumirCota(userId: string, quantidade: number) {
 
   const [resultado] = (await resposta.json().catch(() => [])) as Array<{ permitido?: boolean; restante?: number; reset_at?: string }>;
   if (!resultado?.permitido) {
-    throw new ErroAplicacao("Limite de uso atingido. Tente novamente mais tarde.", 429);
+    const segundosRestantes = calcularSegundosRestantes(resultado?.reset_at);
+    throw new ErroAplicacao("Limite de pontos por hora atingido.", 429, {
+      codigo: "limite_pontos_hora",
+      limite,
+      resetAt: resultado?.reset_at ?? null,
+      segundosRestantes
+    });
   }
 }
 
@@ -190,6 +205,9 @@ Deno.serve(async (requisicao) => {
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado no proxy de altitude:", erro);
     }
-    return responder(requisicao, status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno no proxy de altitude." });
+    return responder(requisicao, status, {
+      erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno no proxy de altitude.",
+      detalhes: erro instanceof ErroAplicacao ? erro.detalhes ?? null : null
+    });
   }
 });

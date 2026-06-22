@@ -273,7 +273,9 @@ export class ServicoOpenElevation implements ProvedorElevacao {
         const mensagem = typeof (corpo as { erro?: unknown } | null)?.erro === "string"
           ? String((corpo as { erro: string }).erro)
           : `Proxy de altitude respondeu com status ${resposta.status}.`;
+        const detalhesProxy = (corpo as { detalhes?: unknown } | null)?.detalhes;
         throw new ErroAplicacao(mensagem, resposta.status, {
+          ...(typeof detalhesProxy === "object" && detalhesProxy ? detalhesProxy : {}),
           retryAfterMs: extrairRetryAfterMs(resposta)
         });
       }
