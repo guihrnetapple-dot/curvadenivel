@@ -11,7 +11,7 @@ import { ErroAplicacao } from "../../utilitarios/erros";
 import { CacheElevacao, criarChaveCacheElevacao } from "./cacheElevacao";
 import type { RespostaOpenElevation } from "./tiposElevacao";
 
-const STATUS_RETRY = new Set([429, 502, 503, 504]);
+const STATUS_RETRY = new Set([502, 503, 504]);
 const AVISO_PRECISAO =
   "Altitude consultada. A precisão depende da base altimétrica disponível.";
 function aguardar(ms: number): Promise<void> {
@@ -270,7 +270,10 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       const corpo = (await resposta.json().catch(() => null)) as RespostaOpenElevation | null;
 
       if (!resposta.ok) {
-        throw new ErroAplicacao(`Proxy de altitude respondeu com status ${resposta.status}.`, resposta.status, {
+        const mensagem = typeof (corpo as { erro?: unknown } | null)?.erro === "string"
+          ? String((corpo as { erro: string }).erro)
+          : `Proxy de altitude respondeu com status ${resposta.status}.`;
+        throw new ErroAplicacao(mensagem, resposta.status, {
           retryAfterMs: extrairRetryAfterMs(resposta)
         });
       }

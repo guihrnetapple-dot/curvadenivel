@@ -191,15 +191,18 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
         body: JSON.stringify({ locations: coordenadas }),
         signal: controlador.signal
       });
+      const corpo = await resposta.json().catch(() => null);
       if (!resposta.ok) {
-        if ([429, 502, 503, 504].includes(resposta.status) && tentativa < 2) {
+        if ([502, 503, 504].includes(resposta.status) && tentativa < 2) {
           const retryAfter = Number(resposta.headers.get("retry-after"));
           await aguardar(Number.isFinite(retryAfter) ? retryAfter * 1000 : 500 * (tentativa + 1));
           continue;
         }
+        if (typeof corpo?.erro === "string" && corpo.erro.trim()) {
+          throw new ErroAplicacao(corpo.erro, resposta.status);
+        }
         throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", resposta.status);
       }
-      const corpo = await resposta.json().catch(() => null);
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
         throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
       }

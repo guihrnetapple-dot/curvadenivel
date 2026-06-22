@@ -30,6 +30,7 @@ const CABECALHOS_JSON = {
   "Cache-Control": "private, no-store"
 };
 const NOME_CHAVE_SERVICO = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
+const COTA_PADRAO_POR_HORA = 50000;
 
 class ErroAplicacao extends Error {
   status: number;
@@ -92,7 +93,7 @@ async function obterUsuario(token: string) {
 async function consumirCota(userId: string, quantidade: number) {
   const supabaseUrl = obterVariavelObrigatoria("SUPABASE_URL").replace(/\/+$/, "");
   const chaveServico = obterVariavelObrigatoria(NOME_CHAVE_SERVICO);
-  const limite = Number(Deno.env.get("OPEN_ELEVATION_QUOTA_PER_HOUR") ?? 2000);
+  const limite = Number(Deno.env.get("OPEN_ELEVATION_QUOTA_PER_HOUR") ?? COTA_PADRAO_POR_HORA);
 
   const resposta = await fetch(`${supabaseUrl}/rest/v1/rpc/consumir_cota_api`, {
     method: "POST",
