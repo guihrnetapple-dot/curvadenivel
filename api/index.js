@@ -1045,7 +1045,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/status") {
-      return executarComAutenticacaoApi(req, () => responder(res, 200, {
+      return await executarComAutenticacaoApi(req, () => responder(res, 200, {
         backendOnline: true,
         dataHora: new Date().toISOString(),
         elevacao: { fonte: "Open-Elevation API", configurada: Boolean(URL_PROXY_ELEVACAO), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
@@ -1066,14 +1066,14 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/elevation") {
-      return executarComAutenticacaoApi(req, async () => {
+      return await executarComAutenticacaoApi(req, async () => {
         const [resultado] = await consultarLote([{ latitude: url.searchParams.get("lat") ?? url.searchParams.get("latitude"), longitude: url.searchParams.get("lng") ?? url.searchParams.get("longitude") }]);
         return responder(res, 200, resultado);
       });
     }
 
     if (req.method === "POST" && url.pathname === "/api/elevation/batch") {
-      return executarComAutenticacaoApi(req, async () => {
+      return await executarComAutenticacaoApi(req, async () => {
         const coordenadas = req.body?.coordenadas ?? [];
         if (!Array.isArray(coordenadas)) {
           throw new ErroAplicacao("Envie uma lista no campo coordenadas.");
@@ -1086,7 +1086,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/elevation/profile") {
-      return executarComAutenticacaoApi(req, async () => {
+      return await executarComAutenticacaoApi(req, async () => {
         const amostras = normalizarGeometria(req.body?.geometria);
         const resultados = await consultarLote(amostras);
         const pontos = resultados.map((ponto, indice) => ({ ...ponto, distanciaMetros: amostras[indice].distanciaMetros }));
@@ -1110,11 +1110,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST" && url.pathname === "/api/properties/analyze") {
-      return executarComAutenticacaoApi(req, async () => responder(res, 200, await analisarPropriedade(req.body)));
+      return await executarComAutenticacaoApi(req, async () => responder(res, 200, await analisarPropriedade(req.body)));
     }
 
     if (req.method === "POST" && url.pathname === "/api/contours") {
-      return executarComAutenticacaoApi(req, async () => responder(res, 200, await gerarCurvas(req.body)));
+      return await executarComAutenticacaoApi(req, async () => responder(res, 200, await gerarCurvas(req.body)));
     }
 
     throw new ErroAplicacao("Rota n?o encontrada.", 404);

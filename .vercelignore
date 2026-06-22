@@ -3,6 +3,7 @@ dist
 .vite
 *.log
 relatorios
+backups
 servidor-dev.out.log
 servidor-dev.err.log
 .env
