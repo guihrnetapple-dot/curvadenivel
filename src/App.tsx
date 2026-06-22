@@ -4,9 +4,11 @@ import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
+import { useAuth } from "./context/AuthContext";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
 import { gerarCurvasNivel, gerarCurvasNivelPorGeometria } from "./servicos/apiCurvasNivel";
 import { pesquisarLocalizacao } from "./servicos/apiLocalizacao";
+import { sair } from "./servicos/authService";
 import type {
   AlertaSistema,
   BboxCurvasNivel,
@@ -54,6 +56,7 @@ function lerLocalStorage<T>(chave: string, fallback: T): T {
 }
 
 export function Aplicacao() {
+  const { usuario, perfil: perfilUsuario } = useAuth();
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
   const elementosRef = useRef<ElementoMapa[]>([]);
   const historicoElementosRef = useRef<ElementoMapa[][]>([]);
@@ -456,11 +459,22 @@ export function Aplicacao() {
     }
   }
 
+  async function encerrarSessao() {
+    try {
+      await sair();
+    } catch (erro) {
+      setAlerta({
+        tipo: "erro",
+        mensagem: erro instanceof Error ? erro.message : "Não foi possível sair da conta."
+      });
+    }
+  }
+
   return (
     <div className="aplicacao">
       {inicializando && <CarregamentoInicial />}
 
-      <BarraSuperior />
+      <BarraSuperior nomeUsuario={perfilUsuario?.full_name} usuarioEmail={usuario?.email} aoSair={encerrarSessao} />
 
       <main className="area-trabalho">
         <div className="coluna-mapa">

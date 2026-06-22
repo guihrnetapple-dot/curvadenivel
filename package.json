@@ -13,6 +13,7 @@
     "start:servidor": "tsx servidor/src/servidor.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "cors": "^2.8.5",
     "express": "^4.18.3",
     "jszip": "^3.10.1",

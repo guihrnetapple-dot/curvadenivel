@@ -1057,6 +1057,11 @@ export default async function handler(req, res) {
         }
       });
     }
+    if (req.method === "GET" && url.pathname === "/api/client-info") {
+      const ipHeader = req.headers["x-forwarded-for"];
+      const ip = Array.isArray(ipHeader) ? ipHeader[0] : String(ipHeader ?? "").split(",")[0].trim() || null;
+      return responder(res, 200, { ip, userAgent: req.headers["user-agent"] ?? null });
+    }
     if (req.method === "GET" && url.pathname === "/api/elevation") {
       const [resultado] = await consultarLote([{ latitude: url.searchParams.get("lat") ?? url.searchParams.get("latitude"), longitude: url.searchParams.get("lng") ?? url.searchParams.get("longitude") }]);
       return responder(res, 200, resultado);

@@ -85,6 +85,17 @@ aplicacao.get(
 );
 
 aplicacao.get(
+  "/api/client-info",
+  rotaAssincrona(async (requisicao, resposta) => {
+    const ipEncaminhado = requisicao.headers["x-forwarded-for"];
+    resposta.json({
+      ip: Array.isArray(ipEncaminhado) ? ipEncaminhado[0] : ipEncaminhado?.split(",")[0]?.trim() ?? requisicao.ip ?? null,
+      userAgent: requisicao.headers["user-agent"] ?? null
+    });
+  })
+);
+
+aplicacao.get(
   "/api/elevation",
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoOpenElevation.consultarPonto(lerCoordenadaDaQuery(requisicao));

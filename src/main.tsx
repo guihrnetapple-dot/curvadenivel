@@ -4,11 +4,17 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 
 import { Aplicacao } from "./App";
+import { AuthGate } from "./componentes/auth/AuthGate";
+import { AuthProvider } from "./context/AuthContext";
 import "./styles.css";
 import "./ui-pro.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Aplicacao />
+    <AuthProvider>
+      <AuthGate>
+        <Aplicacao />
+      </AuthGate>
+    </AuthProvider>
   </React.StrictMode>
 );

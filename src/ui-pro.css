@@ -122,6 +122,40 @@ select {
   color: rgba(255, 255, 255, 0.72);
 }
 
+.usuario-topo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.usuario-topo span {
+  max-width: 240px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botao-logout {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--raio-menor);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.botao-logout:hover {
+  border-color: rgba(143, 216, 178, 0.48);
+  background: rgba(47, 159, 117, 0.14);
+  color: var(--verde);
+}
+
 .marca span,
 .busca-coordenada label,
 .formulario-coordenadas label,
@@ -771,6 +805,225 @@ input[type="checkbox"] {
   border-radius: 0 var(--raio-menor) var(--raio-menor) 0;
 }
 
+.auth-pagina {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(47, 159, 117, 0.18), transparent 28rem),
+    linear-gradient(145deg, rgba(106, 166, 184, 0.11), transparent 42%),
+    var(--fundo);
+}
+
+.auth-card {
+  display: grid;
+  gap: 18px;
+  width: min(920px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
+  border-radius: var(--raio);
+  background: color-mix(in srgb, var(--superficie) 96%, transparent);
+  box-shadow: var(--sombra);
+}
+
+.auth-marca {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--borda) 70%, transparent);
+}
+
+.auth-marca img {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(143, 216, 178, 0.32);
+  border-radius: var(--raio);
+  background: #0d1a18;
+  object-fit: contain;
+}
+
+.auth-marca strong,
+.auth-marca span {
+  display: block;
+}
+
+.auth-marca strong {
+  color: #ffffff;
+  font-size: 1.08rem;
+  font-weight: 800;
+}
+
+.auth-marca span {
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.auth-formulario {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-formulario-cadastro {
+  gap: 14px;
+}
+
+.auth-formulario-topo {
+  display: grid;
+  gap: 5px;
+}
+
+.auth-formulario-topo strong {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.auth-formulario-topo span,
+.auth-configuracao span {
+  color: var(--texto-suave);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.auth-formulario label {
+  display: grid;
+  gap: 6px;
+  color: var(--texto-suave);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.auth-formulario input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid color-mix(in srgb, var(--borda) 88%, transparent);
+  border-radius: var(--raio-menor);
+  outline: 0;
+  padding: 0 11px;
+  background: var(--superficie-secundaria);
+  color: var(--texto);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.auth-formulario input:focus {
+  outline: 2px solid color-mix(in srgb, var(--verde) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.auth-formulario button {
+  min-height: 38px;
+  border-radius: var(--raio-menor);
+  background: var(--verde);
+  color: #ffffff;
+  font-weight: 850;
+  box-shadow: 0 10px 24px rgba(47, 159, 117, 0.22);
+}
+
+.auth-formulario button:hover {
+  background: var(--verde-escuro);
+  color: #07110e;
+}
+
+.auth-botao-secundario,
+.auth-formulario .auth-botao-secundario {
+  border: 1px solid var(--borda);
+  background: var(--superficie-secundaria);
+  color: var(--texto);
+  box-shadow: none;
+}
+
+.auth-botao-google,
+.auth-formulario .auth-botao-google {
+  border: 1px solid color-mix(in srgb, var(--azul) 32%, var(--borda));
+  background: color-mix(in srgb, var(--azul) 12%, var(--superficie-secundaria));
+  color: var(--texto);
+  box-shadow: none;
+}
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.auth-links button {
+  min-height: auto;
+  padding: 0;
+  background: transparent;
+  color: var(--verde-escuro);
+  box-shadow: none;
+  font-size: 0.78rem;
+}
+
+.auth-grade-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.auth-consentimentos {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
+  border-radius: var(--raio);
+  background: var(--superficie-secundaria);
+}
+
+.auth-consentimentos label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  color: var(--texto);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.auth-consentimentos input {
+  width: 15px;
+  min-height: 15px;
+  margin-top: 1px;
+  padding: 0;
+}
+
+.auth-feedback,
+.auth-configuracao {
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--superficie-secundaria);
+  color: var(--texto);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.auth-feedback.erro {
+  border-color: color-mix(in srgb, var(--erro) 52%, var(--borda));
+}
+
+.auth-feedback.sucesso {
+  border-color: color-mix(in srgb, var(--verde) 48%, var(--borda));
+}
+
+.auth-configuracao {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-configuracao strong {
+  color: #ffffff;
+  font-size: 0.96rem;
+}
+
 @media (max-width: 1280px) {
   .area-trabalho {
     grid-template-columns: minmax(0, 1fr) 330px;
@@ -846,6 +1099,11 @@ input[type="checkbox"] {
 
   .marca {
     min-width: 0;
+  }
+
+  .usuario-topo {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .marca-simbolo {
@@ -982,5 +1240,24 @@ input[type="checkbox"] {
   .alerta-sistema {
     top: 78px;
     max-width: calc(100vw - 20px);
+  }
+
+  .auth-pagina {
+    place-items: start center;
+    padding: 12px;
+  }
+
+  .auth-card {
+    max-height: none;
+    padding: 14px;
+  }
+
+  .auth-grade-campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-links {
+    display: grid;
+    justify-content: stretch;
   }
 }
