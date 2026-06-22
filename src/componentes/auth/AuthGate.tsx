@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import logoCurvaNivel from "../../assets/logo-curva-nivel.png";
@@ -16,6 +16,56 @@ import { RegisterPage } from "./RegisterPage";
 import { ResetPasswordPage } from "./ResetPasswordPage";
 
 type TelaAuth = "login" | "cadastro" | "recuperacao" | "nova-senha" | "confirmacao-email";
+
+const rotasPorTela: Record<TelaAuth, string> = {
+  login: "/login",
+  cadastro: "/cadastro",
+  recuperacao: "/recuperarsenha",
+  "nova-senha": "/novasenha",
+  "confirmacao-email": "/confirmaremail"
+};
+
+const titulosPorRota: Record<string, string> = {
+  "/login": "Login | Curva de Nível",
+  "/cadastro": "Cadastro | Curva de Nível",
+  "/confirmaremail": "Confirmar e-mail | Curva de Nível",
+  "/recuperarsenha": "Recuperar senha | Curva de Nível",
+  "/novasenha": "Nova senha | Curva de Nível",
+  "/completarcadastro": "Completar cadastro | Curva de Nível",
+  "/home": "Home | Curva de Nível"
+};
+
+function normalizarCaminho(caminho: string): string {
+  const semBarraFinal = caminho.replace(/\/+$/, "");
+  return semBarraFinal || "/";
+}
+
+function obterTelaPorCaminho(caminho: string): TelaAuth | null {
+  const normalizado = normalizarCaminho(caminho).toLowerCase();
+  const entrada = Object.entries(rotasPorTela).find(([, rota]) => rota === normalizado);
+  return (entrada?.[0] as TelaAuth | undefined) ?? null;
+}
+
+function caminhoAtual(): string {
+  return normalizarCaminho(window.location.pathname);
+}
+
+function atualizarUrl(caminho: string, substituir = false) {
+  const urlAtual = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const destino = caminho;
+  if (urlAtual === destino) return;
+
+  const metodo = substituir ? "replaceState" : "pushState";
+  window.history[metodo](null, "", destino);
+}
+
+function caminhoProtegido(caminho: string): boolean {
+  return ["/home", "/completarcadastro"].includes(normalizarCaminho(caminho).toLowerCase());
+}
+
+function atualizarTitulo(caminho: string) {
+  document.title = titulosPorRota[normalizarCaminho(caminho).toLowerCase()] ?? "Curva de Nível";
+}
 
 function detectarErroUrl(): string | null {
   const parametros = new URLSearchParams(window.location.search);
@@ -42,6 +92,8 @@ function detectarErroUrl(): string | null {
 }
 
 function detectarTelaInicial(): TelaAuth {
+  const telaUrl = obterTelaPorCaminho(window.location.pathname);
+  if (telaUrl) return telaUrl;
   if (window.location.hash.includes("recuperar-senha")) return "nova-senha";
   if (obterEmailConfirmacaoPendente()) return "confirmacao-email";
   return "login";
@@ -84,6 +136,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(() => obterEmailConfirmacaoPendente());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
   const resetandoSenha = useMemo(() => tela === "nova-senha", [tela]);
+  const navegarAuth = useCallback((proximaTela: TelaAuth, substituir = false) => {
+    setTela(proximaTela);
+    atualizarUrl(rotasPorTela[proximaTela], substituir);
+    atualizarTitulo(rotasPorTela[proximaTela]);
+  }, []);
 
   useEffect(() => {
     const pendente = obterEmailConfirmacaoPendente();
@@ -91,6 +148,46 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setEmailConfirmacao(pendente);
     }
   }, [tela]);
+
+  useEffect(() => {
+    const aoVoltar = () => {
+      const telaUrl = detectarTelaInicial();
+      setTela(telaUrl);
+      atualizarTitulo(window.location.pathname);
+    };
+
+    window.addEventListener("popstate", aoVoltar);
+    atualizarTitulo(window.location.pathname);
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, []);
+
+  useEffect(() => {
+    if (carregando || !configurado) return;
+
+    const caminho = caminhoAtual().toLowerCase();
+
+    if (usuario && resetandoSenha) {
+      atualizarUrl(rotasPorTela["nova-senha"], true);
+      atualizarTitulo(rotasPorTela["nova-senha"]);
+      return;
+    }
+
+    if (usuario && perfilPendente) {
+      atualizarUrl("/completarcadastro", true);
+      atualizarTitulo("/completarcadastro");
+      return;
+    }
+
+    if (usuario) {
+      atualizarUrl("/home", true);
+      atualizarTitulo("/home");
+      return;
+    }
+
+    if (caminho === "/" || caminhoProtegido(caminho)) {
+      navegarAuth("login", true);
+    }
+  }, [carregando, configurado, navegarAuth, perfilPendente, resetandoSenha, usuario]);
 
   if (carregando) {
     return <CarregamentoInicial />;
@@ -103,7 +200,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (usuario && resetandoSenha) {
     return (
       <AuthShell>
-        <ResetPasswordPage aoConcluir={() => setTela("login")} />
+        <ResetPasswordPage aoConcluir={() => navegarAuth("login", true)} />
       </AuthShell>
     );
   }
@@ -131,17 +228,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <LoginPage
           aoCriarConta={() => {
             setMensagemUrl(null);
-            setTela("cadastro");
+            navegarAuth("cadastro");
           }}
-          aoRecuperarSenha={() => setTela("recuperacao")}
+          aoRecuperarSenha={() => navegarAuth("recuperacao")}
         />
       )}
       {tela === "cadastro" && (
         <RegisterPage
-          aoEntrar={() => setTela("login")}
+          aoEntrar={() => navegarAuth("login")}
           aoConfirmacaoNecessaria={(email) => {
             setEmailConfirmacao(email);
-            setTela("confirmacao-email");
+            navegarAuth("confirmacao-email");
           }}
         />
       )}
@@ -149,19 +246,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <ConfirmEmailPage
           email={emailConfirmacao}
           aoConfirmado={async () => {
-            limparConfirmacaoPendente();
             await recarregarPerfil();
           }}
           aoVoltarCadastro={() => {
             limparConfirmacaoPendente();
             setEmailConfirmacao(null);
-            setTela("cadastro");
+            navegarAuth("cadastro");
           }}
         />
       )}
-      {tela === "recuperacao" && <ForgotPasswordPage aoEntrar={() => setTela("login")} />}
+      {tela === "recuperacao" && <ForgotPasswordPage aoEntrar={() => navegarAuth("login")} />}
       {tela === "nova-senha" && (
-        <LoginPage aoCriarConta={() => setTela("cadastro")} aoRecuperarSenha={() => setTela("recuperacao")} />
+        <LoginPage aoCriarConta={() => navegarAuth("cadastro")} aoRecuperarSenha={() => navegarAuth("recuperacao")} />
       )}
     </AuthShell>
   );

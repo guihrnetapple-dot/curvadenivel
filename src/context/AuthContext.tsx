@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { obterSupabase, supabaseConfigurado } from "../lib/supabaseClient";
 import type { PerfilUsuario } from "../tipos/autenticacao";
 import { garantirPerfilUsuario } from "../servicos/profileService";
+import { restaurarPerfilConfirmacaoPendente } from "../servicos/authService";
 
 interface EstadoAuth {
   carregando: boolean;
@@ -31,7 +32,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const perfilUsuario = await garantirPerfilUsuario(usuario);
-      setPerfil(perfilUsuario);
+      if (perfilUsuario) {
+        setPerfil(perfilUsuario);
+        return;
+      }
+
+      const perfilRestaurado = await restaurarPerfilConfirmacaoPendente(usuario.id, usuario.email);
+      setPerfil(perfilRestaurado);
     } catch (erro) {
       if (import.meta.env.DEV) {
         console.error("Falha ao buscar perfil do usuário:", erro);

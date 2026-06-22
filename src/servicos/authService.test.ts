@@ -3,14 +3,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   resend: vi.fn(),
-  salvarPerfilUsuario: vi.fn()
+  salvarPerfilUsuario: vi.fn(),
+  signInWithPassword: vi.fn(),
+  signInWithOAuth: vi.fn(),
+  signOut: vi.fn()
 }));
 
 vi.mock("../lib/supabaseClient", () => ({
   obterSupabase: () => ({
     auth: {
       signUp: mocks.signUp,
-      resend: mocks.resend
+      resend: mocks.resend,
+      signInWithPassword: mocks.signInWithPassword,
+      signInWithOAuth: mocks.signInWithOAuth,
+      signOut: mocks.signOut
     }
   })
 }));
@@ -23,7 +29,13 @@ vi.mock("./profileService", () => ({
   salvarPerfilUsuario: mocks.salvarPerfilUsuario
 }));
 
-import { cadastrarComEmailSenha, obterUltimoReenvioConfirmacao, reenviarCodigoConfirmacao } from "./authService";
+import {
+  cadastrarComEmailSenha,
+  entrarComEmailSenha,
+  obterUltimoReenvioConfirmacao,
+  restaurarPerfilConfirmacaoPendente,
+  reenviarCodigoConfirmacao
+} from "./authService";
 
 function criarStorage() {
   const dados = new Map<string, string>();
@@ -60,8 +72,15 @@ function criarCadastro() {
 describe("authService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("window", { location: { origin: "http://localhost:5173" } });
-    vi.stubGlobal("sessionStorage", criarStorage());
+    const sessionStorageMock = criarStorage();
+    const localStorageMock = criarStorage();
+    vi.stubGlobal("sessionStorage", sessionStorageMock);
+    vi.stubGlobal("localStorage", localStorageMock);
+    vi.stubGlobal("window", {
+      location: { origin: "http://localhost:5173" },
+      sessionStorage: sessionStorageMock,
+      localStorage: localStorageMock
+    });
   });
 
   it("retorna confirmação necessária quando o cadastro não cria sessão", async () => {
@@ -87,7 +106,32 @@ describe("authService", () => {
     mocks.signUp.mockResolvedValueOnce({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
     await cadastrarComEmailSenha(criarCadastro());
     expect(storage.getItem("auth.emailConfirmacaoPendente")).toBe("usuario@exemplo.com");
-    expect(JSON.stringify(storage)).not.toContain("senha123");
+    expect(storage.getItem("auth.perfilConfirmacaoPendente")).toBeNull();
+    expect(localStorage.getItem("auth.perfilConfirmacaoPendente")).not.toContain("senha123");
+  });
+
+  it("restaura perfil preenchido antes da confirmaÃ§Ã£o de e-mail", async () => {
+    mocks.signUp.mockResolvedValueOnce({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
+    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+
+    await cadastrarComEmailSenha(criarCadastro());
+    const perfil = await restaurarPerfilConfirmacaoPendente("u1", "usuario@exemplo.com");
+
+    expect(perfil).toEqual({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    expect(mocks.salvarPerfilUsuario).toHaveBeenCalledWith(
+      "u1",
+      expect.objectContaining({ full_name: "Usuário Teste", whatsapp: "+5538999999999" }),
+      expect.objectContaining({ userAgent: "vitest" })
+    );
+    expect(localStorage.getItem("auth.perfilConfirmacaoPendente")).toBeNull();
+  });
+
+  it("usa preferÃªncia persistente somente quando o usuÃ¡rio pede para nÃ£o solicitar login novamente", async () => {
+    mocks.signInWithPassword.mockResolvedValueOnce({ error: null });
+
+    await entrarComEmailSenha("usuario@exemplo.com", "senha123", true);
+
+    expect(localStorage.getItem("auth.loginPersistenteNestaMaquina")).toBe("true");
   });
 
   it("registra cooldown após reenviar código", async () => {

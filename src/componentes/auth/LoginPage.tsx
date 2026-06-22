@@ -26,6 +26,7 @@ function GoogleIcon() {
 export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [manterLogin, setManterLogin] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
 
@@ -34,7 +35,7 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
     setCarregando(true);
     setMensagem(null);
     try {
-      await entrarComEmailSenha(email, password);
+      await entrarComEmailSenha(email, password, manterLogin);
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));
     } finally {
@@ -46,7 +47,7 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
     setCarregando(true);
     setMensagem(null);
     try {
-      await entrarComGoogle();
+      await entrarComGoogle(manterLogin);
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));
       setCarregando(false);
@@ -78,6 +79,14 @@ export function LoginPage({ aoCriarConta, aoRecuperarSenha }: Props) {
       <label>
         Senha
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      </label>
+      <label className="auth-lembrar-login">
+        <input
+          type="checkbox"
+          checked={manterLogin}
+          onChange={(evento) => setManterLogin(evento.target.checked)}
+        />
+        <span>Não pedir login nesta máquina novamente.</span>
       </label>
 
       <button type="submit" disabled={carregando}>

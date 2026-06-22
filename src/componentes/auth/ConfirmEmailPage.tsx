@@ -52,7 +52,6 @@ export function ConfirmEmailPage({ email, aoConfirmado, aoVoltarCadastro }: Prop
     setCarregando(true);
     try {
       await confirmarEmailComCodigo(email, codigo);
-      limparConfirmacaoPendente();
       aoConfirmado();
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));
