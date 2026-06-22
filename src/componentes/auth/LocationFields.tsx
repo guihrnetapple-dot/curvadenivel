@@ -65,6 +65,19 @@ export function LocationFields({ valores, erros, aoAlterar, aoPaisEnderecoAltera
     aoAlterar("cidadeManual", false);
   }
 
+  function ativarLocalidadeManual() {
+    if (exigeEstado && !valores.stateCode) {
+      setEstadoManual(true);
+      aoAlterar("estadoManual", true);
+      aoAlterar("stateCode", "");
+      aoAlterar("state", "");
+    }
+
+    setCidadeManual(true);
+    aoAlterar("cidadeManual", true);
+    aoAlterar("city", "");
+  }
+
   return (
     <div className="auth-grade-campos auth-grade-localizacao">
       <SearchableSelect
@@ -127,29 +140,11 @@ export function LocationFields({ valores, erros, aoAlterar, aoPaisEnderecoAltera
       )}
 
       <div className="auth-localidade-manual">
-        {valores.countryCode && exigeEstado && (
+        {valores.countryCode && (
           <button
             type="button"
             className="auth-link-discreto"
-            onClick={() => {
-              setEstadoManual(true);
-              aoAlterar("estadoManual", true);
-              aoAlterar("stateCode", "");
-              aoAlterar("state", "");
-            }}
-          >
-            Minha localidade não aparece
-          </button>
-        )}
-        {podeSelecionarCidade && (
-          <button
-            type="button"
-            className="auth-link-discreto"
-            onClick={() => {
-              setCidadeManual(true);
-              aoAlterar("cidadeManual", true);
-              aoAlterar("city", "");
-            }}
+            onClick={ativarLocalidadeManual}
           >
             Minha localidade não aparece
           </button>

@@ -1,3 +1,30 @@
+const ORIGENS_PERMITIDAS = new Set([
+  "https://curvadenivel-fbhse7xcb-guilherme-franklin.vercel.app",
+  "https://curvadenivel-git-security-auth-open-e-b8bccc-guilherme-franklin.vercel.app",
+  "https://curvadenivel.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+]);
+
+function origemPermitida(origem: string) {
+  return ORIGENS_PERMITIDAS.has(origem) || /^https:\/\/curvadenivel-[a-z0-9-]+-guilherme-franklin\.vercel\.app$/.test(origem);
+}
+
+function criarCabecalhosCors(requisicao: Request): HeadersInit {
+  const origem = requisicao.headers.get("origin") ?? "";
+  const cabecalhos: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    Vary: "Origin"
+  };
+
+  if (origemPermitida(origem)) {
+    cabecalhos["Access-Control-Allow-Origin"] = origem;
+  }
+
+  return cabecalhos;
+}
+
 const CABECALHOS_JSON = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "private, no-store"
@@ -13,10 +40,13 @@ class ErroAplicacao extends Error {
   }
 }
 
-function responder(status: number, corpo: unknown) {
+function responder(requisicao: Request, status: number, corpo: unknown) {
   return new Response(JSON.stringify(corpo), {
     status,
-    headers: CABECALHOS_JSON
+    headers: {
+      ...CABECALHOS_JSON,
+      ...criarCabecalhosCors(requisicao)
+    }
   });
 }
 
@@ -119,8 +149,15 @@ function validarCoordenadas(corpo: unknown) {
 
 Deno.serve(async (requisicao) => {
   try {
+    if (requisicao.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: criarCabecalhosCors(requisicao)
+      });
+    }
+
     if (requisicao.method !== "POST") {
-      return responder(405, { erro: "Método não permitido." });
+      return responder(requisicao, 405, { erro: "Método não permitido." });
     }
 
     const token = extrairBearer(requisicao);
@@ -142,13 +179,16 @@ Deno.serve(async (requisicao) => {
     const respostaTexto = await resposta.text();
     return new Response(respostaTexto, {
       status: resposta.status,
-      headers: CABECALHOS_JSON
+      headers: {
+        ...CABECALHOS_JSON,
+        ...criarCabecalhosCors(requisicao)
+      }
     });
   } catch (erro) {
     const status = erro instanceof ErroAplicacao ? erro.status : 500;
     if (!(erro instanceof ErroAplicacao)) {
       console.error("Erro inesperado no proxy de altitude:", erro);
     }
-    return responder(status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno no proxy de altitude." });
+    return responder(requisicao, status, { erro: erro instanceof ErroAplicacao ? erro.message : "Erro interno no proxy de altitude." });
   }
 });
