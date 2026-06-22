@@ -38,12 +38,13 @@ jobs:
         run: |
           deno check supabase/functions/open-elevation-proxy/index.ts
           deno check supabase/functions/complete-profile/index.ts
+          deno check supabase/functions/audit-event/index.ts
 
       - name: Block insecure runtime patterns
         run: |
           ! grep -R -n -E "api\.open-elevation\.com|rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|SUPABASE_SERVICE_ROLE_KEY|service_role" api servidor src index.html supabase
           matches="$(grep -R -n -E "OPEN_ELEVATION_API_URL" api servidor src index.html supabase .env.example docs || true)"
-          disallowed="$(printf "%s\n" "$matches" | grep -v -E '^(\.env\.example|docs/|api/|servidor/|supabase/functions/open-elevation-proxy/index\.ts):' || true)"
+          disallowed="$(printf "%s\n" "$matches" | grep -v -E '^(\.env\.example|docs/|supabase/functions/open-elevation-proxy/index\.ts):' || true)"
           if [ -n "$disallowed" ]; then
             printf "%s\n" "$disallowed"
             exit 1

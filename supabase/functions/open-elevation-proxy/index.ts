@@ -30,7 +30,7 @@ const CABECALHOS_JSON = {
   "Cache-Control": "private, no-store"
 };
 const NOME_CHAVE_SERVICO = ["SUPABASE", "SERVICE", "ROLE", "KEY"].join("_");
-const COTA_PADRAO_POR_HORA = 50000;
+const COTA_PADRAO_POR_HORA = 100000;
 
 class ErroAplicacao extends Error {
   status: number;

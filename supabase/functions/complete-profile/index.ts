@@ -102,6 +102,16 @@ function textoOpcional(corpo: Record<string, unknown>, chave: string): string | 
   return valor || null;
 }
 
+function obterIp(requisicao: Request): string | null {
+  const cabecalhos = [
+    requisicao.headers.get("x-forwarded-for")?.split(",")[0],
+    requisicao.headers.get("x-real-ip"),
+    requisicao.headers.get("cf-connecting-ip")
+  ];
+
+  return cabecalhos.map((item) => item?.trim()).find(Boolean) ?? null;
+}
+
 function validarPerfil(corpo: unknown) {
   if (!corpo || typeof corpo !== "object") {
     throw new ErroAplicacao("Dados de perfil inválidos.");
@@ -143,8 +153,10 @@ async function chamarSupabase(caminho: string, opcoes: RequestInit = {}) {
   });
 }
 
-async function salvarPerfil(userId: string, perfil: ReturnType<typeof validarPerfil>) {
+async function salvarPerfil(userId: string, perfil: ReturnType<typeof validarPerfil>, requisicao: Request) {
   const agora = new Date().toISOString();
+  const ip = obterIp(requisicao);
+  const userAgent = requisicao.headers.get("user-agent");
   const resposta = await chamarSupabase("/rest/v1/profiles?on_conflict=id&select=*", {
     method: "POST",
     headers: {
@@ -156,7 +168,9 @@ async function salvarPerfil(userId: string, perfil: ReturnType<typeof validarPer
       accepted_terms_at: agora,
       accepted_privacy_policy_at: agora,
       accepted_cookies_at: agora,
-      accepted_free_use_communication_terms_at: agora
+      accepted_free_use_communication_terms_at: agora,
+      communication_consent_ip: ip,
+      communication_consent_user_agent: userAgent
     })
   });
 
@@ -171,7 +185,9 @@ async function salvarPerfil(userId: string, perfil: ReturnType<typeof validarPer
   return registro;
 }
 
-async function registrarConsentimentos(userId: string, perfil: ReturnType<typeof validarPerfil>) {
+async function registrarConsentimentos(userId: string, perfil: ReturnType<typeof validarPerfil>, requisicao: Request) {
+  const ip = obterIp(requisicao);
+  const userAgent = requisicao.headers.get("user-agent");
   const eventos = [
     ["terms", true],
     ["privacy_policy", true],
@@ -189,8 +205,8 @@ async function registrarConsentimentos(userId: string, perfil: ReturnType<typeof
           p_user_id: userId,
           p_tipo_evento: tipo,
           p_aceito: aceito,
-          p_ip: perfil.communication_consent_ip,
-          p_user_agent: perfil.communication_consent_user_agent,
+          p_ip: ip,
+          p_user_agent: userAgent,
           p_metadados: {}
         })
       })
@@ -220,8 +236,8 @@ Deno.serve(async (requisicao) => {
     const corpo = await requisicao.json().catch(() => null);
     const perfilValidado = validarPerfil(corpo);
 
-    const perfil = await salvarPerfil(usuario.id, perfilValidado);
-    await registrarConsentimentos(usuario.id, perfilValidado);
+    const perfil = await salvarPerfil(usuario.id, perfilValidado, requisicao);
+    await registrarConsentimentos(usuario.id, perfilValidado, requisicao);
 
     return responder(requisicao, 200, { perfil });
   } catch (erro) {

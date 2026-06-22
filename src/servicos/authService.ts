@@ -1,4 +1,5 @@
 import { obterSupabase } from "../lib/supabaseClient";
+import { registrarEventoAuditoria, registrarEventoAuditoriaSemBloquear } from "./auditoriaService";
 import type { User } from "@supabase/supabase-js";
 import type { DadosCadastro, DadosPerfilCadastro, PerfilUsuario, ResultadoCadastro } from "../tipos/autenticacao";
 import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuth";
@@ -157,14 +158,26 @@ export async function restaurarPerfilCadastroInicial(usuario: Pick<User, "id" | 
 export async function entrarComEmailSenha(email: string, password: string, manterLogin = false) {
   definirLoginPersistente(manterLogin);
   const supabase = obterSupabase();
+  const emailNormalizado = normalizarEmail(email);
   const { error } = await supabase.auth.signInWithPassword({
-    email: normalizarEmail(email),
+    email: emailNormalizado,
     password
   });
 
   if (error) {
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "login_falha",
+      email: emailNormalizado,
+      metadata: { manterLogin }
+    });
     throw error;
   }
+
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "login_sucesso",
+    email: emailNormalizado,
+    metadata: { manterLogin }
+  });
 }
 
 export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<ResultadoCadastro> {
@@ -190,6 +203,11 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
   });
 
   if (error) {
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "cadastro_falha",
+      email,
+      metadata: { codigo: error.code }
+    });
     throw error;
   }
 
@@ -201,10 +219,20 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
   if (data.user && data.session) {
     const dadosPerfil: DadosPerfilCadastro = { ...dados, whatsapp };
     await salvarPerfilUsuario(data.user.id, dadosPerfil, await obterInformacaoCliente());
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "cadastro_autenticado",
+      email,
+      metadata: { metodo: "email" }
+    });
     return { status: "autenticado" };
   }
 
   salvarConfirmacaoPendente(email, dados);
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "cadastro_confirmacao_pendente",
+    email,
+    metadata: { metodo: "email" }
+  });
   return { status: "confirmacao_necessaria", email };
 }
 
@@ -220,6 +248,10 @@ export async function confirmarEmailComCodigo(email: string, token: string) {
     throw error;
   }
 
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "confirmacao_email_codigo",
+    email: normalizarEmail(email)
+  });
   return data;
 }
 
@@ -237,12 +269,20 @@ export async function reenviarCodigoConfirmacao(email: string) {
     throw error;
   }
 
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "reenvio_confirmacao_email",
+    email: normalizarEmail(email)
+  });
   marcarUltimoReenvioConfirmacao();
 }
 
 export async function entrarComGoogle(manterLogin = false) {
   definirLoginPersistente(manterLogin);
   const supabase = obterSupabase();
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "login_google_iniciado",
+    metadata: { manterLogin }
+  });
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -257,13 +297,28 @@ export async function entrarComGoogle(manterLogin = false) {
 
 export async function enviarRecuperacaoSenha(email: string) {
   const supabase = obterSupabase();
-  const { error } = await supabase.auth.resetPasswordForEmail(normalizarEmail(email), {
+  const emailNormalizado = normalizarEmail(email);
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "recuperacao_senha_solicitada",
+    email: emailNormalizado
+  });
+  const { error } = await supabase.auth.resetPasswordForEmail(emailNormalizado, {
     redirectTo: `${obterUrlBase()}/novasenha`
   });
 
   if (error) {
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "recuperacao_senha_falha",
+      email: emailNormalizado,
+      metadata: { codigo: error.code }
+    });
     throw error;
   }
+
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "recuperacao_senha_email_enviado",
+    email: emailNormalizado
+  });
 }
 
 export async function atualizarSenha(password: string) {
@@ -273,10 +328,17 @@ export async function atualizarSenha(password: string) {
   if (error) {
     throw error;
   }
+
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "senha_atualizada"
+  });
 }
 
 export async function sair() {
   const supabase = obterSupabase();
+  await registrarEventoAuditoria({
+    event_type: "logout"
+  });
   const { error } = await supabase.auth.signOut();
 
   if (error) {
