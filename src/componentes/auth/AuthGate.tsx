@@ -97,11 +97,33 @@ function detectarTelaInicial(): TelaAuth {
 }
 
 function detectarMensagemLogin(): string | null {
-  const parametros = new URLSearchParams(window.location.search);
-  if (parametros.get("cadastro") === "confirmado") {
-    return "E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.";
-  }
   return null;
+}
+
+function rotaConfirmacaoCadastro(): boolean {
+  const caminho = caminhoAtual().toLowerCase();
+  const parametros = new URLSearchParams(window.location.search);
+  return caminho === "/confirmaremail" || parametros.get("cadastro") === "confirmado" || parametros.get("tipo") === "cadastro";
+}
+
+function urlTemRespostaAutenticacao(): boolean {
+  const parametros = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+  const parametrosHash = new URLSearchParams(hash);
+
+  return Boolean(
+    parametros.get("code") ||
+      parametros.get("token_hash") ||
+      parametrosHash.get("access_token") ||
+      parametrosHash.get("refresh_token")
+  );
+}
+
+function mensagemEmailConfirmado(email?: string | null): string {
+  const emailTratado = String(email ?? "").trim();
+  return emailTratado
+    ? `E-mail ${emailTratado} confirmado. Entre com seu e-mail e senha para acessar o sistema.`
+    : "E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.";
 }
 
 function AuthShell({ children, cadastro }: { children: ReactNode; cadastro?: boolean }) {
@@ -138,8 +160,8 @@ function AutenticacaoIndisponivel() {
 export function AuthGate({ children }: { children: ReactNode }) {
   const { carregando, configurado, usuario } = useAuth();
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
-  const [avisoLogin, setAvisoLogin] = useState<string | null>(() => detectarMensagemLogin());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
+  const [avisoLogin, setAvisoLogin] = useState<string | null>(() => mensagemUrl ? null : detectarMensagemLogin());
   const [finalizandoConfirmacaoEmail, setFinalizandoConfirmacaoEmail] = useState(false);
   const resetandoSenha = useMemo(() => tela === "nova-senha", [tela]);
   const navegarAuth = useCallback((proximaTela: TelaAuth, substituir = false) => {
@@ -150,9 +172,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const aoVoltar = () => {
+      const erroUrl = detectarErroUrl();
       const telaUrl = detectarTelaInicial();
       setTela(telaUrl);
-      setAvisoLogin(detectarMensagemLogin());
+      setMensagemUrl(erroUrl);
+      setAvisoLogin(erroUrl ? null : detectarMensagemLogin());
       atualizarTitulo(window.location.pathname);
     };
 
@@ -165,7 +189,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (carregando || !configurado) return;
 
     const caminho = caminhoAtual().toLowerCase();
-    const confirmacaoEmail = new URLSearchParams(window.location.search).get("cadastro") === "confirmado";
+    const rotaConfirmacao = rotaConfirmacaoCadastro();
+    const confirmacaoEmail = rotaConfirmacao && urlTemRespostaAutenticacao();
 
     if (usuario && resetandoSenha) {
       atualizarUrl(rotasPorTela["nova-senha"], true);
@@ -179,10 +204,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
       void sair().finally(() => {
         setFinalizandoConfirmacaoEmail(false);
         setTela("login");
-        setAvisoLogin("E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.");
+        setMensagemUrl(null);
+        setAvisoLogin(mensagemEmailConfirmado(usuario.email));
         atualizarUrl("/login", true);
         atualizarTitulo("/login");
       });
+      return;
+    }
+
+    if (!usuario && rotaConfirmacao) {
+      setAvisoLogin(null);
+      if (!mensagemUrl) {
+        setMensagemUrl("Não foi possível confirmar este e-mail automaticamente. O link pode ter expirado ou já ter sido usado. Solicite um novo link de confirmação.");
+      }
+      navegarAuth("login", true);
       return;
     }
 
@@ -198,7 +233,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       }
       navegarAuth("login", true);
     }
-  }, [carregando, configurado, navegarAuth, resetandoSenha, usuario]);
+  }, [carregando, configurado, mensagemUrl, navegarAuth, resetandoSenha, usuario]);
 
   if (carregando || finalizandoConfirmacaoEmail) {
     return <CarregamentoInicial />;

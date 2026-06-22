@@ -190,7 +190,7 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
     email,
     password: dados.password,
     options: {
-      emailRedirectTo: `${obterUrlBase()}/login?cadastro=confirmado`,
+      emailRedirectTo: `${obterUrlBase()}/confirmaremail?tipo=cadastro`,
       data: {
         cadastro_inicial: true,
         cadastro_perfil_pendente: {
@@ -261,7 +261,7 @@ export async function reenviarCodigoConfirmacao(email: string) {
     type: "signup",
     email: normalizarEmail(email),
     options: {
-      emailRedirectTo: `${obterUrlBase()}/login?cadastro=confirmado`
+      emailRedirectTo: `${obterUrlBase()}/confirmaremail?tipo=cadastro`
     }
   });
 

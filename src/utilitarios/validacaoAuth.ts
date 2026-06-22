@@ -214,7 +214,7 @@ export function traduzirErroAuth(erro: unknown): string {
     email_not_confirmed: "Confirme seu e-mail antes de entrar.",
     invalid_credentials: "E-mail ou senha inválidos.",
     weak_password: "A senha precisa atender aos requisitos de segurança.",
-    otp_expired: "O código ou link de confirmação expirou. Solicite um novo código.",
+    otp_expired: "O link de confirmação expirou ou já foi usado. Solicite um novo link de confirmação.",
     over_email_send_rate_limit: "Aguarde um pouco antes de solicitar outro e-mail.",
     over_request_rate_limit: "Muitas tentativas em pouco tempo. Aguarde um momento e tente novamente.",
     signup_disabled: "O cadastro está temporariamente indisponível."
