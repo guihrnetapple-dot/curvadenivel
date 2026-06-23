@@ -1,4 +1,5 @@
 import type { InformacaoCliente } from "../tipos/autenticacao";
+import { obterRegiaoNavegador, normalizarCodigoPais } from "../utilitarios/localizacaoAuth";
 
 export async function obterInformacaoCliente(): Promise<InformacaoCliente> {
   try {
@@ -6,11 +7,17 @@ export async function obterInformacaoCliente(): Promise<InformacaoCliente> {
     if (!resposta.ok) {
       throw new Error("Falha ao obter informações do cliente.");
     }
-    return (await resposta.json()) as InformacaoCliente;
+    const dados = (await resposta.json()) as InformacaoCliente;
+    return {
+      ip: dados.ip ?? null,
+      userAgent: dados.userAgent ?? navigator.userAgent ?? null,
+      countryCode: normalizarCodigoPais(dados.countryCode ?? obterRegiaoNavegador())
+    };
   } catch {
     return {
       ip: null,
-      userAgent: navigator.userAgent || null
+      userAgent: navigator.userAgent || null,
+      countryCode: obterRegiaoNavegador()
     };
   }
 }

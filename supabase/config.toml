@@ -1,0 +1,10 @@
+project_id = "curva-de-nivel"
+
+[functions.open-elevation-proxy]
+verify_jwt = true
+
+[functions.complete-profile]
+verify_jwt = true
+
+[functions.audit-event]
+verify_jwt = false

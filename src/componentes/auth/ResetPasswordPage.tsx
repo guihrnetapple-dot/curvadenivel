@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { atualizarSenha } from "../../servicos/authService";
-import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
+import { traduzirErroAuth, validarConfirmacaoSenha, validarSenha } from "../../utilitarios/validacaoAuth";
 
 export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {
   const [password, setPassword] = useState("");
@@ -13,13 +13,15 @@ export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {
     evento.preventDefault();
     setMensagem(null);
 
-    if (password.length < 8) {
-      setMensagem("Use uma senha com pelo menos 8 caracteres.");
+    const erroSenha = validarSenha(password);
+    if (erroSenha) {
+      setMensagem(erroSenha);
       return;
     }
 
-    if (password !== confirmacao) {
-      setMensagem("As senhas informadas não conferem.");
+    const erroConfirmacao = validarConfirmacaoSenha(password, confirmacao);
+    if (erroConfirmacao) {
+      setMensagem(erroConfirmacao);
       return;
     }
 
@@ -29,7 +31,7 @@ export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       aoConcluir();
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro instanceof Error ? erro.message : ""));
+      setMensagem(traduzirErroAuth(erro));
     } finally {
       setCarregando(false);
     }

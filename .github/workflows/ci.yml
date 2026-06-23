@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - security/auth-open-elevation-supabase
+
+jobs:
+  build-test-security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck Supabase Edge Functions
+        run: |
+          deno check supabase/functions/open-elevation-proxy/index.ts
+          deno check supabase/functions/complete-profile/index.ts
+          deno check supabase/functions/audit-event/index.ts
+
+      - name: Block insecure runtime patterns
+        run: |
+          ! grep -R -n -E "api\.open-elevation\.com|rejectUnauthorized\s*:\s*false|NODE_TLS_REJECT_UNAUTHORIZED|SUPABASE_SERVICE_ROLE_KEY|service_role" api servidor src index.html supabase
+          matches="$(grep -R -n -E "OPEN_ELEVATION_API_URL" api servidor src index.html supabase .env.example docs || true)"
+          disallowed="$(printf "%s\n" "$matches" | grep -v -E '^(\.env\.example|docs/|supabase/functions/open-elevation-proxy/index\.ts):' || true)"
+          if [ -n "$disallowed" ]; then
+            printf "%s\n" "$disallowed"
+            exit 1
+          fi

@@ -3,4 +3,11 @@ dist
 .vite
 *.log
 relatorios
+backups
 .vercel
+.env
+.env.*
+!.env.example
+supabase/.temp
+supabase/functions/.env
+supabase/functions/.env.*

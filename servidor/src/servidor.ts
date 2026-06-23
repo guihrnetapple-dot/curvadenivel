@@ -15,6 +15,7 @@ import { ServicoOpenElevation } from "./servicos/elevacao/servicoOpenElevation";
 import { ServicoPropriedades } from "./servicos/propriedades/servicoPropriedades";
 import { ServicoPerfil } from "./servicos/servicoPerfil";
 import type { Coordenada } from "./tipos";
+import { exigirAutenticacaoApi } from "./utilitarios/autenticacaoApi";
 import { ErroAplicacao } from "./utilitarios/erros";
 
 const aplicacao = express();
@@ -24,8 +25,31 @@ const servicoPerfil = new ServicoPerfil(servicoOpenElevation);
 const servicoCurvas = new ServicoCurvas(servicoOpenElevation);
 const servicoPropriedades = new ServicoPropriedades(servicoOpenElevation);
 
-aplicacao.use(cors({ origin: true }));
-aplicacao.use(express.json({ limit: "4mb" }));
+const origensPermitidas = new Set([
+  "http://127.0.0.1:5173",
+  "http://localhost:5173",
+  "http://127.0.0.1:4173",
+  "http://localhost:4173"
+]);
+
+aplicacao.use(
+  cors({
+    origin(origem, callback) {
+      if (!origem || origensPermitidas.has(origem)) {
+        callback(null, true);
+        return;
+      }
+      callback(new ErroAplicacao("Origem não permitida.", 403));
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
+aplicacao.use(express.json({ limit: "2mb" }));
+aplicacao.use("/api", (_requisicao, resposta, proximo) => {
+  resposta.setHeader("Cache-Control", "private, no-store");
+  proximo();
+});
 
 function rotaAssincrona(
   manipulador: (requisicao: Request, resposta: Response, proximo: NextFunction) => Promise<void>
@@ -54,8 +78,39 @@ function normalizarCoordenadaEntrada(entrada: unknown): Coordenada {
   };
 }
 
+function normalizarCountryCode(valor: unknown): string | null {
+  const codigo = String(valor ?? "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(codigo) ? codigo : null;
+}
+
+function obterCountryCode(requisicao: Request): string {
+  const cabecalhos = [
+    requisicao.headers["x-vercel-ip-country"],
+    requisicao.headers["cf-ipcountry"],
+    requisicao.headers["x-country-code"],
+    requisicao.headers["x-appengine-country"]
+  ];
+
+  for (const cabecalho of cabecalhos) {
+    const codigo = normalizarCountryCode(Array.isArray(cabecalho) ? cabecalho[0] : cabecalho);
+    if (codigo && codigo !== "XX") return codigo;
+  }
+
+  const acceptLanguage = String(requisicao.headers["accept-language"] ?? "");
+  const idiomaComRegiao = acceptLanguage.match(/(?:^|,)\s*[a-z]{2,3}-([A-Za-z]{2})/);
+  return normalizarCountryCode(idiomaComRegiao?.[1]) ?? "BR";
+}
+
+aplicacao.get(
+  "/api/health",
+  rotaAssincrona(async (_requisicao, resposta) => {
+    resposta.json({ ok: true });
+  })
+);
+
 aplicacao.get(
   "/api/status",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (_requisicao, resposta) => {
     const statusElevacao = servicoOpenElevation.obterStatus();
     resposta.json({
@@ -90,13 +145,15 @@ aplicacao.get(
     const ipEncaminhado = requisicao.headers["x-forwarded-for"];
     resposta.json({
       ip: Array.isArray(ipEncaminhado) ? ipEncaminhado[0] : ipEncaminhado?.split(",")[0]?.trim() ?? requisicao.ip ?? null,
-      userAgent: requisicao.headers["user-agent"] ?? null
+      userAgent: requisicao.headers["user-agent"] ?? null,
+      countryCode: obterCountryCode(requisicao)
     });
   })
 );
 
 aplicacao.get(
   "/api/elevation",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoOpenElevation.consultarPonto(lerCoordenadaDaQuery(requisicao));
     resposta.json(resultado);
@@ -105,6 +162,7 @@ aplicacao.get(
 
 aplicacao.post(
   "/api/elevation/batch",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (requisicao, resposta) => {
     const coordenadas = requisicao.body?.coordenadas;
     if (!Array.isArray(coordenadas)) {
@@ -121,6 +179,7 @@ aplicacao.post(
 
 aplicacao.post(
   "/api/elevation/profile",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoPerfil.analisarPerfil(requisicao.body);
     resposta.json(resultado);
@@ -129,6 +188,7 @@ aplicacao.post(
 
 aplicacao.post(
   "/api/properties/analyze",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoPropriedades.analisarPropriedade(requisicao.body);
     resposta.json(resultado);
@@ -137,6 +197,7 @@ aplicacao.post(
 
 aplicacao.post(
   "/api/contours",
+  exigirAutenticacaoApi,
   rotaAssincrona(async (requisicao, resposta) => {
     const resultado = await servicoCurvas.gerarCurvas(requisicao.body);
     resposta.json(resultado);
@@ -156,11 +217,9 @@ aplicacao.use((erro: unknown, _requisicao: Request, resposta: Response, _proximo
     return;
   }
 
-  const mensagem = erro instanceof Error ? erro.message : "Erro interno desconhecido.";
   console.error("Erro inesperado na API:", erro);
   resposta.status(500).json({
-    erro: "Erro interno na API de altimetria.",
-    detalhes: mensagem
+    erro: "Erro interno na API de altimetria."
   });
 });
 

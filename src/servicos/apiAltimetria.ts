@@ -1,23 +1,11 @@
 import type { GeometriaProjeto, PerfilElevacao, ResultadoAltitude, StatusApi } from "../tipos/altimetria";
+import { fetchApiProtegida, lerRespostaJson } from "./apiClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
-async function lerRespostaJson<T>(resposta: Response): Promise<T> {
-  const corpo = await resposta.json().catch(() => null);
-  if (!resposta.ok) {
-    const mensagem =
-      corpo && typeof corpo === "object" && "erro" in corpo
-        ? String((corpo as { erro: unknown }).erro)
-        : "Falha ao consultar a API de altimetria.";
-    throw new Error(mensagem);
-  }
-
-  return corpo as T;
-}
+const MENSAGEM_ERRO_ALTITUDE = "Falha ao consultar a API de altimetria.";
 
 export async function consultarStatusApi(): Promise<StatusApi> {
-  const resposta = await fetch(`${API_BASE}/api/status`);
-  const dados = await lerRespostaJson<Omit<StatusApi, "carregando">>(resposta);
+  const resposta = await fetchApiProtegida("/api/status");
+  const dados = await lerRespostaJson<Omit<StatusApi, "carregando">>(resposta, MENSAGEM_ERRO_ALTITUDE);
 
   return {
     carregando: false,
@@ -30,20 +18,20 @@ export async function consultarAltitude(latitude: number, longitude: number): Pr
     lat: String(latitude),
     lng: String(longitude)
   });
-  const resposta = await fetch(`${API_BASE}/api/elevation?${parametros.toString()}`);
-  return lerRespostaJson<ResultadoAltitude>(resposta);
+  const resposta = await fetchApiProtegida("/api/elevation?" + parametros.toString());
+  return lerRespostaJson<ResultadoAltitude>(resposta, MENSAGEM_ERRO_ALTITUDE);
 }
 
 export async function consultarPerfilElevacao(
   geometria: GeometriaProjeto,
   intervaloMetros = 50
 ): Promise<PerfilElevacao> {
-  const resposta = await fetch(`${API_BASE}/api/elevation/profile`, {
+  const resposta = await fetchApiProtegida("/api/elevation/profile", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({ geometria, intervaloMetros })
   });
-  return lerRespostaJson<PerfilElevacao>(resposta);
+  return lerRespostaJson<PerfilElevacao>(resposta, MENSAGEM_ERRO_ALTITUDE);
 }
