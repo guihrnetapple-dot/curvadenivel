@@ -1227,12 +1227,12 @@ input[type="checkbox"] {
 }
 
 .info-tooltip-conteudo {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 9px);
-  z-index: 50;
+  position: fixed;
+  left: var(--tooltip-x, 50vw);
+  top: var(--tooltip-y, 0px);
+  z-index: 2147483000;
   width: max-content;
-  max-width: min(280px, calc(100vw - 32px));
+  max-width: min(320px, calc(100vw - 24px));
   padding: 9px 10px;
   border: 1px solid color-mix(in srgb, var(--borda) 55%, transparent);
   border-radius: 8px;
@@ -1244,9 +1244,14 @@ input[type="checkbox"] {
   line-height: 1.35;
   white-space: normal;
   pointer-events: none;
-  opacity: 0;
-  transform: translate(-50%, 5px) scale(0.98);
-  transition: opacity 160ms ease, transform 160ms ease;
+  opacity: 1;
+  transform: translate(-50%, -100%) scale(1);
+  animation: info-tooltip-entrada-cima 160ms ease-out;
+}
+
+.info-tooltip-conteudo[data-posicao="baixo"] {
+  transform: translate(-50%, 0) scale(1);
+  animation-name: info-tooltip-entrada-baixo;
 }
 
 .info-tooltip-conteudo::after {
@@ -1262,10 +1267,38 @@ input[type="checkbox"] {
   transform: translate(-50%, -5px) rotate(45deg);
 }
 
-.info-tooltip:hover .info-tooltip-conteudo,
-.info-tooltip:focus-within .info-tooltip-conteudo {
-  opacity: 1;
-  transform: translate(-50%, 0) scale(1);
+.info-tooltip-conteudo[data-posicao="baixo"]::after {
+  top: auto;
+  bottom: 100%;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 1px solid color-mix(in srgb, var(--borda) 55%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--borda) 55%, transparent);
+  transform: translate(-50%, 5px) rotate(45deg);
+}
+
+@keyframes info-tooltip-entrada-cima {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 5px)) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+@keyframes info-tooltip-entrada-baixo {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 5px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
 }
 
 .auth-grade-campos {

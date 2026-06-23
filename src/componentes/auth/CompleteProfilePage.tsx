@@ -4,7 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { completarPerfilSocial } from "../../servicos/authService";
 import type { DadosPerfilCadastro } from "../../tipos/autenticacao";
 import { obterNomePais } from "../../utilitarios/localizacaoAuth";
-import { traduzirErroAuth, validarPerfilCampos, type ErrosCamposAuth } from "../../utilitarios/validacaoAuth";
+import { validarPerfilCampos, type ErrosCamposAuth } from "../../utilitarios/validacaoAuth";
 import { ConsentBox } from "./ConsentBox";
 import { LocationFields } from "./LocationFields";
 import { ProfileFields } from "./ProfileFields";
@@ -44,6 +44,48 @@ function aplicarAceiteGeral(perfil: DadosPerfilCadastro): DadosPerfilCadastro {
   };
 }
 
+type CorpoErroPerfil = {
+  erro?: string;
+  error?: string;
+  message?: string;
+  code?: string;
+};
+
+type ErroPerfil = {
+  code?: string;
+  message?: string;
+  status?: number;
+  context?: {
+    json?: () => Promise<CorpoErroPerfil>;
+  };
+};
+
+async function traduzirErroPerfil(erro: unknown): Promise<string> {
+  const erroPerfil = erro as ErroPerfil;
+  const corpo = await erroPerfil.context?.json?.().catch(() => null);
+  const status = Number(erroPerfil.status ?? 0);
+  const codigo = String(corpo?.code ?? erroPerfil.code ?? "").toLowerCase();
+  const mensagem = String(corpo?.erro ?? corpo?.message ?? corpo?.error ?? erroPerfil.message ?? "").trim();
+
+  if (status === 401 || status === 403 || codigo.includes("auth")) {
+    return "Sua sessão expirou. Entre novamente para completar o perfil.";
+  }
+
+  if (status === 409 || codigo.includes("duplicate")) {
+    return "Já existe um perfil cadastrado para esta conta. Recarregue a página e tente novamente.";
+  }
+
+  if (status === 429 || codigo.includes("rate")) {
+    return "Muitas tentativas em pouco tempo. Aguarde um momento e tente novamente.";
+  }
+
+  if (mensagem) {
+    return mensagem;
+  }
+
+  return "Não foi possível salvar seu perfil agora. Verifique os dados e tente novamente.";
+}
+
 export function CompleteProfilePage() {
   const { usuario, recarregarPerfil } = useAuth();
   const [perfil, setPerfil] = useState<DadosPerfilCadastro>(() =>
@@ -80,7 +122,7 @@ export function CompleteProfilePage() {
       await completarPerfilSocial(usuario.id, perfilComAceite);
       await recarregarPerfil();
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro));
+      setMensagem(await traduzirErroPerfil(erro));
     } finally {
       setCarregando(false);
     }
