@@ -857,7 +857,7 @@ export function MapaAltimetria({
         circlemarker: false,
         polyline: { shapeOptions: { color: "#2f6f4e", weight: 3 } },
         polygon: { allowIntersection: false, shapeOptions: { color: "#2f6f4e", weight: 2 } },
-        rectangle: { shapeOptions: { color: "#1f6f8b", weight: 2 } },
+        rectangle: false,
         circle: { shapeOptions: { color: "#c47a25", weight: 2 } },
         marker: { icon: iconeMarcadorVermelho }
       },
