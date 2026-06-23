@@ -4,6 +4,7 @@ import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { LocationFields } from "../auth/LocationFields";
 import { WhatsAppField } from "../auth/WhatsAppField";
 import { InfoTooltip } from "../ui/InfoTooltip";
+import { ToastAlerta } from "../ui/ToastAlerta";
 import { useAuth } from "../../context/AuthContext";
 import { obterInformacaoCliente } from "../../servicos/clientInfoService";
 import { salvarPerfilUsuario } from "../../servicos/profileService";
@@ -109,6 +110,7 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
     countryCode: obterPaisWhatsAppConta(perfil?.whatsapp)
   }));
   const [perfilEditado, setPerfilEditado] = useState<DadosPerfilCadastro>(() => criarPerfilEditavel(perfil));
+  const alertaTemporario = erro ?? mensagem;
 
   function alterarPerfilEditado(campo: keyof DadosPerfilCadastro, valor: string | boolean) {
     setPerfilEditado((atual) => ({ ...atual, [campo]: valor }));
@@ -275,8 +277,15 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
         <button type="button" className="botao-secundario" onClick={aoVoltar}>Voltar</button>
       </section>
 
-      {erro && <div className="auth-feedback erro" role="alert">{erro}</div>}
-      {mensagem && <div className="auth-feedback sucesso" role="status">{mensagem}</div>}
+      <ToastAlerta
+        key={alertaTemporario ?? "sem-alerta"}
+        mensagem={alertaTemporario}
+        tipo={erro ? "erro" : "sucesso"}
+        aoFechar={() => {
+          setErro(null);
+          setMensagem(null);
+        }}
+      />
 
       <section className="configuracoes-grade">
         <form className="configuracoes-bloco" onSubmit={salvarPerfil}>
