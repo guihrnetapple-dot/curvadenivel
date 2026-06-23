@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   resend: vi.fn(),
   salvarPerfilUsuario: vi.fn(),
   signInWithPassword: vi.fn(),
+  updateUser: vi.fn(),
   signOut: vi.fn(),
   invoke: vi.fn()
 }));
@@ -16,6 +17,7 @@ vi.mock("../lib/supabaseClient", () => ({
       signUp: mocks.signUp,
       resend: mocks.resend,
       signInWithPassword: mocks.signInWithPassword,
+      updateUser: mocks.updateUser,
       signOut: mocks.signOut
     },
     functions: {
@@ -38,6 +40,7 @@ import {
   obterUltimoReenvioConfirmacao,
   restaurarPerfilCadastroInicial,
   restaurarPerfilConfirmacaoPendente,
+  reautenticarUsuario,
   reenviarCodigoConfirmacao
 } from "./authService";
 
@@ -217,6 +220,18 @@ describe("authService", () => {
     await entrarComEmailSenha("usuario@exemplo.com", "senha123", true);
 
     expect(localStorage.getItem("auth.loginPersistenteNestaMaquina")).toBe("true");
+  });
+
+  it("reautentica o usuário com e-mail normalizado antes de operações sensíveis", async () => {
+    mocks.signInWithPassword.mockResolvedValueOnce({ error: null });
+
+    await reautenticarUsuario("USUARIO@EXEMPLO.COM", "senha-atual");
+
+    expect(mocks.signInWithPassword).toHaveBeenCalledWith({
+      email: "usuario@exemplo.com",
+      password: "senha-atual"
+    });
+    expect(localStorage.getItem("auth.loginPersistenteNestaMaquina")).toBeNull();
   });
 
   it("registra cooldown após reenviar código", async () => {

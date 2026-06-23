@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { obterInformacaoCliente } from "../../servicos/clientInfoService";
 import { salvarPerfilUsuario } from "../../servicos/profileService";
-import { atualizarSenha, salvarDesafioEmailAppPendente } from "../../servicos/authService";
+import { atualizarSenha, reautenticarUsuario, salvarDesafioEmailAppPendente } from "../../servicos/authService";
 import { solicitarCodigoEmailAtual, traduzirErroVerificacao } from "../../servicos/verificationService";
 import type { DadosPerfilCadastro } from "../../tipos/autenticacao";
 import { validarConfirmacaoSenha, validarPerfilObrigatorio, validarSenha } from "../../utilitarios/validacaoAuth";
@@ -25,6 +25,8 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const [senhaAtualPerfil, setSenhaAtualPerfil] = useState("");
+  const [senhaAtualSeguranca, setSenhaAtualSeguranca] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
   const [perfilEditado, setPerfilEditado] = useState(() => ({
@@ -39,6 +41,15 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
     if (!usuario || !perfil) return;
     setErro(null);
     setMensagem(null);
+    const emailReautenticacao = emailAtual || usuario.email || "";
+    if (!emailReautenticacao) {
+      setErro("Não foi possível confirmar sua conta para salvar as alterações.");
+      return;
+    }
+    if (!senhaAtualPerfil) {
+      setErro("Informe sua senha atual para salvar as alterações.");
+      return;
+    }
 
     const dados: DadosPerfilCadastro = {
       ...perfil,
@@ -56,6 +67,7 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
 
     setSalvandoPerfil(true);
     try {
+      await reautenticarUsuario(emailReautenticacao, senhaAtualPerfil);
       await salvarPerfilUsuario(usuario.id, dados, await obterInformacaoCliente(), {
         accepted_terms_at: perfil.accepted_terms_at,
         accepted_privacy_policy_at: perfil.accepted_privacy_policy_at,
@@ -65,8 +77,9 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
       await recarregarPerfil();
       setMensagem("Alterações salvas.");
     } catch {
-      setErro("Não foi possível salvar as alterações.");
+      setErro("Não foi possível salvar as alterações. Confira sua senha atual e tente novamente.");
     } finally {
+      setSenhaAtualPerfil("");
       setSalvandoPerfil(false);
     }
   }
@@ -90,8 +103,18 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
 
   async function trocarSenha(evento: FormEvent) {
     evento.preventDefault();
+    if (!usuario) return;
     setErro(null);
     setMensagem(null);
+    const emailReautenticacao = emailAtual || usuario.email || "";
+    if (!emailReautenticacao) {
+      setErro("Não foi possível confirmar sua conta para atualizar a senha.");
+      return;
+    }
+    if (!senhaAtualSeguranca) {
+      setErro("Informe sua senha atual para criar uma nova senha.");
+      return;
+    }
     const erroSenha = validarSenha(novaSenha) || validarConfirmacaoSenha(novaSenha, confirmacaoSenha);
     if (erroSenha) {
       setErro(erroSenha);
@@ -99,13 +122,15 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
     }
     setAlterandoSenha(true);
     try {
+      await reautenticarUsuario(emailReautenticacao, senhaAtualSeguranca);
       await atualizarSenha(novaSenha);
       setNovaSenha("");
       setConfirmacaoSenha("");
       setMensagem("Senha atualizada.");
     } catch {
-      setErro("Não foi possível atualizar a senha.");
+      setErro("Não foi possível atualizar a senha. Confira sua senha atual e tente novamente.");
     } finally {
+      setSenhaAtualSeguranca("");
       setAlterandoSenha(false);
     }
   }
@@ -130,6 +155,7 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
           <label>Profissão<input value={perfilEditado.profession} onChange={(e) => setPerfilEditado((a) => ({ ...a, profession: e.target.value }))} /></label>
           <label>Área de atuação<input value={perfilEditado.work_area} onChange={(e) => setPerfilEditado((a) => ({ ...a, work_area: e.target.value }))} /></label>
           <label>Empresa<input value={perfilEditado.company_name} onChange={(e) => setPerfilEditado((a) => ({ ...a, company_name: e.target.value }))} /></label>
+          <label>Senha atual<input type="password" value={senhaAtualPerfil} onChange={(e) => setSenhaAtualPerfil(e.target.value)} autoComplete="current-password" required /></label>
           <button type="submit" disabled={salvandoPerfil}>{salvandoPerfil ? "Salvando..." : "Salvar alterações"}</button>
         </form>
 
@@ -151,6 +177,7 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
 
         <form className="configuracoes-bloco" onSubmit={trocarSenha}>
           <h2>Segurança</h2>
+          <label>Senha atual<input type="password" value={senhaAtualSeguranca} onChange={(e) => setSenhaAtualSeguranca(e.target.value)} autoComplete="current-password" required /></label>
           <label>Nova senha<input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" /></label>
           <label>Confirmar nova senha<input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)} autoComplete="new-password" /></label>
           <button type="submit" disabled={alterandoSenha}>{alterandoSenha ? "Atualizando..." : "Atualizar senha"}</button>

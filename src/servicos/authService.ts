@@ -232,6 +232,28 @@ export async function entrarComEmailSenha(email: string, password: string, mante
   });
 }
 
+export async function reautenticarUsuario(email: string, password: string) {
+  const supabase = obterSupabase();
+  const emailNormalizado = normalizarEmail(email);
+  const { error } = await supabase.auth.signInWithPassword({
+    email: emailNormalizado,
+    password
+  });
+
+  if (error) {
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "reautenticacao_falha",
+      email: emailNormalizado
+    });
+    throw error;
+  }
+
+  registrarEventoAuditoriaSemBloquear({
+    event_type: "reautenticacao_sucesso",
+    email: emailNormalizado
+  });
+}
+
 export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<ResultadoCadastro> {
   const supabase = obterSupabase();
   const email = normalizarEmail(dados.email);
