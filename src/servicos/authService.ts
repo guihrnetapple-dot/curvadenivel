@@ -364,25 +364,6 @@ export async function reenviarCodigoConfirmacao(email: string) {
   marcarUltimoReenvioConfirmacao();
 }
 
-export async function entrarComGoogle(manterLogin = false) {
-  definirLoginPersistente(manterLogin);
-  const supabase = obterSupabase();
-  registrarEventoAuditoriaSemBloquear({
-    event_type: "login_google_iniciado",
-    metadata: { manterLogin }
-  });
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${obterUrlBase()}/home`
-    }
-  });
-
-  if (error) {
-    throw error;
-  }
-}
-
 export async function enviarRecuperacaoSenha(email: string) {
   const supabase = obterSupabase();
   const emailNormalizado = normalizarEmail(email);

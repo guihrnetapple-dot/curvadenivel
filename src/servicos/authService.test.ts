@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   resend: vi.fn(),
   salvarPerfilUsuario: vi.fn(),
   signInWithPassword: vi.fn(),
-  signInWithOAuth: vi.fn(),
   signOut: vi.fn(),
   invoke: vi.fn()
 }));
@@ -17,7 +16,6 @@ vi.mock("../lib/supabaseClient", () => ({
       signUp: mocks.signUp,
       resend: mocks.resend,
       signInWithPassword: mocks.signInWithPassword,
-      signInWithOAuth: mocks.signInWithOAuth,
       signOut: mocks.signOut
     },
     functions: {

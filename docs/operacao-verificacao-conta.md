@@ -2,7 +2,7 @@
 
 ## Fluxo atual
 
-- O banco de dados continua responsável por conta, senha, sessão, Google e recuperação de senha.
+- O banco de dados continua responsável por conta, senha, sessão e recuperação de senha.
 - A verificação de e-mail da aplicação usa Edge Functions autenticadas.
 - O código tem 6 dígitos, expira em 10 minutos e é armazenado apenas como HMAC.
 - O usuário pode pular a confirmação e usar o sistema.
