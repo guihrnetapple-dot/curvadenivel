@@ -1292,7 +1292,7 @@ export function MapaAltimetria({
         const tipo = feature?.properties?.tipo;
         return tipo === "mestra"
           ? {
-              color: "#5f3d22",
+              color: "#dc2626",
               weight: 2.4,
               opacity: 0.95,
               lineCap: "round",
@@ -1302,9 +1302,9 @@ export function MapaAltimetria({
               className: "curva-nivel-mestra"
             }
           : {
-              color: "#9a7448",
+              color: "#f97316",
               weight: 1.4,
-              opacity: 0.78,
+              opacity: 0.88,
               lineCap: "round",
               lineJoin: "round",
               smoothFactor: 0.2,

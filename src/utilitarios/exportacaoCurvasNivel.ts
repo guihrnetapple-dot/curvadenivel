@@ -2,6 +2,19 @@ import JSZip from "jszip";
 
 import type { CurvasNivelGeoJson, FeatureCurvaNivel, ParLngLat } from "../tipos/altimetria";
 
+const ESTILOS_CURVAS_NIVEL = {
+  normal: {
+    id: "curva-normal",
+    corKml: "ff1673f9",
+    largura: 2
+  },
+  mestra: {
+    id: "curva-mestra",
+    corKml: "ff2626dc",
+    largura: 3
+  }
+} as const;
+
 function validarCurvasNivel(curvasNivel: CurvasNivelGeoJson | null): CurvasNivelGeoJson {
   if (!curvasNivel || curvasNivel.features.length === 0) {
     throw new Error("Gere curvas de nível antes de exportar.");
@@ -44,9 +57,11 @@ function coordenadasKml(curva: FeatureCurvaNivel): string {
 
 function criarPlacemarkKml(curva: FeatureCurvaNivel): string {
   const { elevacao, tipo, fonte, comprimentoMetros, fechada } = curva.properties;
+  const estilo = tipo === "mestra" ? ESTILOS_CURVAS_NIVEL.mestra : ESTILOS_CURVAS_NIVEL.normal;
   return `
     <Placemark>
       <name>Curva ${escaparXml(elevacao)} m</name>
+      <styleUrl>#${estilo.id}</styleUrl>
       <ExtendedData>
         <Data name="elevacao"><value>${escaparXml(elevacao)}</value></Data>
         <Data name="tipo"><value>${escaparXml(tipo)}</value></Data>
@@ -69,6 +84,18 @@ export function gerarCurvasNivelKml(curvasNivel: CurvasNivelGeoJson): string {
   <Document>
     <name>Curvas de nível</name>
     <description>Curvas de nível georreferenciadas em EPSG:4326.</description>
+    <Style id="${ESTILOS_CURVAS_NIVEL.normal.id}">
+      <LineStyle>
+        <color>${ESTILOS_CURVAS_NIVEL.normal.corKml}</color>
+        <width>${ESTILOS_CURVAS_NIVEL.normal.largura}</width>
+      </LineStyle>
+    </Style>
+    <Style id="${ESTILOS_CURVAS_NIVEL.mestra.id}">
+      <LineStyle>
+        <color>${ESTILOS_CURVAS_NIVEL.mestra.corKml}</color>
+        <width>${ESTILOS_CURVAS_NIVEL.mestra.largura}</width>
+      </LineStyle>
+    </Style>
     ${placemarks}
   </Document>
 </kml>`;

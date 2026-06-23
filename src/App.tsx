@@ -31,7 +31,6 @@ import {
   exportarRelatorioHtml
 } from "./utilitarios/exportacao";
 import {
-  exportarCurvasNivelDxf,
   exportarCurvasNivelKml,
   exportarCurvasNivelKmz
 } from "./utilitarios/exportacaoCurvasNivel";
@@ -583,7 +582,6 @@ export function Aplicacao() {
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
           aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
           aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
-          aoExportarCurvasDxf={() => executarExportacao(() => exportarCurvasNivelDxf(curvasNivel))}
           aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
           aoCriarMarcadorTecnico={criarMarcadorTecnico}
         />

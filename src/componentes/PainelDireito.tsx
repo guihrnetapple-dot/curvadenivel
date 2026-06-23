@@ -74,7 +74,6 @@ interface PropriedadesPainelDireito {
   aoExportarRelatorio: () => void;
   aoExportarCurvasKml: () => void;
   aoExportarCurvasKmz: () => void;
-  aoExportarCurvasDxf: () => void;
   aoExportarKml: () => void;
   aoCriarMarcadorTecnico: (metrica: MetricaPropriedade, elementoOrigem: ElementoMapa) => void;
 }
@@ -151,7 +150,6 @@ export function PainelDireito({
   aoExportarRelatorio,
   aoExportarCurvasKml,
   aoExportarCurvasKmz,
-  aoExportarCurvasDxf,
   aoExportarKml,
   aoCriarMarcadorTecnico
 }: PropriedadesPainelDireito) {
@@ -431,15 +429,6 @@ export function PainelDireito({
                 }}
               >
                 KMZ
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuExportacaoCurvasAberto(false);
-                  aoExportarCurvasDxf();
-                }}
-              >
-                DXF
               </button>
             </div>
           )}
