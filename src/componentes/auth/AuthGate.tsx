@@ -17,6 +17,7 @@ import { LoginPage } from "./LoginPage";
 const AuthTerrainPanel = lazy(() => import("./AuthTerrainPanel").then((modulo) => ({ default: modulo.AuthTerrainPanel })));
 const ForgotPasswordPage = lazy(() => import("./ForgotPasswordPage").then((modulo) => ({ default: modulo.ForgotPasswordPage })));
 const ConfirmEmailPage = lazy(() => import("./ConfirmEmailPage").then((modulo) => ({ default: modulo.ConfirmEmailPage })));
+const CompleteProfilePage = lazy(() => import("./CompleteProfilePage").then((modulo) => ({ default: modulo.CompleteProfilePage })));
 const RegisterPage = lazy(() => import("./RegisterPage").then((modulo) => ({ default: modulo.RegisterPage })));
 const ResetPasswordPage = lazy(() => import("./ResetPasswordPage").then((modulo) => ({ default: modulo.ResetPasswordPage })));
 
@@ -171,7 +172,7 @@ function AutenticacaoIndisponivel() {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { carregando, configurado, usuario, erroInicializacao, recarregarPerfil, tentarNovamente } = useAuth();
+  const { carregando, configurado, usuario, emailVerificado, perfilPendente, erroInicializacao, recarregarPerfil, tentarNovamente } = useAuth();
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
   const [avisoLogin, setAvisoLogin] = useState<string | null>(() => mensagemUrl ? null : detectarMensagemLogin());
@@ -242,6 +243,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (usuario && !emailVerificado && !resetandoSenha) {
+      setTela("confirmacao-email");
+      setEmailConfirmacao(usuario.email ?? obterEmailConfirmacaoPendente());
+      setModoConfirmacao("app");
+      if (!avisoConfirmacao) {
+        setAvisoConfirmacao("Seu e-mail ainda não foi confirmado. Digite o código enviado para ativar sua conta.");
+      }
+      atualizarUrl("/confirmaremail", true);
+      atualizarTitulo("/confirmaremail");
+      return;
+    }
+
     if (usuario && caminho === "/confirmaremail") {
       setTela("confirmacao-email");
       atualizarTitulo("/confirmaremail");
@@ -263,7 +276,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (caminho === "/" || caminhoProtegido(caminho)) {
       navegarAuth("login", true);
     }
-  }, [carregando, configurado, mensagemUrl, navegarAuth, resetandoSenha, usuario]);
+  }, [avisoConfirmacao, carregando, configurado, emailVerificado, mensagemUrl, navegarAuth, resetandoSenha, usuario]);
 
   if (carregando || finalizandoConfirmacaoEmail) {
     return <CarregamentoInicial />;
@@ -295,6 +308,35 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
+  if (usuario && !emailVerificado && !resetandoSenha) {
+    return (
+      <AuthShell cadastro>
+        <Suspense fallback={<CarregandoTelaAuth />}>
+          <ConfirmEmailPage
+            email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
+            modo="app"
+            purpose={desafioEmailApp?.purpose ?? "signup_email"}
+            challengeId={desafioEmailApp?.challengeId ?? null}
+            destinationMasked={desafioEmailApp?.destinationMasked ?? null}
+            avisoInicial={avisoConfirmacao ?? "Seu e-mail ainda não foi confirmado. Digite o código enviado para ativar sua conta."}
+            aoEmailDefinido={(email) => setEmailConfirmacao(email)}
+            aoConfirmado={() => {
+              limparConfirmacaoPendente();
+              setDesafioEmailApp(null);
+              setAvisoConfirmacao(null);
+              void recarregarPerfil().finally(() => {
+                atualizarUrl("/home", true);
+                atualizarTitulo("/home");
+                setTela("login");
+              });
+            }}
+            aoVoltarCadastro={() => navegarAuth("cadastro")}
+          />
+        </Suspense>
+      </AuthShell>
+    );
+  }
+
   if (usuario && tela === "confirmacao-email") {
     return (
       <AuthShell cadastro>
@@ -317,13 +359,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 setTela("login");
               });
             }}
-            aoPular={() => {
-              atualizarUrl("/home", true);
-              atualizarTitulo("/home");
-              setTela("login");
-            }}
             aoVoltarCadastro={() => navegarAuth("cadastro")}
           />
+        </Suspense>
+      </AuthShell>
+    );
+  }
+
+  if (usuario && emailVerificado && perfilPendente) {
+    return (
+      <AuthShell cadastro>
+        <Suspense fallback={<CarregandoTelaAuth />}>
+          <CompleteProfilePage />
         </Suspense>
       </AuthShell>
     );

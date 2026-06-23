@@ -941,21 +941,6 @@ input[type="checkbox"] {
   cursor: pointer;
 }
 
-.banner-verificacao-email {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 16px;
-  border-bottom: 1px solid rgba(245, 158, 11, 0.35);
-  background: rgba(245, 158, 11, 0.14);
-  color: var(--texto);
-}
-
-.banner-verificacao-email span {
-  font-weight: 700;
-}
-
 .pagina-configuracoes-conta {
   height: calc(100dvh - 70px);
   min-height: 0;
@@ -1069,7 +1054,6 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 760px) {
-  .banner-verificacao-email,
   .configuracoes-cabecalho {
     align-items: stretch;
     flex-direction: column;

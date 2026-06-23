@@ -57,7 +57,6 @@ export interface InformacaoCliente {
 }
 
 export type ResultadoCadastro =
-  | { status: "autenticado" }
   | {
       status: "verificacao_app";
       email: string;

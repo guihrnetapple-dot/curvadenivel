@@ -164,7 +164,7 @@ export function obterUltimoReenvioConfirmacao(): number {
   return Number(sessionStorage.getItem(CHAVE_ULTIMO_REENVIO) ?? 0);
 }
 
-function marcarUltimoReenvioConfirmacao() {
+export function marcarUltimoReenvioConfirmacao() {
   sessionStorage.setItem(CHAVE_ULTIMO_REENVIO, String(Date.now()));
 }
 
@@ -264,7 +264,6 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
     email,
     password: dados.password,
     options: {
-      emailRedirectTo: `${obterUrlBase()}/confirmaremail?tipo=cadastro`,
       data: {
         cadastro_inicial: true,
         cadastro_perfil_pendente: {
@@ -299,30 +298,29 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
       metadata: { metodo: "email" }
     });
 
-    if (modoVerificacaoEmail() !== "native") {
-      try {
-        const desafio = await solicitarCodigoEmailAtual("signup_email");
-        salvarDesafioEmailAppPendente(email, desafio.challengeId, desafio.destinationMasked);
-        return {
-          status: "verificacao_app",
-          email,
-          challengeId: desafio.challengeId,
-          destinationMasked: desafio.destinationMasked
-        };
-      } catch (erro) {
-        const mensagem = traduzirErroVerificacao(erro);
-        salvarDesafioEmailAppPendente(email, null, null);
-        return {
-          status: "verificacao_app",
-          email,
-          challengeId: null,
-          destinationMasked: null,
-          envioErro: mensagem
-        };
-      }
+    try {
+      const desafio = await solicitarCodigoEmailAtual("signup_email");
+      salvarDesafioEmailAppPendente(email, desafio.challengeId, desafio.destinationMasked);
+      salvarConfirmacaoPendente(email, dados);
+      marcarUltimoReenvioConfirmacao();
+      return {
+        status: "verificacao_app",
+        email,
+        challengeId: desafio.challengeId,
+        destinationMasked: desafio.destinationMasked
+      };
+    } catch (erro) {
+      const mensagem = traduzirErroVerificacao(erro);
+      salvarDesafioEmailAppPendente(email, null, null);
+      salvarConfirmacaoPendente(email, dados);
+      return {
+        status: "verificacao_app",
+        email,
+        challengeId: null,
+        destinationMasked: null,
+        envioErro: mensagem
+      };
     }
-
-    return { status: "autenticado" };
   }
 
   if (modoVerificacaoEmail() === "app") {
@@ -351,7 +349,7 @@ export async function confirmarEmailComCodigo(email: string, token: string) {
   const { data, error } = await supabase.auth.verifyOtp({
     email: normalizarEmail(email),
     token,
-    type: "signup"
+    type: "email"
   });
 
   if (error) {
@@ -369,10 +367,7 @@ export async function reenviarCodigoConfirmacao(email: string) {
   const supabase = obterSupabase();
   const { error } = await supabase.auth.resend({
     type: "signup",
-    email: normalizarEmail(email),
-    options: {
-      emailRedirectTo: `${obterUrlBase()}/confirmaremail?tipo=cadastro`
-    }
+    email: normalizarEmail(email)
   });
 
   if (error) {

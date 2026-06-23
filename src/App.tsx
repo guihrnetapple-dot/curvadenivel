@@ -58,7 +58,7 @@ function lerLocalStorage<T>(chave: string, fallback: T): T {
 }
 
 export function Aplicacao() {
-  const { usuario, perfil: perfilUsuario, emailVerificado } = useAuth();
+  const { usuario, perfil: perfilUsuario } = useAuth();
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
   const elementosRef = useRef<ElementoMapa[]>([]);
   const historicoElementosRef = useRef<ElementoMapa[][]>([]);
@@ -97,7 +97,6 @@ export function Aplicacao() {
   const [rotulosMapaAtivos, setRotulosMapaAtivos] = useState(true);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
   const [rotaAplicacao, setRotaAplicacao] = useState(() => window.location.pathname);
-  const [bannerEmailFechado, setBannerEmailFechado] = useState(false);
   const [painelVisivel, setPainelVisivel] = useState(true);
   const [larguraPainel, setLarguraPainel] = useState(LARGURA_PAINEL_PADRAO);
 
@@ -569,14 +568,6 @@ export function Aplicacao() {
         </Suspense>
       ) : (
         <>
-          {!emailVerificado && !bannerEmailFechado && (
-            <div className="banner-verificacao-email">
-              <span>Seu e-mail ainda não foi confirmado. Confirme agora para proteger sua conta.</span>
-              <button type="button" onClick={() => navegarAplicacao("/confirmaremail")}>Confirmar e-mail</button>
-              <button type="button" className="botao-secundario" onClick={() => setBannerEmailFechado(true)}>Agora não</button>
-            </div>
-          )}
-
       <main
         className={painelVisivel ? "area-trabalho" : "area-trabalho painel-lateral-oculto"}
         style={{ "--largura-painel": `${larguraPainel}px` } as CSSProperties}

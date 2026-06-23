@@ -95,12 +95,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const emailAtual = sessao?.user.email?.trim().toLowerCase() ?? null;
-  const emailVerificado = Boolean(
+  const emailConfirmadoNoPerfil = Boolean(
     perfil?.email_verified_at &&
       perfil.verified_email &&
       emailAtual &&
       perfil.verified_email.trim().toLowerCase() === emailAtual
   );
+  const emailConfirmadoNoSupabase = Boolean(sessao?.user.email_confirmed_at);
+  const emailVerificado = emailConfirmadoNoPerfil || (!perfil && emailConfirmadoNoSupabase);
   const whatsappVerificado = Boolean(
     perfil?.whatsapp_verified_at &&
       perfil.verified_whatsapp &&

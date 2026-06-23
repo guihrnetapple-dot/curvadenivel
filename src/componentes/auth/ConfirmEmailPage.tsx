@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   confirmarEmailComCodigo,
+  marcarUltimoReenvioConfirmacao,
   obterUltimoReenvioConfirmacao,
   reenviarCodigoConfirmacao,
   salvarConfirmacaoPendente,
@@ -14,7 +15,6 @@ import {
   validarCodigoEmail
 } from "../../servicos/verificationService";
 import { normalizarEmail, traduzirErroAuth, validarEmail } from "../../utilitarios/validacaoAuthBasica";
-import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {
   email?: string | null;
@@ -25,7 +25,6 @@ interface Props {
   avisoInicial?: string | null;
   aoEmailDefinido: (email: string) => void;
   aoConfirmado: () => void;
-  aoPular?: () => void;
   aoVoltarCadastro: () => void;
 }
 
@@ -45,7 +44,6 @@ export function ConfirmEmailPage({
   avisoInicial,
   aoEmailDefinido,
   aoConfirmado,
-  aoPular,
   aoVoltarCadastro
 }: Props) {
   const [emailDigitado, setEmailDigitado] = useState(email ?? "");
@@ -86,7 +84,30 @@ export function ConfirmEmailPage({
     setCodigo(valor.replace(/\D/g, "").slice(0, 6));
   }
 
+  function traduzirErroCodigo(erro: unknown): string {
+    const registro = erro as { code?: string; status?: number; message?: string };
+    const codigoErro = String(registro?.code ?? "").toLowerCase();
+    const mensagemErro = String(registro?.message ?? "").toLowerCase();
+
+    if (registro?.status === 429 || codigoErro.includes("rate") || mensagemErro.includes("rate") || mensagemErro.includes("too many")) {
+      return "Muitas solicitações em pouco tempo. Aguarde alguns minutos e tente novamente.";
+    }
+    if (codigoErro.includes("expired") || mensagemErro.includes("expired") || mensagemErro.includes("expir")) {
+      return "Código expirado. Solicite um novo código e tente novamente.";
+    }
+    if (codigoErro.includes("invalid") || mensagemErro.includes("invalid") || mensagemErro.includes("inválido") || mensagemErro.includes("invalido")) {
+      return "Código inválido. Verifique os 6 dígitos enviados por e-mail e tente novamente.";
+    }
+
+    return modo === "app" ? traduzirErroVerificacao(erro) : traduzirErroAuth(erro);
+  }
+
   async function solicitarCodigoApp() {
+    if (segundosRestantes > 0) {
+      setMensagem(`Aguarde ${segundosRestantes}s para solicitar outro código.`);
+      return;
+    }
+
     setMensagem(null);
     setSucesso(null);
     setCarregando(true);
@@ -97,9 +118,11 @@ export function ConfirmEmailPage({
       if (emailConfirmacao) {
         salvarDesafioEmailAppPendente(emailConfirmacao, resultado.challengeId, resultado.destinationMasked, purpose);
       }
+      marcarUltimoReenvioConfirmacao();
+      setAgora(Date.now());
       setSucesso("Enviamos um novo código para seu e-mail.");
     } catch (erro) {
-      setMensagem(traduzirErroVerificacao(erro));
+      setMensagem(traduzirErroCodigo(erro));
     } finally {
       setCarregando(false);
     }
@@ -131,7 +154,7 @@ export function ConfirmEmailPage({
       setAgora(Date.now());
       setSucesso("Enviamos um código de confirmação para seu e-mail.");
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro));
+      setMensagem(traduzirErroCodigo(erro));
     } finally {
       setCarregando(false);
     }
@@ -166,7 +189,7 @@ export function ConfirmEmailPage({
       }
       aoConfirmado();
     } catch (erro) {
-      setMensagem(modo === "app" ? traduzirErroVerificacao(erro) : traduzirErroAuth(erro));
+      setMensagem(traduzirErroCodigo(erro));
     } finally {
       setCarregando(false);
     }
@@ -187,7 +210,7 @@ export function ConfirmEmailPage({
       setAgora(Date.now());
       setSucesso("Enviamos um novo código para seu e-mail.");
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro));
+      setMensagem(traduzirErroCodigo(erro));
     } finally {
       setCarregando(false);
     }
@@ -198,7 +221,7 @@ export function ConfirmEmailPage({
       <form className="auth-formulario auth-confirmacao-email" onSubmit={definirEmailParaConfirmacao} noValidate>
         <div className="auth-formulario-topo">
           <strong>Confirme seu e-mail</strong>
-          <span>Informe o e-mail usado no cadastro para receber um código de confirmação.</span>
+          <span>Enviamos um código de confirmação para seu e-mail. Digite o código abaixo para ativar sua conta.</span>
         </div>
 
         {mensagem && <div className="auth-feedback erro" role="alert">{mensagem}</div>}
@@ -217,7 +240,7 @@ export function ConfirmEmailPage({
         </label>
 
         <button type="submit" disabled={carregando || segundosRestantes > 0}>
-          {carregando ? "Enviando..." : segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Enviar código"}
+          {carregando ? "Enviando..." : segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Reenviar código"}
         </button>
         <button className="auth-botao-secundario" type="button" onClick={aoVoltarCadastro} disabled={carregando}>
           Voltar ao cadastro
@@ -232,8 +255,8 @@ export function ConfirmEmailPage({
         <strong>Confirme seu e-mail</strong>
         <span>
           {emailMascarado
-            ? `Digite o código de 6 dígitos enviado para ${emailMascarado}.`
-            : "Solicite um código para confirmar seu e-mail."}
+            ? `Enviamos um código de confirmação para ${emailMascarado}. Digite o código abaixo para ativar sua conta.`
+            : "Enviamos um código de confirmação para seu e-mail. Digite o código abaixo para ativar sua conta."}
         </span>
       </div>
 
@@ -259,22 +282,11 @@ export function ConfirmEmailPage({
       </label>
 
       <button type="submit" disabled={carregando || (modo === "app" && !desafioId)}>
-        {carregando ? "Confirmando..." : "Confirmar e continuar"}
+        {carregando ? "Confirmando..." : "Confirmar código"}
       </button>
-      <button className="auth-botao-secundario" type="button" onClick={reenviar} disabled={carregando || (modo === "native" && segundosRestantes > 0)}>
-        {modo === "native" && segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Reenviar código"}
+      <button className="auth-botao-secundario" type="button" onClick={reenviar} disabled={carregando || segundosRestantes > 0}>
+        {segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Reenviar código"}
       </button>
-      {modo === "app" && aoPular && (
-        <>
-          <div className="linha-ajuda-formulario">
-            <span>Confirmação depois</span>
-            <InfoTooltip texto="Você poderá confirmar o e-mail depois nas configurações da sua conta." />
-          </div>
-          <button className="auth-botao-secundario" type="button" onClick={aoPular} disabled={carregando}>
-            Fazer isso depois
-          </button>
-        </>
-      )}
       {modo === "native" && (
         <button
           className="auth-botao-secundario"
