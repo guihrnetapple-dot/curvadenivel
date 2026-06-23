@@ -378,8 +378,8 @@ export function Aplicacao() {
       const resultado = await consultarPerfilElevacao(elemento.geometria);
       setPerfil(resultado);
       setAlerta({
-        tipo: resultado.estatisticas.limiteAmostrasAtingido ? "aviso" : "sucesso",
-        mensagem: resultado.estatisticas.avisoAmostragem ?? "Perfil de elevação calculado pelo backend."
+        tipo: "sucesso",
+        mensagem: "Perfil de elevação calculado."
       });
     } catch (erro) {
       setAlerta({
