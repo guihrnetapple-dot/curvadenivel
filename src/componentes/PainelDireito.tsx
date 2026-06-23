@@ -72,8 +72,6 @@ interface PropriedadesPainelDireito {
   aoAlternarCamadaImportada: (id: string) => void;
   aoAlternarCamadaCurvasNivel: () => void;
   aoExportarRelatorio: () => void;
-  aoExportarCsv: () => void;
-  aoExportarGeoJson: () => void;
   aoExportarCurvasKml: () => void;
   aoExportarCurvasKmz: () => void;
   aoExportarCurvasDxf: () => void;
@@ -151,8 +149,6 @@ export function PainelDireito({
   aoAlternarCamadaImportada,
   aoAlternarCamadaCurvasNivel,
   aoExportarRelatorio,
-  aoExportarCsv,
-  aoExportarGeoJson,
   aoExportarCurvasKml,
   aoExportarCurvasKmz,
   aoExportarCurvasDxf,
@@ -457,11 +453,9 @@ export function PainelDireito({
       <SecaoPainel titulo="Exportação" icone={<FileDown size={17} />} abertaInicialmente={false}>
         <div className="grade-exportacao">
           <button type="button" onClick={aoExportarRelatorio}>PDF</button>
-          <button type="button" onClick={aoExportarCsv}>CSV</button>
-          <button type="button" onClick={aoExportarGeoJson}>GeoJSON</button>
           <button type="button" onClick={aoExportarKml}>KML</button>
           <button type="button" onClick={() => window.print()}>Imagem do mapa</button>
-          <button type="button" onClick={aoExportarCsv}>Gráfico</button>
+          <button type="button" onClick={aoExportarRelatorio}>Gráfico</button>
         </div>
       </SecaoPainel>
     </aside>

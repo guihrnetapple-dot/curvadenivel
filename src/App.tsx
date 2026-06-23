@@ -27,9 +27,7 @@ import type {
   TemaVisual
 } from "./tipos/altimetria";
 import {
-  exportarDesenhosGeoJson,
   exportarDesenhosKml,
-  exportarPerfilCsv,
   exportarRelatorioHtml
 } from "./utilitarios/exportacao";
 import {
@@ -583,8 +581,6 @@ export function Aplicacao() {
           aoAlternarCamadaImportada={alternarCamadaImportada}
           aoAlternarCamadaCurvasNivel={() => setVisibilidadeCamadaCurvasNivel((valor) => !valor)}
           aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
-          aoExportarCsv={() => executarExportacao(() => exportarPerfilCsv(perfil))}
-          aoExportarGeoJson={() => executarExportacao(() => exportarDesenhosGeoJson(elementos, camadasImportadas))}
           aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
           aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
           aoExportarCurvasDxf={() => executarExportacao(() => exportarCurvasNivelDxf(curvasNivel))}
