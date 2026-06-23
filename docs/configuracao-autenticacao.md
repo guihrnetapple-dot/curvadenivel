@@ -1,6 +1,6 @@
 # Configuração de autenticação
 
-Estas etapas precisam ser aplicadas no painel do serviço de autenticação. O código do projeto prepara os redirecionamentos e a confirmação por código, mas não consegue alterar essas configurações externas sozinho.
+Estas etapas precisam ser aplicadas no painel da Supabase e nos provedores externos. O código prepara os redirecionamentos e o fluxo de confirmação por código, mas não consegue configurar domínio, SMTP, template e Twilio sozinho.
 
 ## URL Configuration
 
@@ -18,62 +18,108 @@ http://127.0.0.1:5173/**
 http://localhost:5173/**
 ```
 
-Inclua `http://localhost:3000/**` somente se alguma ferramenta de preview usada pelo time realmente abrir nessa porta.
+Inclua previews específicos da Vercel somente quando necessário. Evite wildcard amplo entre projetos.
 
-Para previews da Vercel, prefira permitir URLs específicas do projeto ou do branch quando possível. Se o painel exigir um padrão, use um padrão restrito ao projeto, por exemplo:
+## Modo de verificação de e-mail
 
-```text
-https://curvadenivel-guihrnetapple-dot.vercel.app/**
-https://curvadenivel-*.vercel.app/**
-```
-
-Não deixe `localhost` como Site URL de produção.
-
-## Template "Confirm signup"
-
-Configure o template em português usando o token, não um link direto.
-
-Assunto:
+Variável pública:
 
 ```text
-Seu código de confirmação — Curva de Nível
+VITE_EMAIL_VERIFICATION_MODE=auto
 ```
 
-Corpo sugerido:
+Modos:
+
+- `auto`: usa verificação da aplicação quando o cadastro já cria sessão; mantém fallback nativo quando a Supabase não retorna sessão.
+- `app`: força o fluxo da aplicação.
+- `native`: usa o fallback nativo da Supabase.
+
+Para o comportamento final, desative `Confirm email` nativo na Supabase apenas depois de:
+
+1. aplicar as migrations;
+2. publicar as Edge Functions;
+3. configurar secrets;
+4. configurar domínio e provedor de e-mail;
+5. testar cadastro, pular confirmação e confirmação posterior.
+
+## E-mail transacional próprio
+
+Não é possível enviar profissionalmente como `@vercel.app`. Use domínio controlado e verificado.
+
+Checklist manual:
+
+- criar conta no provedor escolhido;
+- validar domínio;
+- configurar SPF;
+- configurar DKIM;
+- publicar DMARC;
+- criar remetente `Curva de Nível <conta@dominio>`;
+- desativar rastreamento de clique para autenticação;
+- testar Gmail, Outlook e caixa corporativa.
+
+## SMTP personalizado da Supabase
+
+Configure SMTP personalizado no painel da Supabase para os e-mails nativos restantes:
+
+- recuperação de senha;
+- alteração de e-mail nativa, se ainda usada no fallback;
+- reautenticação;
+- convites;
+- avisos de segurança.
+
+Nunca versionar host, usuário, senha SMTP ou tokens.
+
+## Template "Confirm signup" para fallback nativo
+
+Enquanto o fallback nativo existir, remova `{{ .ConfirmationURL }}` e use somente o token:
 
 ```html
 <h1>Confirme seu cadastro</h1>
-<p>Use o código abaixo para confirmar seu e-mail e continuar o cadastro na Curva de Nível.</p>
+<p>Use o código abaixo para confirmar seu e-mail na Curva de Nível.</p>
 <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ .Token }}</p>
+<p>O código expira em breve e pode ser usado uma única vez.</p>
 <p>Se você não solicitou este cadastro, ignore esta mensagem.</p>
 ```
 
-Não inclua menções ao fornecedor de autenticação, "powered by" ou dados fornecidos pelo usuário sem escape.
+## Edge Functions
 
-## SMTP personalizado
-
-Para remover o remetente padrão do serviço de autenticação e usar a identidade "Curva de Nível", configure um SMTP próprio no painel.
-
-Campos necessários:
+Secrets necessários no projeto Supabase:
 
 ```text
-host=
-porta=
-usuário=
-senha=
-remetente=
-nome do remetente=Curva de Nível
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=
+EMAIL_FROM=
+EMAIL_FROM_NAME=Curva de Nível
+EMAIL_REPLY_TO=
+OTP_HMAC_SECRET=
+OTP_TTL_SECONDS=600
+OTP_RESEND_SECONDS=60
+OTP_MAX_ATTEMPTS=5
+ALLOWED_ORIGINS=https://curvadenivel.vercel.app,http://localhost:5173,http://127.0.0.1:5173
 ```
 
-Não salve credenciais SMTP no frontend, em `.env.example`, no GitHub ou em qualquer arquivo versionado.
+Funções:
 
-## Confirmação de e-mail
+```bash
+supabase functions deploy request-email-verification --project-ref nidjsgcqscjtodphyaic
+supabase functions deploy verify-email-code --project-ref nidjsgcqscjtodphyaic
+```
 
-Mantenha a confirmação de e-mail habilitada. Não habilite autoconfirmação apenas para contornar problemas de cadastro.
+## WhatsApp
 
-Revise no painel:
+A confirmação por WhatsApp depende de configuração manual no Twilio Verify:
 
-- limite de reenvio de e-mail;
-- expiração do código;
-- domínio de envio;
-- SPF, DKIM e DMARC quando houver domínio próprio.
+- criar Verify Service;
+- habilitar canal WhatsApp;
+- aprovar remetente exigido pela Meta/Twilio;
+- configurar países permitidos e antifraude;
+- adicionar secrets `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` e `TWILIO_VERIFY_SERVICE_SID`;
+- testar número real em E.164.
+
+## Rollback
+
+1. Definir `VITE_EMAIL_VERIFICATION_MODE=native`.
+2. Reativar `Confirm email` nativo.
+3. Manter tabelas/campos novos sem apagar dados.
+4. Reimplantar frontend.
+5. Monitorar logs de Auth, Edge Functions e provedor de e-mail.

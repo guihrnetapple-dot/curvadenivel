@@ -5,6 +5,7 @@ import type { DadosCadastro, DadosPerfilCadastro, PerfilUsuario, ResultadoCadast
 import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuth";
 import { obterInformacaoCliente } from "./clientInfoService";
 import { salvarPerfilUsuario } from "./profileService";
+import { solicitarCodigoEmailAtual, traduzirErroVerificacao } from "./verificationService";
 import {
   definirLoginPersistente,
   limparEmailLembrado,
@@ -17,11 +18,25 @@ const CHAVE_TELA_PENDENTE = "auth.telaPendente";
 const CHAVE_ULTIMO_REENVIO = "auth.ultimoReenvioConfirmacao";
 const CHAVE_PERFIL_PENDENTE = "auth.perfilConfirmacaoPendente";
 const TEMPO_MAXIMO_PERFIL_PENDENTE_MS = 24 * 60 * 60 * 1000;
+const CHAVE_DESAFIO_EMAIL_APP = "auth.desafioEmailApp";
 
 interface PerfilConfirmacaoPendente {
   email: string;
   criadoEm: number;
   perfil: DadosPerfilCadastro;
+}
+
+interface DesafioEmailAppPendente {
+  email: string;
+  challengeId: string | null;
+  destinationMasked: string | null;
+  purpose: "signup_email" | "verify_current_email";
+  criadoEm: number;
+}
+
+function modoVerificacaoEmail(): "auto" | "app" | "native" {
+  const modo = String(import.meta.env.VITE_EMAIL_VERIFICATION_MODE ?? "auto").trim().toLowerCase();
+  return modo === "app" || modo === "native" ? modo : "auto";
 }
 
 export function obterUrlBase(): string {
@@ -105,7 +120,44 @@ export function limparConfirmacaoPendente() {
   sessionStorage.removeItem(CHAVE_EMAIL_PENDENTE);
   sessionStorage.removeItem(CHAVE_TELA_PENDENTE);
   sessionStorage.removeItem(CHAVE_ULTIMO_REENVIO);
+  sessionStorage.removeItem(CHAVE_DESAFIO_EMAIL_APP);
   obterLocalStorage()?.removeItem(CHAVE_PERFIL_PENDENTE);
+}
+
+export function salvarDesafioEmailAppPendente(
+  email: string,
+  challengeId: string | null,
+  destinationMasked: string | null,
+  purpose: "signup_email" | "verify_current_email" = "signup_email"
+) {
+  const payload: DesafioEmailAppPendente = {
+    email: normalizarEmail(email),
+    challengeId,
+    destinationMasked,
+    purpose,
+    criadoEm: Date.now()
+  };
+  sessionStorage.setItem(CHAVE_DESAFIO_EMAIL_APP, JSON.stringify(payload));
+}
+
+export function obterDesafioEmailAppPendente(): DesafioEmailAppPendente | null {
+  const bruto = sessionStorage.getItem(CHAVE_DESAFIO_EMAIL_APP);
+  if (!bruto) return null;
+
+  try {
+    const payload = JSON.parse(bruto) as DesafioEmailAppPendente;
+    if (!payload.email || Date.now() - Number(payload.criadoEm) > TEMPO_MAXIMO_PERFIL_PENDENTE_MS) {
+      sessionStorage.removeItem(CHAVE_DESAFIO_EMAIL_APP);
+      return null;
+    }
+    return {
+      ...payload,
+      purpose: payload.purpose === "verify_current_email" ? "verify_current_email" : "signup_email"
+    };
+  } catch {
+    sessionStorage.removeItem(CHAVE_DESAFIO_EMAIL_APP);
+    return null;
+  }
 }
 
 export function obterUltimoReenvioConfirmacao(): number {
@@ -224,6 +276,30 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
       email,
       metadata: { metodo: "email" }
     });
+
+    if (modoVerificacaoEmail() !== "native") {
+      try {
+        const desafio = await solicitarCodigoEmailAtual("signup_email");
+        salvarDesafioEmailAppPendente(email, desafio.challengeId, desafio.destinationMasked);
+        return {
+          status: "verificacao_app",
+          email,
+          challengeId: desafio.challengeId,
+          destinationMasked: desafio.destinationMasked
+        };
+      } catch (erro) {
+        const mensagem = traduzirErroVerificacao(erro);
+        salvarDesafioEmailAppPendente(email, null, null);
+        return {
+          status: "verificacao_app",
+          email,
+          challengeId: null,
+          destinationMasked: null,
+          envioErro: mensagem
+        };
+      }
+    }
+
     return { status: "autenticado" };
   }
 

@@ -82,6 +82,6 @@ describe("validação de autenticação", () => {
   });
 
   it("mapeia otp_expired", () => {
-    expect(traduzirErroAuth({ code: "otp_expired" })).toBe("O código ou link de confirmação expirou. Solicite um novo código.");
+    expect(traduzirErroAuth({ code: "otp_expired" })).toBe("O código de confirmação expirou ou já foi usado. Solicite um novo código de confirmação.");
   });
 });

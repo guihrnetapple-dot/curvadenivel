@@ -4,14 +4,27 @@ import {
   confirmarEmailComCodigo,
   obterUltimoReenvioConfirmacao,
   reenviarCodigoConfirmacao,
-  salvarConfirmacaoPendente
+  salvarConfirmacaoPendente,
+  salvarDesafioEmailAppPendente
 } from "../../servicos/authService";
+import {
+  type PropositoEmail,
+  solicitarCodigoEmailAtual,
+  traduzirErroVerificacao,
+  validarCodigoEmail
+} from "../../servicos/verificationService";
 import { normalizarEmail, traduzirErroAuth, validarEmail } from "../../utilitarios/validacaoAuth";
 
 interface Props {
   email?: string | null;
+  modo?: "app" | "native";
+  purpose?: PropositoEmail;
+  challengeId?: string | null;
+  destinationMasked?: string | null;
+  avisoInicial?: string | null;
   aoEmailDefinido: (email: string) => void;
   aoConfirmado: () => void;
+  aoPular?: () => void;
   aoVoltarCadastro: () => void;
 }
 
@@ -22,15 +35,31 @@ function mascararEmail(email: string): string {
   return `${inicio}${"*".repeat(Math.max(usuario.length - 2, 3))}@${dominio}`;
 }
 
-export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVoltarCadastro }: Props) {
+export function ConfirmEmailPage({
+  email,
+  modo = "native",
+  purpose = "signup_email",
+  challengeId,
+  destinationMasked,
+  avisoInicial,
+  aoEmailDefinido,
+  aoConfirmado,
+  aoPular,
+  aoVoltarCadastro
+}: Props) {
   const [emailDigitado, setEmailDigitado] = useState(email ?? "");
   const [emailConfirmacao, setEmailConfirmacao] = useState(email ?? "");
+  const [desafioId, setDesafioId] = useState(challengeId ?? null);
+  const [destinoMascarado, setDestinoMascarado] = useState(destinationMasked ?? null);
   const [codigo, setCodigo] = useState("");
   const [carregando, setCarregando] = useState(false);
-  const [mensagem, setMensagem] = useState<string | null>(null);
+  const [mensagem, setMensagem] = useState<string | null>(avisoInicial ?? null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [agora, setAgora] = useState(Date.now());
-  const emailMascarado = useMemo(() => mascararEmail(emailConfirmacao), [emailConfirmacao]);
+  const emailMascarado = useMemo(
+    () => destinoMascarado || (emailConfirmacao ? mascararEmail(emailConfirmacao) : ""),
+    [destinoMascarado, emailConfirmacao]
+  );
   const segundosRestantes = Math.max(0, Math.ceil((obterUltimoReenvioConfirmacao() + 60000 - agora) / 1000));
 
   useEffect(() => {
@@ -40,12 +69,39 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
   }, [email]);
 
   useEffect(() => {
+    setDesafioId(challengeId ?? null);
+  }, [challengeId]);
+
+  useEffect(() => {
+    setDestinoMascarado(destinationMasked ?? null);
+  }, [destinationMasked]);
+
+  useEffect(() => {
     const intervalo = window.setInterval(() => setAgora(Date.now()), 1000);
     return () => window.clearInterval(intervalo);
   }, []);
 
   function alterarCodigo(valor: string) {
     setCodigo(valor.replace(/\D/g, "").slice(0, 6));
+  }
+
+  async function solicitarCodigoApp() {
+    setMensagem(null);
+    setSucesso(null);
+    setCarregando(true);
+    try {
+      const resultado = await solicitarCodigoEmailAtual(purpose);
+      setDesafioId(resultado.challengeId);
+      setDestinoMascarado(resultado.destinationMasked);
+      if (emailConfirmacao) {
+        salvarDesafioEmailAppPendente(emailConfirmacao, resultado.challengeId, resultado.destinationMasked, purpose);
+      }
+      setSucesso("Enviamos um novo código para seu e-mail.");
+    } catch (erro) {
+      setMensagem(traduzirErroVerificacao(erro));
+    } finally {
+      setCarregando(false);
+    }
   }
 
   async function definirEmailParaConfirmacao(evento: FormEvent) {
@@ -85,7 +141,7 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
     setMensagem(null);
     setSucesso(null);
 
-    if (!emailConfirmacao) {
+    if (modo === "native" && !emailConfirmacao) {
       await definirEmailParaConfirmacao(evento);
       return;
     }
@@ -95,18 +151,32 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
       return;
     }
 
+    if (modo === "app" && !desafioId) {
+      setMensagem("Solicite um novo código antes de continuar.");
+      return;
+    }
+
     setCarregando(true);
     try {
-      await confirmarEmailComCodigo(emailConfirmacao, codigo);
+      if (modo === "app") {
+        await validarCodigoEmail(desafioId!, codigo, purpose);
+      } else {
+        await confirmarEmailComCodigo(emailConfirmacao, codigo);
+      }
       aoConfirmado();
     } catch (erro) {
-      setMensagem(traduzirErroAuth(erro));
+      setMensagem(modo === "app" ? traduzirErroVerificacao(erro) : traduzirErroAuth(erro));
     } finally {
       setCarregando(false);
     }
   }
 
   async function reenviar() {
+    if (modo === "app") {
+      await solicitarCodigoApp();
+      return;
+    }
+
     if (!emailConfirmacao || segundosRestantes > 0) return;
     setMensagem(null);
     setSucesso(null);
@@ -122,7 +192,7 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
     }
   }
 
-  if (!emailConfirmacao) {
+  if (modo === "native" && !emailConfirmacao) {
     return (
       <form className="auth-formulario auth-confirmacao-email" onSubmit={definirEmailParaConfirmacao} noValidate>
         <div className="auth-formulario-topo">
@@ -159,7 +229,11 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
     <form className="auth-formulario auth-confirmacao-email" onSubmit={enviar} noValidate>
       <div className="auth-formulario-topo">
         <strong>Confirme seu e-mail</strong>
-        <span>Digite o código de 6 dígitos enviado para {emailMascarado}.</span>
+        <span>
+          {emailMascarado
+            ? `Digite o código de 6 dígitos enviado para ${emailMascarado}.`
+            : "Solicite um código para confirmar seu e-mail."}
+        </span>
       </div>
 
       {mensagem && <div className="auth-feedback erro" role="alert">{mensagem}</div>}
@@ -178,29 +252,40 @@ export function ConfirmEmailPage({ email, aoEmailDefinido, aoConfirmado, aoVolta
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={6}
+          autoFocus
           aria-invalid={Boolean(mensagem)}
         />
       </label>
 
-      <button type="submit" disabled={carregando}>
+      <button type="submit" disabled={carregando || (modo === "app" && !desafioId)}>
         {carregando ? "Confirmando..." : "Confirmar e continuar"}
       </button>
-      <button className="auth-botao-secundario" type="button" onClick={reenviar} disabled={carregando || segundosRestantes > 0}>
-        {segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Reenviar código"}
+      <button className="auth-botao-secundario" type="button" onClick={reenviar} disabled={carregando || (modo === "native" && segundosRestantes > 0)}>
+        {modo === "native" && segundosRestantes > 0 ? `Reenviar código em ${segundosRestantes}s` : "Reenviar código"}
       </button>
-      <button
-        className="auth-botao-secundario"
-        type="button"
-        onClick={() => {
-          setEmailConfirmacao("");
-          setCodigo("");
-          setMensagem(null);
-          setSucesso(null);
-        }}
-        disabled={carregando}
-      >
-        Usar outro e-mail
-      </button>
+      {modo === "app" && aoPular && (
+        <>
+          <small>Você poderá confirmar o e-mail depois nas configurações da sua conta.</small>
+          <button className="auth-botao-secundario" type="button" onClick={aoPular} disabled={carregando}>
+            Fazer isso depois
+          </button>
+        </>
+      )}
+      {modo === "native" && (
+        <button
+          className="auth-botao-secundario"
+          type="button"
+          onClick={() => {
+            setEmailConfirmacao("");
+            setCodigo("");
+            setMensagem(null);
+            setSucesso(null);
+          }}
+          disabled={carregando}
+        >
+          Usar outro e-mail
+        </button>
+      )}
     </form>
   );
 }

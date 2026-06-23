@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => ({
   salvarPerfilUsuario: vi.fn(),
   signInWithPassword: vi.fn(),
   signInWithOAuth: vi.fn(),
-  signOut: vi.fn()
+  signOut: vi.fn(),
+  invoke: vi.fn()
 }));
 
 vi.mock("../lib/supabaseClient", () => ({
+  supabaseConfigurado: true,
   obterSupabase: () => ({
     auth: {
       signUp: mocks.signUp,
@@ -17,6 +19,9 @@ vi.mock("../lib/supabaseClient", () => ({
       signInWithPassword: mocks.signInWithPassword,
       signInWithOAuth: mocks.signInWithOAuth,
       signOut: mocks.signOut
+    },
+    functions: {
+      invoke: mocks.invoke
     }
   })
 }));
@@ -82,6 +87,15 @@ describe("authService", () => {
       sessionStorage: sessionStorageMock,
       localStorage: localStorageMock
     });
+    mocks.invoke.mockResolvedValue({
+      data: {
+        challengeId: "11111111-1111-4111-8111-111111111111",
+        destinationMasked: "us***@exemplo.com",
+        expiresInSeconds: 600,
+        resendAvailableInSeconds: 60
+      },
+      error: null
+    });
   });
 
   it("retorna confirmação necessária quando o cadastro não cria sessão", async () => {
@@ -105,14 +119,19 @@ describe("authService", () => {
     expect(JSON.stringify(mocks.signUp.mock.calls[0][0].options.data)).not.toContain("senha123");
   });
 
-  it("retorna autenticado quando o cadastro cria sessão", async () => {
+  it("retorna verificação da aplicação quando o cadastro cria sessão", async () => {
     mocks.signUp.mockResolvedValueOnce({
       data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: { access_token: "token" } },
       error: null
     });
     mocks.salvarPerfilUsuario.mockResolvedValueOnce({});
     const resultado = await cadastrarComEmailSenha(criarCadastro());
-    expect(resultado).toEqual({ status: "autenticado" });
+    expect(resultado).toEqual({
+      status: "verificacao_app",
+      email: "usuario@exemplo.com",
+      challengeId: "11111111-1111-4111-8111-111111111111",
+      destinationMasked: "us***@exemplo.com"
+    });
     expect(mocks.salvarPerfilUsuario).toHaveBeenCalledOnce();
   });
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
+import { AccountSettingsPage } from "./componentes/conta/AccountSettingsPage";
 import { MapaAltimetria } from "./componentes/MapaAltimetria";
 import { PainelDireito } from "./componentes/PainelDireito";
 import { useAuth } from "./context/AuthContext";
@@ -56,7 +57,7 @@ function lerLocalStorage<T>(chave: string, fallback: T): T {
 }
 
 export function Aplicacao() {
-  const { usuario, perfil: perfilUsuario } = useAuth();
+  const { usuario, perfil: perfilUsuario, emailVerificado } = useAuth();
   const inputArquivoRef = useRef<HTMLInputElement | null>(null);
   const elementosRef = useRef<ElementoMapa[]>([]);
   const historicoElementosRef = useRef<ElementoMapa[][]>([]);
@@ -91,10 +92,37 @@ export function Aplicacao() {
   const [localizacaoFocada, setLocalizacaoFocada] = useState<LocalizacaoEncontrada | null>(null);
   const [rotulosMapaAtivos, setRotulosMapaAtivos] = useState(true);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
+  const [rotaAplicacao, setRotaAplicacao] = useState(() => window.location.pathname);
+  const [bannerEmailFechado, setBannerEmailFechado] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.tema = tema;
   }, [tema]);
+
+  useEffect(() => {
+    function aoVoltar() {
+      setRotaAplicacao(window.location.pathname);
+      document.title = window.location.pathname === "/configuracoes/conta"
+        ? "Configurações da conta | Curva de Nível"
+        : "Home | Curva de Nível";
+    }
+
+    window.addEventListener("popstate", aoVoltar);
+    aoVoltar();
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, []);
+
+  function navegarAplicacao(caminho: string) {
+    if (window.location.pathname !== caminho) {
+      window.history.pushState(null, "", caminho);
+    }
+    if (caminho === "/confirmaremail") {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      return;
+    }
+    setRotaAplicacao(caminho);
+    document.title = caminho === "/configuracoes/conta" ? "Configurações da conta | Curva de Nível" : "Home | Curva de Nível";
+  }
 
   useEffect(() => {
     localStorage.setItem(CHAVE_HISTORICO, JSON.stringify(historico.slice(0, 80)));
@@ -474,7 +502,27 @@ export function Aplicacao() {
     <div className="aplicacao">
       {inicializando && <CarregamentoInicial />}
 
-      <BarraSuperior nomeUsuario={perfilUsuario?.full_name} usuarioEmail={usuario?.email} aoSair={encerrarSessao} />
+      <BarraSuperior
+        nomeUsuario={perfilUsuario?.full_name}
+        usuarioEmail={usuario?.email}
+        aoAbrirConfiguracoes={() => navegarAplicacao("/configuracoes/conta")}
+        aoSair={encerrarSessao}
+      />
+
+      {rotaAplicacao === "/configuracoes/conta" ? (
+        <AccountSettingsPage
+          aoVoltar={() => navegarAplicacao("/home")}
+          aoConfirmarEmail={() => navegarAplicacao("/confirmaremail")}
+        />
+      ) : (
+        <>
+          {!emailVerificado && !bannerEmailFechado && (
+            <div className="banner-verificacao-email">
+              <span>Seu e-mail ainda não foi confirmado. Confirme agora para proteger sua conta.</span>
+              <button type="button" onClick={() => navegarAplicacao("/confirmaremail")}>Confirmar e-mail</button>
+              <button type="button" className="botao-secundario" onClick={() => setBannerEmailFechado(true)}>Agora não</button>
+            </div>
+          )}
 
       <main className="area-trabalho">
         <div className="coluna-mapa">
@@ -544,6 +592,8 @@ export function Aplicacao() {
           aoCriarMarcadorTecnico={criarMarcadorTecnico}
         />
       </main>
+        </>
+      )}
 
       <input
         ref={inputArquivoRef}

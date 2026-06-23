@@ -21,7 +21,15 @@ import { WhatsAppField } from "./WhatsAppField";
 
 interface Props {
   aoEntrar: () => void;
-  aoConfirmacaoNecessaria: (email: string) => void;
+  aoConfirmacaoNecessaria: (
+    email: string,
+    dados?: {
+      modo?: "app" | "native";
+      challengeId?: string | null;
+      destinationMasked?: string | null;
+      envioErro?: string;
+    }
+  ) => void;
 }
 
 const codigoPaisPadrao = "BR";
@@ -163,8 +171,16 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
     try {
       const dados: DadosCadastro = { ...perfil, email: normalizarEmail(email), password };
       const resultado = await cadastrarComEmailSenha(dados);
+      if (resultado.status === "verificacao_app") {
+        aoConfirmacaoNecessaria(resultado.email, {
+          modo: "app",
+          challengeId: resultado.challengeId,
+          destinationMasked: resultado.destinationMasked,
+          envioErro: resultado.envioErro
+        });
+      }
       if (resultado.status === "confirmacao_necessaria") {
-        aoConfirmacaoNecessaria(resultado.email);
+        aoConfirmacaoNecessaria(resultado.email, { modo: "native" });
       }
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));

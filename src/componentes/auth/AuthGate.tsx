@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 
 import logoCurvaNivel from "../../assets/logo-curva-nivel.png";
 import { useAuth } from "../../context/AuthContext";
-import { limparConfirmacaoPendente, obterEmailConfirmacaoPendente, sair } from "../../servicos/authService";
+import {
+  limparConfirmacaoPendente,
+  obterDesafioEmailAppPendente,
+  obterEmailConfirmacaoPendente,
+  sair
+} from "../../servicos/authService";
 import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
 import { CarregamentoInicial } from "../CarregamentoInicial";
 import { AuthTerrainPanel } from "./AuthTerrainPanel";
@@ -59,7 +64,7 @@ function atualizarUrl(caminho: string, substituir = false) {
 }
 
 function caminhoProtegido(caminho: string): boolean {
-  return ["/home", "/completarcadastro"].includes(normalizarCaminho(caminho).toLowerCase());
+  return ["/home", "/completarcadastro", "/configuracoes/conta"].includes(normalizarCaminho(caminho).toLowerCase());
 }
 
 function atualizarTitulo(caminho: string) {
@@ -159,11 +164,14 @@ function AutenticacaoIndisponivel() {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { carregando, configurado, usuario } = useAuth();
+  const { carregando, configurado, usuario, recarregarPerfil } = useAuth();
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
   const [avisoLogin, setAvisoLogin] = useState<string | null>(() => mensagemUrl ? null : detectarMensagemLogin());
   const [emailConfirmacao, setEmailConfirmacao] = useState<string | null>(() => obterEmailConfirmacaoPendente());
+  const [modoConfirmacao, setModoConfirmacao] = useState<"app" | "native">(() => obterDesafioEmailAppPendente() ? "app" : "native");
+  const [desafioEmailApp, setDesafioEmailApp] = useState(() => obterDesafioEmailAppPendente());
+  const [avisoConfirmacao, setAvisoConfirmacao] = useState<string | null>(null);
   const [finalizandoConfirmacaoEmail, setFinalizandoConfirmacaoEmail] = useState(false);
   const resetandoSenha = useMemo(() => tela === "nova-senha", [tela]);
   const navegarAuth = useCallback((proximaTela: TelaAuth, substituir = false) => {
@@ -180,6 +188,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setMensagemUrl(erroUrl);
       setAvisoLogin(erroUrl ? null : detectarMensagemLogin());
       setEmailConfirmacao(obterEmailConfirmacaoPendente());
+      setDesafioEmailApp(obterDesafioEmailAppPendente());
       atualizarTitulo(window.location.pathname);
     };
 
@@ -226,6 +235,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (usuario && caminho === "/confirmaremail") {
+      setTela("confirmacao-email");
+      atualizarTitulo("/confirmaremail");
+      return;
+    }
+
     if (usuario) {
       atualizarUrl("/home", true);
       atualizarTitulo("/home");
@@ -259,6 +274,38 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
+  if (usuario && tela === "confirmacao-email") {
+    return (
+      <AuthShell cadastro>
+        <ConfirmEmailPage
+          email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
+          modo={modoConfirmacao}
+          purpose={desafioEmailApp?.purpose ?? "signup_email"}
+          challengeId={desafioEmailApp?.challengeId ?? null}
+          destinationMasked={desafioEmailApp?.destinationMasked ?? null}
+          avisoInicial={avisoConfirmacao}
+          aoEmailDefinido={(email) => setEmailConfirmacao(email)}
+          aoConfirmado={() => {
+            limparConfirmacaoPendente();
+            setDesafioEmailApp(null);
+            setAvisoConfirmacao(null);
+            void recarregarPerfil().finally(() => {
+              atualizarUrl("/home", true);
+              atualizarTitulo("/home");
+              setTela("login");
+            });
+          }}
+          aoPular={() => {
+            atualizarUrl("/home", true);
+            atualizarTitulo("/home");
+            setTela("login");
+          }}
+          aoVoltarCadastro={() => navegarAuth("cadastro")}
+        />
+      </AuthShell>
+    );
+  }
+
   if (usuario) {
     return <AuthErrorBoundary>{children}</AuthErrorBoundary>;
   }
@@ -284,8 +331,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
       {tela === "cadastro" && (
         <RegisterPage
           aoEntrar={() => navegarAuth("login")}
-          aoConfirmacaoNecessaria={(email) => {
+          aoConfirmacaoNecessaria={(email, dados) => {
             setEmailConfirmacao(email);
+            setModoConfirmacao(dados?.modo ?? "native");
+            setDesafioEmailApp(dados?.modo === "app" ? {
+              email,
+              challengeId: dados.challengeId ?? null,
+              destinationMasked: dados.destinationMasked ?? null,
+              purpose: "signup_email",
+              criadoEm: Date.now()
+            } : null);
+            setAvisoConfirmacao(dados?.envioErro ?? null);
             setMensagemUrl(null);
             setAvisoLogin(null);
             navegarAuth("confirmacao-email");
@@ -295,6 +351,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
       {tela === "confirmacao-email" && (
         <ConfirmEmailPage
           email={emailConfirmacao}
+          modo={modoConfirmacao}
+          purpose={desafioEmailApp?.purpose ?? "signup_email"}
+          challengeId={desafioEmailApp?.challengeId ?? null}
+          destinationMasked={desafioEmailApp?.destinationMasked ?? null}
+          avisoInicial={avisoConfirmacao}
           aoEmailDefinido={(email) => setEmailConfirmacao(email)}
           aoConfirmado={() => {
             const emailConfirmado = emailConfirmacao;

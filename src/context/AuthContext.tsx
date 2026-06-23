@@ -15,6 +15,9 @@ interface EstadoAuth {
   usuario: User | null;
   perfil: PerfilUsuario | null;
   perfilPendente: boolean;
+  emailAtual: string | null;
+  emailVerificado: boolean;
+  whatsappVerificado: boolean;
   recarregarPerfil: () => Promise<void>;
 }
 
@@ -62,6 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [carregarPerfil, sessao]);
+
+  const emailAtual = sessao?.user.email?.trim().toLowerCase() ?? null;
+  const emailVerificado = Boolean(
+    perfil?.email_verified_at &&
+      perfil.verified_email &&
+      emailAtual &&
+      perfil.verified_email.trim().toLowerCase() === emailAtual
+  );
+  const whatsappVerificado = Boolean(
+    perfil?.whatsapp_verified_at &&
+      perfil.verified_whatsapp &&
+      perfil.whatsapp &&
+      perfil.verified_whatsapp.trim() === perfil.whatsapp.trim()
+  );
 
   useEffect(() => {
     if (!supabaseConfigurado) {
@@ -158,9 +175,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       usuario: sessao?.user ?? null,
       perfil,
       perfilPendente: Boolean(sessao?.user && !perfil),
+      emailAtual,
+      emailVerificado,
+      whatsappVerificado,
       recarregarPerfil
     }),
-    [carregando, perfil, recarregarPerfil, sessao]
+    [carregando, emailAtual, emailVerificado, perfil, recarregarPerfil, sessao, whatsappVerificado]
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;

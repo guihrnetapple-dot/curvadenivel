@@ -16,6 +16,11 @@ export interface PerfilUsuario {
   communication_consent_whatsapp: boolean;
   communication_consent_ip: string | null;
   communication_consent_user_agent: string | null;
+  account_email?: string | null;
+  email_verified_at?: string | null;
+  verified_email?: string | null;
+  whatsapp_verified_at?: string | null;
+  verified_whatsapp?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -53,4 +58,11 @@ export interface InformacaoCliente {
 
 export type ResultadoCadastro =
   | { status: "autenticado" }
+  | {
+      status: "verificacao_app";
+      email: string;
+      challengeId: string | null;
+      destinationMasked: string | null;
+      envioErro?: string;
+    }
   | { status: "confirmacao_necessaria"; email: string };
