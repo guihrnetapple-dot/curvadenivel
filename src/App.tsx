@@ -166,6 +166,16 @@ export function Aplicacao() {
     return () => window.clearTimeout(temporizador);
   }, [alerta]);
 
+  useEffect(() => {
+    const ajusteImediato = window.setTimeout(() => window.dispatchEvent(new Event("resize")), 0);
+    const ajusteAposLayout = window.setTimeout(() => window.dispatchEvent(new Event("resize")), 180);
+
+    return () => {
+      window.clearTimeout(ajusteImediato);
+      window.clearTimeout(ajusteAposLayout);
+    };
+  }, [painelVisivel, larguraPainel]);
+
   const registrarResultado = useCallback((resultado: ResultadoAltitude) => {
     setResultadoAtual(resultado);
     setHistorico((itens) => [resultado, ...itens].slice(0, 80));
