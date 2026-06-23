@@ -82,7 +82,7 @@ button:disabled {
   isolation: isolate;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 18% 0%, rgba(47, 159, 117, 0.13), transparent 28rem),
     linear-gradient(135deg, rgba(106, 166, 184, 0.07), transparent 36%),
@@ -957,7 +957,7 @@ input[type="checkbox"] {
 }
 
 .pagina-configuracoes-conta {
-  height: calc(100vh - 70px);
+  height: calc(100dvh - 70px);
   min-height: 0;
   padding: 24px 24px 28px;
   overflow-y: auto;
@@ -1081,7 +1081,7 @@ input[type="checkbox"] {
 
   .pagina-configuracoes-conta {
     height: auto;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100dvh - 70px);
     overflow: visible;
     padding: 18px 12px 24px;
   }

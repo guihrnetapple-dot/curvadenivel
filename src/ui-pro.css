@@ -38,6 +38,12 @@
   --sombra-leve: 0 12px 28px rgba(4, 10, 18, 0.34);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
@@ -70,8 +76,8 @@ select {
 
 .aplicacao {
   grid-template-rows: auto minmax(0, 1fr);
-  height: 100vh;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
   overflow: hidden;
   background:
     radial-gradient(circle at 18% -10%, rgba(47, 159, 117, 0.16), transparent 30rem),
@@ -300,7 +306,7 @@ select {
 .area-trabalho {
   grid-template-columns: minmax(0, 1fr) 350px;
   gap: 12px;
-  height: calc(100vh - 70px);
+  height: calc(100dvh - 70px);
   padding: 12px;
 }
 
@@ -812,9 +818,11 @@ input[type="checkbox"] {
 .auth-pagina {
   display: grid;
   place-items: stretch;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   padding: 22px;
   overflow: auto;
+  overscroll-behavior: contain;
   background:
     radial-gradient(circle at 18% 0%, rgba(47, 159, 117, 0.18), transparent 28rem),
     linear-gradient(145deg, rgba(106, 166, 184, 0.11), transparent 42%),
@@ -826,7 +834,8 @@ input[type="checkbox"] {
   grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
   width: 100%;
-  min-height: calc(100vh - 44px);
+  min-height: 0;
+  height: 100%;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -881,7 +890,9 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: minmax(360px, 0.72fr) minmax(0, 1.28fr);
   gap: 18px;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .auth-painel-formulario {
@@ -889,6 +900,7 @@ input[type="checkbox"] {
   align-content: center;
   min-width: 0;
   min-height: 0;
+  overflow: auto;
   padding: clamp(18px, 4vw, 46px);
   border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
   border-radius: var(--raio);
@@ -900,7 +912,7 @@ input[type="checkbox"] {
 
 .auth-card-cadastro .auth-painel-formulario {
   align-content: start;
-  max-height: calc(100vh - 44px);
+  max-height: 100%;
   overflow: auto;
   scrollbar-gutter: stable;
 }
@@ -910,7 +922,8 @@ input[type="checkbox"] {
   display: grid;
   align-items: end;
   min-width: 0;
-  min-height: 520px;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--verde) 20%, var(--borda));
   border-radius: var(--raio);
@@ -1499,13 +1512,21 @@ input[type="checkbox"] {
 
   .auth-layout {
     grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    overflow: visible;
   }
 
   .auth-painel-formulario {
     align-content: start;
   }
 
+  .auth-card {
+    height: auto;
+    min-height: calc(100dvh - 44px);
+  }
+
   .auth-terreno {
+    height: auto;
     min-height: 320px;
   }
 }
@@ -1524,7 +1545,7 @@ input[type="checkbox"] {
   }
 
   .aplicacao {
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
     background:
       radial-gradient(circle at 12% -8%, rgba(47, 159, 117, 0.14), transparent 20rem),
@@ -1690,7 +1711,7 @@ input[type="checkbox"] {
   }
 
   .auth-card {
-    min-height: calc(100vh - 20px);
+    min-height: calc(100dvh - 20px);
     max-height: none;
     padding: 0;
   }
