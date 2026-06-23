@@ -1,12 +1,20 @@
 import type { CamadaImportada, CurvasNivelGeoJson, ElementoMapa, GeoJsonFeature, PerfilElevacao } from "../tipos/altimetria";
 import { formatarNumero } from "./formatacao";
 
+const PREFIXO_ARQUIVO_EXPORTACAO = "geocampo-itefagro";
+
+function nomeArquivoExportacao(nomeArquivo: string): string {
+  return nomeArquivo.startsWith(`${PREFIXO_ARQUIVO_EXPORTACAO}-`)
+    ? nomeArquivo
+    : `${PREFIXO_ARQUIVO_EXPORTACAO}-${nomeArquivo}`;
+}
+
 function baixarArquivo(nomeArquivo: string, conteudo: string, tipoMime: string): void {
   const blob = new Blob([conteudo], { type: tipoMime });
   const url = URL.createObjectURL(blob);
   const ancora = document.createElement("a");
   ancora.href = url;
-  ancora.download = nomeArquivo;
+  ancora.download = nomeArquivoExportacao(nomeArquivo);
   document.body.appendChild(ancora);
   ancora.click();
   ancora.remove();
@@ -168,7 +176,7 @@ export function exportarElementoKml(elemento: ElementoMapa | null): void {
 
 export function exportarRelatorioHtml(perfil: PerfilElevacao | null): void {
   const estatisticas = perfil?.estatisticas;
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório GeoCampo</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#1d2b27}table{border-collapse:collapse;width:100%;margin-top:20px}td,th{border:1px solid #d7dfd9;padding:8px;text-align:left}h1{font-size:24px}</style></head><body><h1>Relatório GeoCampo</h1><p>Gerado em ${new Date().toLocaleString(
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${PREFIXO_ARQUIVO_EXPORTACAO}-relatorio-geocampo</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#1d2b27}table{border-collapse:collapse;width:100%;margin-top:20px}td,th{border:1px solid #d7dfd9;padding:8px;text-align:left}h1{font-size:24px}</style></head><body><h1>Relatório GeoCampo</h1><p>Gerado em ${new Date().toLocaleString(
     "pt-BR"
   )}</p><table><tbody><tr><th>Altitude mínima</th><td>${formatarNumero(
     estatisticas?.altitudeMinima,

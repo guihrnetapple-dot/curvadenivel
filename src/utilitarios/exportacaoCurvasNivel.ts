@@ -2,6 +2,8 @@ import JSZip from "jszip";
 
 import type { CurvasNivelGeoJson, FeatureCurvaNivel, ParLngLat } from "../tipos/altimetria";
 
+const PREFIXO_ARQUIVO_EXPORTACAO = "geocampo-itefagro";
+
 const ESTILOS_CURVAS_NIVEL = {
   normal: {
     id: "curva-normal",
@@ -32,12 +34,18 @@ function escaparXml(valor: unknown): string {
     .replace(/'/g, "&apos;");
 }
 
+function nomeArquivoExportacao(nomeArquivo: string): string {
+  return nomeArquivo.startsWith(`${PREFIXO_ARQUIVO_EXPORTACAO}-`)
+    ? nomeArquivo
+    : `${PREFIXO_ARQUIVO_EXPORTACAO}-${nomeArquivo}`;
+}
+
 function baixarBlob(nomeArquivo: string, conteudo: BlobPart[], tipoMime: string): void {
   const blob = new Blob(conteudo, { type: tipoMime });
   const url = URL.createObjectURL(blob);
   const ancora = document.createElement("a");
   ancora.href = url;
-  ancora.download = nomeArquivo;
+  ancora.download = nomeArquivoExportacao(nomeArquivo);
   document.body.appendChild(ancora);
   ancora.click();
   ancora.remove();
