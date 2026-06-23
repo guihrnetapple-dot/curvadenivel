@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { criarAtualizacaoEstadoEndereco, criarAtualizacaoPaisEndereco } from "./localizacaoAuth";
+import {
+  criarAtualizacaoEstadoEndereco,
+  criarAtualizacaoPaisEndereco,
+  obterCodigoEstadoPorNome,
+  obterCodigoPaisPorNome
+} from "./localizacaoAuth";
 
 describe("localização do cadastro", () => {
   it("alteração do país limpa estado e cidade", () => {
@@ -19,5 +24,10 @@ describe("localização do cadastro", () => {
       state: "Minas Gerais",
       city: ""
     });
+  });
+
+  it("recupera códigos a partir dos nomes salvos no perfil", () => {
+    expect(obterCodigoPaisPorNome("Brasil")).toBe("BR");
+    expect(obterCodigoEstadoPorNome("BR", "Minas Gerais")).toBe("MG");
   });
 });

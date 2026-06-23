@@ -20,8 +20,8 @@ interface Props {
 }
 
 export function LocationFields({ valores, erros, aoAlterar, aoPaisEnderecoAlterado }: Props) {
-  const [cidadeManual, setCidadeManual] = useState(false);
-  const [estadoManual, setEstadoManual] = useState(false);
+  const [cidadeManual, setCidadeManual] = useState(Boolean(valores.cidadeManual));
+  const [estadoManual, setEstadoManual] = useState(Boolean(valores.estadoManual));
   const paises = useMemo(() => obterOpcoesPaises(), []);
   const estados = useMemo(() => obterOpcoesEstados(valores.countryCode), [valores.countryCode]);
   const cidades = useMemo(() => obterOpcoesCidades(valores.countryCode, valores.stateCode), [valores.countryCode, valores.stateCode]);

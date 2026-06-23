@@ -20,9 +20,52 @@ export function normalizarCodigoPais(codigo?: string | null): string {
   return /^[A-Z]{2}$/.test(normalizado) && Country.getCountryByCode(normalizado) ? normalizado : "BR";
 }
 
+function normalizarTextoLocalizacao(valor?: string | null): string {
+  return String(valor ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
+}
+
 export function obterNomePais(codigo: string): string {
   const codigoNormalizado = codigo.toUpperCase();
   return nomesPaises?.of(codigoNormalizado) ?? Country.getCountryByCode(codigoNormalizado)?.name ?? codigoNormalizado;
+}
+
+export function obterCodigoPaisPorNome(nomeOuCodigo?: string | null): string {
+  const valor = String(nomeOuCodigo ?? "").trim();
+  if (!valor) {
+    return "BR";
+  }
+
+  const codigoDireto = valor.toUpperCase();
+  if (/^[A-Z]{2}$/.test(codigoDireto) && Country.getCountryByCode(codigoDireto)) {
+    return codigoDireto;
+  }
+
+  const valorNormalizado = normalizarTextoLocalizacao(valor);
+  const pais = Country.getAllCountries().find((item) => {
+    return [item.isoCode, item.name, obterNomePais(item.isoCode)]
+      .some((opcao) => normalizarTextoLocalizacao(opcao) === valorNormalizado);
+  });
+
+  return pais?.isoCode ?? "BR";
+}
+
+export function obterCodigoEstadoPorNome(codigoPais?: string | null, nomeOuCodigo?: string | null): string {
+  const valor = String(nomeOuCodigo ?? "").trim();
+  if (!valor) {
+    return "";
+  }
+
+  const countryCode = normalizarCodigoPais(codigoPais);
+  const valorNormalizado = normalizarTextoLocalizacao(valor);
+  const estado = State.getStatesOfCountry(countryCode).find((item) => {
+    return [item.isoCode, item.name].some((opcao) => normalizarTextoLocalizacao(opcao) === valorNormalizado);
+  });
+
+  return estado?.isoCode ?? "";
 }
 
 export function obterBandeiraUrl(codigo: string): string {

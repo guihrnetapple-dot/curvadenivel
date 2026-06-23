@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
+import { LocationFields } from "../auth/LocationFields";
 import { WhatsAppField } from "../auth/WhatsAppField";
 import { InfoTooltip } from "../ui/InfoTooltip";
 import { useAuth } from "../../context/AuthContext";
@@ -8,8 +9,21 @@ import { obterInformacaoCliente } from "../../servicos/clientInfoService";
 import { salvarPerfilUsuario } from "../../servicos/profileService";
 import { atualizarSenha, reautenticarUsuario, salvarDesafioEmailAppPendente } from "../../servicos/authService";
 import { solicitarCodigoEmailAtual, traduzirErroVerificacao } from "../../servicos/verificationService";
-import type { DadosPerfilCadastro } from "../../tipos/autenticacao";
-import { validarConfirmacaoSenha, validarPerfilObrigatorio, validarSenha } from "../../utilitarios/validacaoAuth";
+import type { DadosPerfilCadastro, PerfilUsuario } from "../../tipos/autenticacao";
+import {
+  obterCodigoEstadoPorNome,
+  obterCodigoPaisPorNome,
+  obterNomePais,
+  obterOpcoesCidades,
+  obterOpcoesEstados
+} from "../../utilitarios/localizacaoAuth";
+import {
+  validarConfirmacaoSenha,
+  validarPerfilCampos,
+  validarPerfilObrigatorio,
+  validarSenha,
+  type ErrosCamposAuth
+} from "../../utilitarios/validacaoAuth";
 
 interface Props {
   aoVoltar: () => void;
@@ -32,10 +46,55 @@ function obterPaisWhatsAppConta(valor?: string | null): string {
   return numero?.country ?? "BR";
 }
 
+function textoLocalizacaoIgual(a?: string | null, b?: string | null): boolean {
+  const normalizar = (valor?: string | null) =>
+    String(valor ?? "")
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+
+  return normalizar(a) === normalizar(b);
+}
+
+function criarPerfilEditavel(perfil?: PerfilUsuario | null): DadosPerfilCadastro {
+  const countryCode = obterCodigoPaisPorNome(perfil?.country);
+  const stateCode = obterCodigoEstadoPorNome(countryCode, perfil?.state);
+  const estados = obterOpcoesEstados(countryCode);
+  const cidades = obterOpcoesCidades(countryCode, stateCode);
+  const estadoManual = Boolean(perfil?.state && estados.length > 0 && !stateCode);
+  const cidadeManual = Boolean(
+    perfil?.city &&
+    cidades.length > 0 &&
+    !cidades.some((cidade) => textoLocalizacaoIgual(cidade.value, perfil.city))
+  );
+
+  return {
+    full_name: perfil?.full_name ?? "",
+    profession: perfil?.profession ?? "",
+    work_area: perfil?.work_area ?? "",
+    company_name: perfil?.company_name ?? "",
+    whatsapp: normalizarWhatsAppConta(perfil?.whatsapp),
+    city: perfil?.city ?? "",
+    state: perfil?.state ?? "",
+    country: perfil?.country || obterNomePais(countryCode),
+    countryCode,
+    stateCode,
+    whatsappCountryCode: obterPaisWhatsAppConta(perfil?.whatsapp),
+    cidadeManual,
+    estadoManual,
+    aceitaTermos: true,
+    aceitaPrivacidadeLgpd: true,
+    aceitaCookies: true,
+    aceitaComunicacoes: true
+  };
+}
+
 export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
   const { usuario, perfil, emailAtual, emailVerificado, whatsappVerificado, recarregarPerfil } = useAuth();
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [errosPerfil, setErrosPerfil] = useState<ErrosCamposAuth>({});
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const [alterandoSenha, setAlterandoSenha] = useState(false);
@@ -49,18 +108,19 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
     valor: normalizarWhatsAppConta(perfil?.whatsapp),
     countryCode: obterPaisWhatsAppConta(perfil?.whatsapp)
   }));
-  const [perfilEditado, setPerfilEditado] = useState(() => ({
-    full_name: perfil?.full_name ?? "",
-    profession: perfil?.profession ?? "",
-    work_area: perfil?.work_area ?? "",
-    company_name: perfil?.company_name ?? ""
-  }));
+  const [perfilEditado, setPerfilEditado] = useState<DadosPerfilCadastro>(() => criarPerfilEditavel(perfil));
+
+  function alterarPerfilEditado(campo: keyof DadosPerfilCadastro, valor: string | boolean) {
+    setPerfilEditado((atual) => ({ ...atual, [campo]: valor }));
+    setErrosPerfil((atuais) => ({ ...atuais, [campo]: undefined }));
+  }
 
   async function salvarPerfil(evento: FormEvent) {
     evento.preventDefault();
     if (!usuario || !perfil) return;
     setErro(null);
     setMensagem(null);
+    setErrosPerfil({});
     const emailReautenticacao = emailAtual || usuario.email || "";
     if (!emailReautenticacao) {
       setErro("Não foi possível confirmar sua conta para salvar as alterações.");
@@ -79,9 +139,10 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
       aceitaCookies: true,
       aceitaComunicacoes: true
     };
-    const erroPerfil = validarPerfilObrigatorio(dados);
-    if (erroPerfil) {
-      setErro(erroPerfil);
+    const novosErrosPerfil = validarPerfilCampos(dados);
+    if (Object.keys(novosErrosPerfil).length > 0) {
+      setErrosPerfil(novosErrosPerfil);
+      setErro(Object.values(novosErrosPerfil)[0] ?? "Confira os dados do perfil.");
       return;
     }
 
@@ -220,11 +281,44 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
       <section className="configuracoes-grade">
         <form className="configuracoes-bloco" onSubmit={salvarPerfil}>
           <h2>Perfil</h2>
-          <label>Nome completo<input value={perfilEditado.full_name} onChange={(e) => setPerfilEditado((a) => ({ ...a, full_name: e.target.value }))} /></label>
-          <label>Profissão<input value={perfilEditado.profession} onChange={(e) => setPerfilEditado((a) => ({ ...a, profession: e.target.value }))} /></label>
-          <label>Área de atuação<input value={perfilEditado.work_area} onChange={(e) => setPerfilEditado((a) => ({ ...a, work_area: e.target.value }))} /></label>
-          <label>Empresa<input value={perfilEditado.company_name} onChange={(e) => setPerfilEditado((a) => ({ ...a, company_name: e.target.value }))} /></label>
-          <label>Senha atual<input type="password" value={senhaAtualPerfil} onChange={(e) => setSenhaAtualPerfil(e.target.value)} autoComplete="current-password" required /></label>
+          <label>
+            Nome completo
+            <input value={perfilEditado.full_name} onChange={(e) => alterarPerfilEditado("full_name", e.target.value)} />
+            {errosPerfil.full_name && <small className="auth-erro-campo">{errosPerfil.full_name}</small>}
+          </label>
+          <label>
+            Profissão
+            <input value={perfilEditado.profession} onChange={(e) => alterarPerfilEditado("profession", e.target.value)} />
+            {errosPerfil.profession && <small className="auth-erro-campo">{errosPerfil.profession}</small>}
+          </label>
+          <label>
+            Área de atuação
+            <input value={perfilEditado.work_area} onChange={(e) => alterarPerfilEditado("work_area", e.target.value)} />
+            {errosPerfil.work_area && <small className="auth-erro-campo">{errosPerfil.work_area}</small>}
+          </label>
+          <label>
+            Empresa
+            <input value={perfilEditado.company_name} onChange={(e) => alterarPerfilEditado("company_name", e.target.value)} />
+            {errosPerfil.company_name && <small className="auth-erro-campo">{errosPerfil.company_name}</small>}
+          </label>
+          <div className="configuracoes-subsecao-formulario">
+            <h3>Localização</h3>
+            <LocationFields
+              valores={perfilEditado}
+              erros={errosPerfil}
+              aoAlterar={(campo, valor) => alterarPerfilEditado(campo, valor)}
+            />
+          </div>
+          <label>
+            Senha atual
+            <input
+              type="password"
+              value={senhaAtualPerfil}
+              onChange={(e) => setSenhaAtualPerfil(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
           <button type="submit" disabled={salvandoPerfil}>{salvandoPerfil ? "Salvando..." : "Salvar alterações"}</button>
         </form>
 
@@ -245,7 +339,16 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
             aoAlterar={(valorE164) => setWhatsAppEditado((atual) => ({ ...atual, valor: valorE164 }))}
             aoAlterarPais={(countryCode) => setWhatsAppEditado((atual) => ({ ...atual, countryCode }))}
           />
-          <label>Senha atual<input type="password" value={senhaAtualWhatsApp} onChange={(e) => setSenhaAtualWhatsApp(e.target.value)} autoComplete="current-password" required /></label>
+          <label>
+            Senha atual
+            <input
+              type="password"
+              value={senhaAtualWhatsApp}
+              onChange={(e) => setSenhaAtualWhatsApp(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
           {whatsappVerificado && <small>Confirmado em {dataCurta(perfil?.whatsapp_verified_at)}</small>}
           {!whatsappVerificado && (
             <div className="linha-ajuda-formulario">
@@ -258,7 +361,16 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
 
         <form className="configuracoes-bloco" onSubmit={trocarSenha}>
           <h2>Segurança</h2>
-          <label>Senha atual<input type="password" value={senhaAtualSeguranca} onChange={(e) => setSenhaAtualSeguranca(e.target.value)} autoComplete="current-password" required /></label>
+          <label>
+            Senha atual
+            <input
+              type="password"
+              value={senhaAtualSeguranca}
+              onChange={(e) => setSenhaAtualSeguranca(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
           <label>
             <span className="rotulo-campo-formulario">
               <span>Nova senha</span>
@@ -266,7 +378,10 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
             </span>
             <input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" />
           </label>
-          <label>Confirmar nova senha<input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)} autoComplete="new-password" /></label>
+          <label>
+            Confirmar nova senha
+            <input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)} autoComplete="new-password" />
+          </label>
           <button type="submit" disabled={alterandoSenha}>{alterandoSenha ? "Atualizando..." : "Atualizar senha"}</button>
         </form>
       </section>
