@@ -829,6 +829,17 @@ input[type="checkbox"] {
     var(--fundo);
 }
 
+.auth-pagina,
+.auth-painel-formulario {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.auth-pagina::-webkit-scrollbar,
+.auth-painel-formulario::-webkit-scrollbar {
+  display: none;
+}
+
 .auth-card {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -914,7 +925,6 @@ input[type="checkbox"] {
   align-content: start;
   max-height: 100%;
   overflow: auto;
-  scrollbar-gutter: stable;
 }
 
 .auth-terreno {
