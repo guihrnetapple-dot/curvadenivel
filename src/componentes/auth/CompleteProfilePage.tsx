@@ -66,6 +66,11 @@ async function traduzirErroPerfil(erro: unknown): Promise<string> {
   const status = Number(erroPerfil.status ?? 0);
   const codigo = String(corpo?.code ?? erroPerfil.code ?? "").toLowerCase();
   const mensagem = String(corpo?.erro ?? corpo?.message ?? corpo?.error ?? erroPerfil.message ?? "").trim();
+  const mensagemNormalizada = mensagem.toLowerCase();
+
+  if (mensagemNormalizada.includes("failed to send a request") || mensagemNormalizada.includes("edge function")) {
+    return "Não foi possível comunicar com o serviço de perfil. Aguarde alguns instantes e tente novamente.";
+  }
 
   if (status === 401 || status === 403 || codigo.includes("auth")) {
     return "Sua sessão expirou. Entre novamente para completar o perfil.";
