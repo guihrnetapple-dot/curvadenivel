@@ -2,7 +2,7 @@ import { obterSupabase } from "../lib/supabaseClient";
 import { registrarEventoAuditoria, registrarEventoAuditoriaSemBloquear } from "./auditoriaService";
 import type { User } from "@supabase/supabase-js";
 import type { DadosCadastro, DadosPerfilCadastro, PerfilUsuario, ResultadoCadastro } from "../tipos/autenticacao";
-import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuth";
+import { normalizarEmail, normalizarWhatsApp } from "../utilitarios/validacaoAuthBasica";
 import { obterInformacaoCliente } from "./clientInfoService";
 import { salvarPerfilUsuario } from "./profileService";
 import { solicitarCodigoEmailAtual, traduzirErroVerificacao } from "./verificationService";

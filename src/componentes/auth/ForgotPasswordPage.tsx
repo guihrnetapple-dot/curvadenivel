@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { enviarRecuperacaoSenha } from "../../servicos/authService";
-import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
+import { traduzirErroAuth } from "../../utilitarios/validacaoAuthBasica";
 
 export function ForgotPasswordPage({ aoEntrar }: { aoEntrar: () => void }) {
   const [email, setEmail] = useState("");

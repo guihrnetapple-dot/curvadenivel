@@ -3,7 +3,7 @@ import type { CountryCode } from "libphonenumber-js";
 import { AsYouType, getCountryCallingCode, parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { obterBandeiraUrl, obterNomePais, obterOpcoesPaises } from "../../utilitarios/localizacaoAuth";
-import { normalizarWhatsApp } from "../../utilitarios/validacaoAuth";
+import { normalizarWhatsApp } from "../../utilitarios/validacaoAuthBasica";
 import { InfoTooltip } from "../ui/InfoTooltip";
 import { SearchableSelect, type OpcaoSelecao } from "./SearchableSelect";
 

@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { GripVertical, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
-import { AccountSettingsPage } from "./componentes/conta/AccountSettingsPage";
-import { MapaAltimetria } from "./componentes/MapaAltimetria";
-import { PainelDireito } from "./componentes/PainelDireito";
 import { useAuth } from "./context/AuthContext";
 import { consultarAltitude, consultarPerfilElevacao, consultarStatusApi } from "./servicos/apiAltimetria";
 import { gerarCurvasNivel, gerarCurvasNivelPorGeometria } from "./servicos/apiCurvasNivel";
@@ -28,15 +25,12 @@ import type {
   StatusApi,
   TemaVisual
 } from "./tipos/altimetria";
-import {
-  exportarDesenhosKml,
-  exportarRelatorioHtml
-} from "./utilitarios/exportacao";
-import {
-  exportarCurvasNivelKml,
-  exportarCurvasNivelKmz
-} from "./utilitarios/exportacaoCurvasNivel";
-import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
+
+const AccountSettingsPage = lazy(() =>
+  import("./componentes/conta/AccountSettingsPage").then((modulo) => ({ default: modulo.AccountSettingsPage }))
+);
+const MapaAltimetria = lazy(() => import("./componentes/MapaAltimetria").then((modulo) => ({ default: modulo.MapaAltimetria })));
+const PainelDireito = lazy(() => import("./componentes/PainelDireito").then((modulo) => ({ default: modulo.PainelDireito })));
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
 const TEMA_PADRAO: TemaVisual = "escuro";
@@ -355,6 +349,7 @@ export function Aplicacao() {
     }
 
     try {
+      const { importarArquivoGeografico } = await import("./utilitarios/importacaoGeografica");
       const importadas = await Promise.all(Array.from(arquivos).map(importarArquivoGeografico));
       setCamadasImportadas((itens) => [...importadas, ...itens]);
       setAlerta({
@@ -566,10 +561,12 @@ export function Aplicacao() {
       />
 
       {rotaAplicacao === "/configuracoes/conta" ? (
-        <AccountSettingsPage
-          aoVoltar={() => navegarAplicacao("/home")}
-          aoConfirmarEmail={() => navegarAplicacao("/confirmaremail")}
-        />
+        <Suspense fallback={<CarregamentoInicial />}>
+          <AccountSettingsPage
+            aoVoltar={() => navegarAplicacao("/home")}
+            aoConfirmarEmail={() => navegarAplicacao("/confirmaremail")}
+          />
+        </Suspense>
       ) : (
         <>
           {!emailVerificado && !bannerEmailFechado && (
@@ -585,33 +582,35 @@ export function Aplicacao() {
         style={{ "--largura-painel": `${larguraPainel}px` } as CSSProperties}
       >
         <div className="coluna-mapa">
-          <MapaAltimetria
-            tema={tema}
-            camadaBase={camadaBase}
-            rotulosMapaAtivos={rotulosMapaAtivos}
-            localizacaoFocada={localizacaoFocada}
-            elementoFocado={elementoFocado}
-            aoAlterarCamadaBase={setCamadaBase}
-            camadasVisiveis={camadasVisiveis}
-            elementos={elementos}
-            camadasImportadas={camadasImportadas}
-            curvasNivel={curvasNivel}
-            visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
-            pontoDestacado={pontoDestacado}
-            elementoSelecionadoId={elementoSelecionadoId}
-            selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
-            selecaoPontoAltitudeAtiva={selecionandoPontoAltitude}
-            aoElementoCriado={adicionarElemento}
-            aoElementoAtualizado={atualizarElemento}
-            aoElementoRemovido={removerElemento}
-            aoSelecionarElemento={setElementoSelecionadoId}
-            aoLimparSelecao={limparSelecaoElemento}
-            aoBoundsAlterado={setBoundsMapa}
-            aoAreaCurvasSelecionada={gerarCurvasDoRetanguloSelecionado}
-            aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
-            aoPontoAltitudeSelecionado={analisarPontoNoMapa}
-            aoCancelarSelecaoPontoAltitude={() => setSelecionandoPontoAltitude(false)}
-          />
+          <Suspense fallback={<CarregamentoInicial />}>
+            <MapaAltimetria
+              tema={tema}
+              camadaBase={camadaBase}
+              rotulosMapaAtivos={rotulosMapaAtivos}
+              localizacaoFocada={localizacaoFocada}
+              elementoFocado={elementoFocado}
+              aoAlterarCamadaBase={setCamadaBase}
+              camadasVisiveis={camadasVisiveis}
+              elementos={elementos}
+              camadasImportadas={camadasImportadas}
+              curvasNivel={curvasNivel}
+              visibilidadeCamadaCurvasNivel={visibilidadeCamadaCurvasNivel}
+              pontoDestacado={pontoDestacado}
+              elementoSelecionadoId={elementoSelecionadoId}
+              selecaoAreaCurvasAtiva={selecionandoAreaCurvas}
+              selecaoPontoAltitudeAtiva={selecionandoPontoAltitude}
+              aoElementoCriado={adicionarElemento}
+              aoElementoAtualizado={atualizarElemento}
+              aoElementoRemovido={removerElemento}
+              aoSelecionarElemento={setElementoSelecionadoId}
+              aoLimparSelecao={limparSelecaoElemento}
+              aoBoundsAlterado={setBoundsMapa}
+              aoAreaCurvasSelecionada={gerarCurvasDoRetanguloSelecionado}
+              aoCancelarSelecaoAreaCurvas={() => setSelecionandoAreaCurvas(false)}
+              aoPontoAltitudeSelecionado={analisarPontoNoMapa}
+              aoCancelarSelecaoPontoAltitude={() => setSelecionandoPontoAltitude(false)}
+            />
+          </Suspense>
         </div>
 
         {painelVisivel ? (
@@ -630,7 +629,8 @@ export function Aplicacao() {
                 <PanelRightClose size={16} aria-hidden="true" />
               </button>
             </div>
-            <PainelDireito
+            <Suspense fallback={<CarregamentoInicial />}>
+              <PainelDireito
           elementos={elementos}
           elementoSelecionadoId={elementoSelecionadoId}
           curvasNivel={curvasNivel}
@@ -659,12 +659,25 @@ export function Aplicacao() {
           aoImportarArquivo={() => inputArquivoRef.current?.click()}
           aoAlternarCamadaImportada={alternarCamadaImportada}
           aoAlternarCamadaCurvasNivel={() => setVisibilidadeCamadaCurvasNivel((valor) => !valor)}
-          aoExportarRelatorio={() => executarExportacao(() => exportarRelatorioHtml(perfil))}
-          aoExportarCurvasKml={() => executarExportacao(() => exportarCurvasNivelKml(curvasNivel))}
-          aoExportarCurvasKmz={() => executarExportacao(() => exportarCurvasNivelKmz(curvasNivel))}
-          aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
+          aoExportarRelatorio={() => executarExportacao(async () => {
+            const { exportarRelatorioHtml } = await import("./utilitarios/exportacao");
+            exportarRelatorioHtml(perfil);
+          })}
+          aoExportarCurvasKml={() => executarExportacao(async () => {
+            const { exportarCurvasNivelKml } = await import("./utilitarios/exportacaoCurvasNivel");
+            exportarCurvasNivelKml(curvasNivel);
+          })}
+          aoExportarCurvasKmz={() => executarExportacao(async () => {
+            const { exportarCurvasNivelKmz } = await import("./utilitarios/exportacaoCurvasNivel");
+            exportarCurvasNivelKmz(curvasNivel);
+          })}
+          aoExportarKml={() => executarExportacao(async () => {
+            const { exportarDesenhosKml } = await import("./utilitarios/exportacao");
+            exportarDesenhosKml(elementos);
+          })}
           aoCriarMarcadorTecnico={criarMarcadorTecnico}
         />
+            </Suspense>
           </div>
         ) : (
           <button

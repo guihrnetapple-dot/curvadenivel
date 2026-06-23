@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { atualizarSenha } from "../../servicos/authService";
-import { traduzirErroAuth, validarConfirmacaoSenha, validarSenha } from "../../utilitarios/validacaoAuth";
+import { traduzirErroAuth, validarConfirmacaoSenha, validarSenha } from "../../utilitarios/validacaoAuthBasica";
 import { InfoTooltip } from "../ui/InfoTooltip";
 
 export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {

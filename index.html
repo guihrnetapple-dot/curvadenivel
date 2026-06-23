@@ -57,6 +57,24 @@
         font-size: 0.88rem;
         line-height: 1.45;
       }
+
+      .fallback-react button {
+        width: 100%;
+        margin-top: 18px;
+        border: 0;
+        border-radius: 8px;
+        padding: 12px 14px;
+        background: #33aa7a;
+        color: #ffffff;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .fallback-react__detalhe {
+        margin-top: 10px;
+        color: #7f9088;
+      }
     </style>
   </head>
   <body>
@@ -68,6 +86,39 @@
         </section>
       </main>
     </div>
+    <script>
+      window.addEventListener("error", function (evento) {
+        console.error("Falha ao iniciar o GeoCampo:", evento.error || evento.message);
+      });
+      window.addEventListener("unhandledrejection", function (evento) {
+        console.error("Promessa rejeitada ao iniciar o GeoCampo:", evento.reason);
+      });
+
+      window.setTimeout(function () {
+        var fallback = document.querySelector(".fallback-react");
+        if (!fallback) {
+          return;
+        }
+
+        var painel = fallback.querySelector(".fallback-react__painel");
+        if (!painel) {
+          return;
+        }
+
+        painel.innerHTML =
+          "<strong>Não foi possível iniciar o aplicativo.</strong>" +
+          "<span>Recarregue a página. Se continuar acontecendo, limpe o cache do navegador e tente novamente.</span>" +
+          "<button type=\"button\">Recarregar</button>" +
+          "<span class=\"fallback-react__detalhe\">Os detalhes técnicos foram registrados no console do navegador.</span>";
+
+        var botao = painel.querySelector("button");
+        if (botao) {
+          botao.addEventListener("click", function () {
+            window.location.reload();
+          });
+        }
+      }, 15000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

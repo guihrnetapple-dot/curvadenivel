@@ -13,7 +13,7 @@ import {
   traduzirErroVerificacao,
   validarCodigoEmail
 } from "../../servicos/verificationService";
-import { normalizarEmail, traduzirErroAuth, validarEmail } from "../../utilitarios/validacaoAuth";
+import { normalizarEmail, traduzirErroAuth, validarEmail } from "../../utilitarios/validacaoAuthBasica";
 import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {

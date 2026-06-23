@@ -1,7 +1,7 @@
 import { obterSupabase } from "../lib/supabaseClient";
 import type { User } from "@supabase/supabase-js";
 import type { DadosPerfilCadastro, InformacaoCliente, PerfilUsuario } from "../tipos/autenticacao";
-import { normalizarWhatsApp, validarPerfilObrigatorio } from "../utilitarios/validacaoAuth";
+import { normalizarWhatsApp } from "../utilitarios/validacaoAuthBasica";
 
 type DatasConsentimento = Partial<
   Pick<
@@ -61,6 +61,7 @@ export async function salvarPerfilUsuario(
   infoCliente: InformacaoCliente,
   datas?: DatasConsentimento
 ): Promise<PerfilUsuario> {
+  const { validarPerfilObrigatorio } = await import("../utilitarios/validacaoAuth");
   const erroValidacao = validarPerfilObrigatorio(dados);
   if (erroValidacao) {
     throw new Error(erroValidacao);

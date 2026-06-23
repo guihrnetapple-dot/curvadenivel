@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { aplicarPreferenciaDadosLogin, entrarComEmailSenha } from "../../servicos/authService";
 import { obterEmailLembrado } from "../../servicos/persistenciaLogin";
-import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
+import { traduzirErroAuth } from "../../utilitarios/validacaoAuthBasica";
 
 interface Props {
   aoCriarConta: () => void;

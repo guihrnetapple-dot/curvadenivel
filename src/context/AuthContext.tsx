@@ -3,10 +3,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 
 import { obterSupabase, supabaseConfigurado } from "../lib/supabaseClient";
-import type { PerfilUsuario } from "../tipos/autenticacao";
-import { garantirPerfilUsuario } from "../servicos/profileService";
 import { restaurarPerfilCadastroInicial } from "../servicos/authService";
 import { loginPersistenteAtivo } from "../servicos/persistenciaLogin";
+import { garantirPerfilUsuario } from "../servicos/profileService";
+import type { PerfilUsuario } from "../tipos/autenticacao";
 
 interface EstadoAuth {
   carregando: boolean;
@@ -18,7 +18,9 @@ interface EstadoAuth {
   emailAtual: string | null;
   emailVerificado: boolean;
   whatsappVerificado: boolean;
+  erroInicializacao: string | null;
   recarregarPerfil: () => Promise<void>;
+  tentarNovamente: () => void;
 }
 
 const AuthContext = createContext<EstadoAuth | null>(null);
@@ -28,10 +30,22 @@ function paginaFoiRecarregada(): boolean {
   return navegacao?.type === "reload";
 }
 
+function comTimeout<T>(promessa: Promise<T>, tempoMs: number, mensagem: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const temporizador = window.setTimeout(() => reject(new Error(mensagem)), tempoMs);
+    promessa
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(temporizador));
+  });
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [carregando, setCarregando] = useState(true);
   const [sessao, setSessao] = useState<Session | null>(null);
   const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
+  const [erroInicializacao, setErroInicializacao] = useState<string | null>(null);
+  const [tentativaInicializacao, setTentativaInicializacao] = useState(0);
 
   const carregarPerfil = useCallback(async (usuario: User | null) => {
     if (!usuario || !supabaseConfigurado) {
@@ -40,13 +54,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const perfilUsuario = await garantirPerfilUsuario(usuario);
+      const perfilUsuario = await comTimeout(
+        garantirPerfilUsuario(usuario),
+        12000,
+        "A consulta ao perfil demorou demais. Verifique sua conexão e tente novamente."
+      );
       if (perfilUsuario) {
         setPerfil(perfilUsuario);
         return;
       }
 
-      const perfilRestaurado = await restaurarPerfilCadastroInicial(usuario);
+      const perfilRestaurado = await comTimeout(
+        restaurarPerfilCadastroInicial(usuario),
+        12000,
+        "A restauração do perfil demorou demais. Verifique sua conexão e tente novamente."
+      );
       setPerfil(perfilRestaurado);
     } catch (erro) {
       if (import.meta.env.DEV) {
@@ -66,6 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [carregarPerfil, sessao]);
 
+  const tentarNovamente = useCallback(() => {
+    setErroInicializacao(null);
+    setCarregando(true);
+    setTentativaInicializacao((valor) => valor + 1);
+  }, []);
+
   const emailAtual = sessao?.user.email?.trim().toLowerCase() ?? null;
   const emailVerificado = Boolean(
     perfil?.email_verified_at &&
@@ -82,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabaseConfigurado) {
+      setErroInicializacao(null);
       setCarregando(false);
       return;
     }
@@ -93,15 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (import.meta.env.DEV) {
         console.error("Falha ao inicializar banco de dados:", erro);
       }
+      setErroInicializacao("Não foi possível iniciar a autenticação. Tente novamente.");
       setCarregando(false);
       return;
     }
 
     let ativo = true;
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
+    async function inicializarSessao() {
+      try {
+        setErroInicializacao(null);
+        const { data } = await comTimeout(
+          supabase.auth.getSession(),
+          12000,
+          "A autenticação demorou demais para responder. Verifique sua conexão e tente novamente."
+        );
+
         if (!ativo) {
           return;
         }
@@ -119,39 +155,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setSessao(data.session);
         await carregarPerfil(data.session?.user ?? null);
-      })
-      .catch((erro) => {
+      } catch (erro) {
         if (import.meta.env.DEV) {
           console.error("Falha ao obter sessão do banco de dados:", erro);
         }
         if (ativo) {
           setSessao(null);
           setPerfil(null);
+          setErroInicializacao(erro instanceof Error ? erro.message : "Não foi possível iniciar a autenticação.");
         }
-      })
-      .finally(() => {
+      } finally {
         if (ativo) {
           setCarregando(false);
         }
-      });
+      }
+    }
+
+    void inicializarSessao();
 
     let assinatura: { subscription: { unsubscribe: () => void } } | null = null;
 
     try {
       const retornoAssinatura = supabase.auth.onAuthStateChange((_evento, novaSessao) => {
-        void (async () => {
-          try {
-            setSessao(novaSessao);
-            await carregarPerfil(novaSessao?.user ?? null);
-          } catch (erro) {
+        setSessao(novaSessao);
+        setCarregando(false);
+        window.setTimeout(() => {
+          void carregarPerfil(novaSessao?.user ?? null).catch((erro) => {
             if (import.meta.env.DEV) {
               console.error("Falha ao processar mudança de autenticação:", erro);
             }
             setPerfil(null);
-          } finally {
-            setCarregando(false);
-          }
-        })();
+          });
+        }, 0);
       });
       assinatura = retornoAssinatura.data;
     } catch (erro) {
@@ -165,7 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ativo = false;
       assinatura?.subscription.unsubscribe();
     };
-  }, [carregarPerfil]);
+  }, [carregarPerfil, tentativaInicializacao]);
 
   const valor = useMemo<EstadoAuth>(
     () => ({
@@ -178,9 +213,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       emailAtual,
       emailVerificado,
       whatsappVerificado,
-      recarregarPerfil
+      erroInicializacao,
+      recarregarPerfil,
+      tentarNovamente
     }),
-    [carregando, emailAtual, emailVerificado, perfil, recarregarPerfil, sessao, whatsappVerificado]
+    [carregando, emailAtual, emailVerificado, erroInicializacao, perfil, recarregarPerfil, sessao, tentarNovamente, whatsappVerificado]
   );
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>;

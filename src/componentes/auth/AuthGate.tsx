@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import logoCurvaNivel from "../../assets/logo-curva-nivel.png";
@@ -9,15 +9,16 @@ import {
   obterEmailConfirmacaoPendente,
   sair
 } from "../../servicos/authService";
-import { traduzirErroAuth } from "../../utilitarios/validacaoAuth";
+import { traduzirErroAuth } from "../../utilitarios/validacaoAuthBasica";
 import { CarregamentoInicial } from "../CarregamentoInicial";
-import { AuthTerrainPanel } from "./AuthTerrainPanel";
 import { AuthErrorBoundary } from "./AuthErrorBoundary";
-import { ForgotPasswordPage } from "./ForgotPasswordPage";
 import { LoginPage } from "./LoginPage";
-import { ConfirmEmailPage } from "./ConfirmEmailPage";
-import { RegisterPage } from "./RegisterPage";
-import { ResetPasswordPage } from "./ResetPasswordPage";
+
+const AuthTerrainPanel = lazy(() => import("./AuthTerrainPanel").then((modulo) => ({ default: modulo.AuthTerrainPanel })));
+const ForgotPasswordPage = lazy(() => import("./ForgotPasswordPage").then((modulo) => ({ default: modulo.ForgotPasswordPage })));
+const ConfirmEmailPage = lazy(() => import("./ConfirmEmailPage").then((modulo) => ({ default: modulo.ConfirmEmailPage })));
+const RegisterPage = lazy(() => import("./RegisterPage").then((modulo) => ({ default: modulo.RegisterPage })));
+const ResetPasswordPage = lazy(() => import("./ResetPasswordPage").then((modulo) => ({ default: modulo.ResetPasswordPage })));
 
 type TelaAuth = "login" | "cadastro" | "recuperacao" | "nova-senha" | "confirmacao-email";
 
@@ -145,11 +146,17 @@ function AuthShell({ children, cadastro }: { children: ReactNode; cadastro?: boo
         </div>
         <div className="auth-layout">
           <section className="auth-painel-formulario">{children}</section>
-          <AuthTerrainPanel />
+          <Suspense fallback={null}>
+            <AuthTerrainPanel />
+          </Suspense>
         </div>
       </section>
     </main>
   );
+}
+
+function CarregandoTelaAuth() {
+  return <div className="auth-feedback">Carregando...</div>;
 }
 
 function AutenticacaoIndisponivel() {
@@ -164,7 +171,7 @@ function AutenticacaoIndisponivel() {
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { carregando, configurado, usuario, recarregarPerfil } = useAuth();
+  const { carregando, configurado, usuario, erroInicializacao, recarregarPerfil, tentarNovamente } = useAuth();
   const [tela, setTela] = useState<TelaAuth>(() => detectarTelaInicial());
   const [mensagemUrl, setMensagemUrl] = useState<string | null>(() => detectarErroUrl());
   const [avisoLogin, setAvisoLogin] = useState<string | null>(() => mensagemUrl ? null : detectarMensagemLogin());
@@ -262,6 +269,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return <CarregamentoInicial />;
   }
 
+  if (erroInicializacao) {
+    return (
+      <AuthShell>
+        <div className="auth-configuracao">
+          <strong>Não foi possível iniciar o aplicativo</strong>
+          <span>{erroInicializacao}</span>
+          <button type="button" onClick={tentarNovamente}>Tentar novamente</button>
+        </div>
+      </AuthShell>
+    );
+  }
+
   if (!configurado) {
     return <AutenticacaoIndisponivel />;
   }
@@ -269,7 +288,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (usuario && resetandoSenha) {
     return (
       <AuthShell>
-        <ResetPasswordPage aoConcluir={() => navegarAuth("login", true)} />
+        <Suspense fallback={<CarregandoTelaAuth />}>
+          <ResetPasswordPage aoConcluir={() => navegarAuth("login", true)} />
+        </Suspense>
       </AuthShell>
     );
   }
@@ -277,31 +298,33 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (usuario && tela === "confirmacao-email") {
     return (
       <AuthShell cadastro>
-        <ConfirmEmailPage
-          email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
-          modo={modoConfirmacao}
-          purpose={desafioEmailApp?.purpose ?? "signup_email"}
-          challengeId={desafioEmailApp?.challengeId ?? null}
-          destinationMasked={desafioEmailApp?.destinationMasked ?? null}
-          avisoInicial={avisoConfirmacao}
-          aoEmailDefinido={(email) => setEmailConfirmacao(email)}
-          aoConfirmado={() => {
-            limparConfirmacaoPendente();
-            setDesafioEmailApp(null);
-            setAvisoConfirmacao(null);
-            void recarregarPerfil().finally(() => {
+        <Suspense fallback={<CarregandoTelaAuth />}>
+          <ConfirmEmailPage
+            email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
+            modo={modoConfirmacao}
+            purpose={desafioEmailApp?.purpose ?? "signup_email"}
+            challengeId={desafioEmailApp?.challengeId ?? null}
+            destinationMasked={desafioEmailApp?.destinationMasked ?? null}
+            avisoInicial={avisoConfirmacao}
+            aoEmailDefinido={(email) => setEmailConfirmacao(email)}
+            aoConfirmado={() => {
+              limparConfirmacaoPendente();
+              setDesafioEmailApp(null);
+              setAvisoConfirmacao(null);
+              void recarregarPerfil().finally(() => {
+                atualizarUrl("/home", true);
+                atualizarTitulo("/home");
+                setTela("login");
+              });
+            }}
+            aoPular={() => {
               atualizarUrl("/home", true);
               atualizarTitulo("/home");
               setTela("login");
-            });
-          }}
-          aoPular={() => {
-            atualizarUrl("/home", true);
-            atualizarTitulo("/home");
-            setTela("login");
-          }}
-          aoVoltarCadastro={() => navegarAuth("cadastro")}
-        />
+            }}
+            aoVoltarCadastro={() => navegarAuth("cadastro")}
+          />
+        </Suspense>
       </AuthShell>
     );
   }
@@ -328,55 +351,59 @@ export function AuthGate({ children }: { children: ReactNode }) {
           aoRecuperarSenha={() => navegarAuth("recuperacao")}
         />
       )}
-      {tela === "cadastro" && (
-        <RegisterPage
-          aoEntrar={() => navegarAuth("login")}
-          aoConfirmacaoNecessaria={(email, dados) => {
-            setEmailConfirmacao(email);
-            setModoConfirmacao(dados?.modo ?? "native");
-            setDesafioEmailApp(dados?.modo === "app" ? {
-              email,
-              challengeId: dados.challengeId ?? null,
-              destinationMasked: dados.destinationMasked ?? null,
-              purpose: "signup_email",
-              criadoEm: Date.now()
-            } : null);
-            setAvisoConfirmacao(dados?.envioErro ?? null);
-            setMensagemUrl(null);
-            setAvisoLogin(null);
-            navegarAuth("confirmacao-email");
-          }}
-        />
-      )}
-      {tela === "confirmacao-email" && (
-        <ConfirmEmailPage
-          email={emailConfirmacao}
-          modo={modoConfirmacao}
-          purpose={desafioEmailApp?.purpose ?? "signup_email"}
-          challengeId={desafioEmailApp?.challengeId ?? null}
-          destinationMasked={desafioEmailApp?.destinationMasked ?? null}
-          avisoInicial={avisoConfirmacao}
-          aoEmailDefinido={(email) => setEmailConfirmacao(email)}
-          aoConfirmado={() => {
-            const emailConfirmado = emailConfirmacao;
-            setFinalizandoConfirmacaoEmail(true);
-            limparConfirmacaoPendente();
-            setEmailConfirmacao(null);
-            void sair()
-              .catch(() => undefined)
-              .finally(() => {
-                setFinalizandoConfirmacaoEmail(false);
+      {tela !== "login" && (
+        <Suspense fallback={<CarregandoTelaAuth />}>
+          {tela === "cadastro" && (
+            <RegisterPage
+              aoEntrar={() => navegarAuth("login")}
+              aoConfirmacaoNecessaria={(email, dados) => {
+                setEmailConfirmacao(email);
+                setModoConfirmacao(dados?.modo ?? "native");
+                setDesafioEmailApp(dados?.modo === "app" ? {
+                  email,
+                  challengeId: dados.challengeId ?? null,
+                  destinationMasked: dados.destinationMasked ?? null,
+                  purpose: "signup_email",
+                  criadoEm: Date.now()
+                } : null);
+                setAvisoConfirmacao(dados?.envioErro ?? null);
                 setMensagemUrl(null);
-                setAvisoLogin(mensagemEmailConfirmado(emailConfirmado));
-                navegarAuth("login", true);
-              });
-          }}
-          aoVoltarCadastro={() => navegarAuth("cadastro")}
-        />
-      )}
-      {tela === "recuperacao" && <ForgotPasswordPage aoEntrar={() => navegarAuth("login")} />}
-      {tela === "nova-senha" && (
-        <LoginPage aoCriarConta={() => navegarAuth("cadastro")} aoRecuperarSenha={() => navegarAuth("recuperacao")} />
+                setAvisoLogin(null);
+                navegarAuth("confirmacao-email");
+              }}
+            />
+          )}
+          {tela === "confirmacao-email" && (
+            <ConfirmEmailPage
+              email={emailConfirmacao}
+              modo={modoConfirmacao}
+              purpose={desafioEmailApp?.purpose ?? "signup_email"}
+              challengeId={desafioEmailApp?.challengeId ?? null}
+              destinationMasked={desafioEmailApp?.destinationMasked ?? null}
+              avisoInicial={avisoConfirmacao}
+              aoEmailDefinido={(email) => setEmailConfirmacao(email)}
+              aoConfirmado={() => {
+                const emailConfirmado = emailConfirmacao;
+                setFinalizandoConfirmacaoEmail(true);
+                limparConfirmacaoPendente();
+                setEmailConfirmacao(null);
+                void sair()
+                  .catch(() => undefined)
+                  .finally(() => {
+                    setFinalizandoConfirmacaoEmail(false);
+                    setMensagemUrl(null);
+                    setAvisoLogin(mensagemEmailConfirmado(emailConfirmado));
+                    navegarAuth("login", true);
+                  });
+              }}
+              aoVoltarCadastro={() => navegarAuth("cadastro")}
+            />
+          )}
+          {tela === "recuperacao" && <ForgotPasswordPage aoEntrar={() => navegarAuth("login")} />}
+          {tela === "nova-senha" && (
+            <LoginPage aoCriarConta={() => navegarAuth("cadastro")} aoRecuperarSenha={() => navegarAuth("recuperacao")} />
+          )}
+        </Suspense>
       )}
     </AuthShell>
   );
