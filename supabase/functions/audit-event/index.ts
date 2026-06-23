@@ -1,14 +1,11 @@
 const ORIGENS_PERMITIDAS = new Set([
-  "https://geocampo.vercel.app",
-  "https://curvadenivel.vercel.app",
-  "https://curvadenivel-fbhse7xcb-guilherme-franklin.vercel.app",
-  "https://curvadenivel-git-security-auth-open-e-b8bccc-guilherme-franklin.vercel.app",
+  "https://geocampo.itefagro.net.br",
   "http://localhost:5173",
   "http://127.0.0.1:5173"
 ]);
 
 function origemPermitida(origem: string) {
-  return ORIGENS_PERMITIDAS.has(origem) || /^https:\/\/(?:geocampo|curvadenivel)-[a-z0-9-]+-guilherme-franklin\.vercel\.app$/.test(origem);
+  return ORIGENS_PERMITIDAS.has(origem) || /^https:\/\/geocampo-[a-z0-9-]+-guilherme-franklin\.vercel\.app$/.test(origem);
 }
 
 function criarCabecalhosCors(requisicao: Request): HeadersInit {

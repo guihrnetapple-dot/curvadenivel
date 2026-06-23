@@ -1,6 +1,5 @@
 const ORIGENS_PADRAO = [
-  "https://geocampo.vercel.app",
-  "https://curvadenivel.vercel.app",
+  "https://geocampo.itefagro.net.br",
   "http://localhost:5173",
   "http://127.0.0.1:5173"
 ];
@@ -15,7 +14,7 @@ function obterOrigensPermitidas(): string[] {
 }
 
 export function origemPermitida(origem: string): boolean {
-  return obterOrigensPermitidas().includes(origem) || /^https:\/\/(?:geocampo|curvadenivel)-[a-z0-9-]+-guilherme-franklin\.vercel\.app$/.test(origem);
+  return obterOrigensPermitidas().includes(origem) || /^https:\/\/geocampo-[a-z0-9-]+-guilherme-franklin\.vercel\.app$/.test(origem);
 }
 
 export function criarCabecalhosCors(requisicao: Request): HeadersInit {

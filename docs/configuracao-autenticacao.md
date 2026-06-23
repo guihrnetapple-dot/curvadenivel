@@ -1,19 +1,19 @@
 # Configuração de autenticação
 
-Estas etapas precisam ser aplicadas no painel da Supabase e nos provedores externos. O código prepara os redirecionamentos e o fluxo de confirmação por código, mas não consegue configurar domínio, SMTP, template e Twilio sozinho.
+Estas etapas precisam ser aplicadas no painel do banco de dados e nos provedores externos. O código prepara os redirecionamentos e o fluxo de confirmação por código, mas não consegue configurar domínio, SMTP, template e Twilio sozinho.
 
 ## URL Configuration
 
 Use como Site URL de produção:
 
 ```text
-https://curvadenivel.vercel.app
+https://geocampo.itefagro.net.br
 ```
 
 Redirect URLs permitidas:
 
 ```text
-https://curvadenivel.vercel.app/**
+https://geocampo.itefagro.net.br/**
 http://127.0.0.1:5173/**
 http://localhost:5173/**
 ```
@@ -30,11 +30,11 @@ VITE_EMAIL_VERIFICATION_MODE=auto
 
 Modos:
 
-- `auto`: usa verificação da aplicação quando o cadastro já cria sessão; mantém fallback nativo quando a Supabase não retorna sessão.
+- `auto`: usa verificação da aplicação quando o cadastro já cria sessão; mantém fallback nativo quando o banco de dados não retorna sessão.
 - `app`: força o fluxo da aplicação.
-- `native`: usa o fallback nativo da Supabase.
+- `native`: usa o fallback nativo do banco de dados.
 
-Para o comportamento final, desative `Confirm email` nativo na Supabase apenas depois de:
+Para o comportamento final, desative `Confirm email` nativo no banco de dados apenas depois de:
 
 1. aplicar as migrations;
 2. publicar as Edge Functions;
@@ -53,13 +53,13 @@ Checklist manual:
 - configurar SPF;
 - configurar DKIM;
 - publicar DMARC;
-- criar remetente `Curva de Nível <conta@dominio>`;
+- criar remetente `GeoCampo <conta@dominio>`;
 - desativar rastreamento de clique para autenticação;
 - testar Gmail, Outlook e caixa corporativa.
 
-## SMTP personalizado da Supabase
+## SMTP personalizado
 
-Configure SMTP personalizado no painel da Supabase para os e-mails nativos restantes:
+Configure SMTP personalizado no painel do banco de dados para os e-mails nativos restantes:
 
 - recuperação de senha;
 - alteração de e-mail nativa, se ainda usada no fallback;
@@ -75,7 +75,7 @@ Enquanto o fallback nativo existir, remova `{{ .ConfirmationURL }}` e use soment
 
 ```html
 <h1>Confirme seu cadastro</h1>
-<p>Use o código abaixo para confirmar seu e-mail na Curva de Nível.</p>
+<p>Use o código abaixo para confirmar seu e-mail no GeoCampo.</p>
 <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ .Token }}</p>
 <p>O código expira em breve e pode ser usado uma única vez.</p>
 <p>Se você não solicitou este cadastro, ignore esta mensagem.</p>
@@ -83,19 +83,19 @@ Enquanto o fallback nativo existir, remova `{{ .ConfirmationURL }}` e use soment
 
 ## Edge Functions
 
-Secrets necessários no projeto Supabase:
+Secrets necessários no projeto do banco de dados:
 
 ```text
 EMAIL_PROVIDER=resend
 RESEND_API_KEY=
 EMAIL_FROM=
-EMAIL_FROM_NAME=Curva de Nível
+EMAIL_FROM_NAME=GeoCampo
 EMAIL_REPLY_TO=
 OTP_HMAC_SECRET=
 OTP_TTL_SECONDS=600
 OTP_RESEND_SECONDS=60
 OTP_MAX_ATTEMPTS=5
-ALLOWED_ORIGINS=https://curvadenivel.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+ALLOWED_ORIGINS=https://geocampo.itefagro.net.br,http://localhost:5173,http://127.0.0.1:5173
 ```
 
 Funções:
