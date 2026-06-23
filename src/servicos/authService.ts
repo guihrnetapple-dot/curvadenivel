@@ -303,6 +303,18 @@ export async function cadastrarComEmailSenha(dados: DadosCadastro): Promise<Resu
     return { status: "autenticado" };
   }
 
+  if (modoVerificacaoEmail() === "app") {
+    registrarEventoAuditoriaSemBloquear({
+      event_type: "cadastro_falha_configuracao_confirmacao",
+      email,
+      metadata: {
+        metodo: "email",
+        motivo: "supabase_confirm_email_ativo_sem_sessao"
+      }
+    });
+    throw { code: "native_email_confirmation_enabled" };
+  }
+
   salvarConfirmacaoPendente(email, dados);
   registrarEventoAuditoriaSemBloquear({
     event_type: "cadastro_confirmacao_pendente",

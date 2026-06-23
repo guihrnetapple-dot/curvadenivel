@@ -78,6 +78,7 @@ function criarCadastro() {
 describe("authService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
     const sessionStorageMock = criarStorage();
     const localStorageMock = criarStorage();
     vi.stubGlobal("sessionStorage", sessionStorageMock);
@@ -117,6 +118,17 @@ describe("authService", () => {
       })
     }));
     expect(JSON.stringify(mocks.signUp.mock.calls[0][0].options.data)).not.toContain("senha123");
+  });
+
+  it("bloqueia fallback nativo quando o modo de verificacao da aplicacao esta ativo", async () => {
+    vi.stubEnv("VITE_EMAIL_VERIFICATION_MODE", "app");
+    mocks.signUp.mockResolvedValueOnce({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
+
+    await expect(cadastrarComEmailSenha(criarCadastro())).rejects.toMatchObject({
+      code: "native_email_confirmation_enabled"
+    });
+
+    expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
   it("retorna verificação da aplicação quando o cadastro cria sessão", async () => {
