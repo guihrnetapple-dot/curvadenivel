@@ -59,6 +59,7 @@ interface PropriedadesMapaAltimetria {
   camadaBase: CamadaBase;
   rotulosMapaAtivos: boolean;
   localizacaoFocada: LocalizacaoEncontrada | null;
+  elementoFocado: { id: string; versao: number } | null;
   aoAlterarCamadaBase: (camada: CamadaBase) => void;
   camadasVisiveis: CamadasVisiveis;
   elementos: ElementoMapa[];
@@ -402,6 +403,41 @@ function criarCamadaPorElemento(elemento: ElementoMapa): L.Layer {
   });
 }
 
+function obterBoundsElemento(elemento: ElementoMapa): L.LatLngBounds | null {
+  if (elemento.geometria.type === "Point") {
+    return null;
+  }
+
+  if (elemento.geometria.type === "Circle") {
+    const [longitude, latitude] = elemento.geometria.center;
+    return L.circle([latitude, longitude], { radius: elemento.geometria.radiusMeters }).getBounds();
+  }
+
+  if (elemento.geometria.type === "LineString") {
+    const pontos = elemento.geometria.coordinates.map(([longitude, latitude]) => [latitude, longitude] as L.LatLngTuple);
+    return pontos.length > 0 ? L.latLngBounds(pontos) : null;
+  }
+
+  const pontos = elemento.geometria.coordinates
+    .flat()
+    .map(([longitude, latitude]) => [latitude, longitude] as L.LatLngTuple);
+  return pontos.length > 0 ? L.latLngBounds(pontos) : null;
+}
+
+function obterCentroElemento(elemento: ElementoMapa): L.LatLng | null {
+  if (elemento.geometria.type === "Point") {
+    const [longitude, latitude] = elemento.geometria.coordinates;
+    return L.latLng(latitude, longitude);
+  }
+
+  if (elemento.geometria.type === "Circle") {
+    const [longitude, latitude] = elemento.geometria.center;
+    return L.latLng(latitude, longitude);
+  }
+
+  return obterBoundsElemento(elemento)?.getCenter() ?? null;
+}
+
 function deslocarLatLng(latLng: L.LatLng, deltaLatitude: number, deltaLongitude: number): L.LatLng {
   return L.latLng(latLng.lat + deltaLatitude, latLng.lng + deltaLongitude);
 }
@@ -463,6 +499,7 @@ export function MapaAltimetria({
   camadaBase,
   rotulosMapaAtivos,
   localizacaoFocada,
+  elementoFocado,
   aoAlterarCamadaBase,
   camadasVisiveis,
   elementos,
@@ -1211,6 +1248,29 @@ export function MapaAltimetria({
 
     mapa.flyTo([localizacaoFocada.latitude, localizacaoFocada.longitude], 13, { animate: true });
   }, [localizacaoFocada]);
+
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa || !elementoFocado) {
+      return;
+    }
+
+    const elemento = elementos.find((item) => item.id === elementoFocado.id);
+    if (!elemento) {
+      return;
+    }
+
+    const bounds = obterBoundsElemento(elemento);
+    if (bounds?.isValid()) {
+      mapa.fitBounds(bounds, { maxZoom: 18, padding: [56, 56], animate: true });
+      return;
+    }
+
+    const centro = obterCentroElemento(elemento);
+    if (centro) {
+      mapa.flyTo(centro, Math.max(mapa.getZoom(), 16), { animate: true });
+    }
+  }, [elementoFocado]);
 
   useEffect(() => {
     const mapa = mapaRef.current;

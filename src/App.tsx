@@ -49,6 +49,11 @@ const camadasIniciais: CamadasVisiveis = {
   desenhos: true
 };
 
+interface FocoElementoMapa {
+  id: string;
+  versao: number;
+}
+
 function lerLocalStorage<T>(chave: string, fallback: T): T {
   try {
     const conteudo = localStorage.getItem(chave);
@@ -94,6 +99,7 @@ export function Aplicacao() {
   const [termoLocalizacao, setTermoLocalizacao] = useState("");
   const [carregandoLocalizacao, setCarregandoLocalizacao] = useState(false);
   const [localizacaoFocada, setLocalizacaoFocada] = useState<LocalizacaoEncontrada | null>(null);
+  const [elementoFocado, setElementoFocado] = useState<FocoElementoMapa | null>(null);
   const [rotulosMapaAtivos, setRotulosMapaAtivos] = useState(true);
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
   const [rotaAplicacao, setRotaAplicacao] = useState(() => window.location.pathname);
@@ -221,6 +227,14 @@ export function Aplicacao() {
 
   function limparSelecaoElemento() {
     setElementoSelecionadoId(null);
+  }
+
+  function centralizarElementoNoMapa(id: string) {
+    setElementoSelecionadoId(id);
+    setElementoFocado((atual) => ({
+      id,
+      versao: (atual?.versao ?? 0) + 1
+    }));
   }
 
   function desfazerElementos() {
@@ -576,6 +590,7 @@ export function Aplicacao() {
             camadaBase={camadaBase}
             rotulosMapaAtivos={rotulosMapaAtivos}
             localizacaoFocada={localizacaoFocada}
+            elementoFocado={elementoFocado}
             aoAlterarCamadaBase={setCamadaBase}
             camadasVisiveis={camadasVisiveis}
             elementos={elementos}
@@ -633,6 +648,7 @@ export function Aplicacao() {
           aoPesquisarLocalizacao={buscarLocalizacao}
           aoAlternarRotulosMapa={() => setRotulosMapaAtivos((valor) => !valor)}
           aoSelecionarElemento={(id) => setElementoSelecionadoId(id || null)}
+          aoCentralizarElemento={centralizarElementoNoMapa}
           aoAlterarIntervaloCurvas={setIntervaloCurvasMetros}
           aoGerarCurvas={iniciarSelecaoAreaCurvas}
           aoGerarCurvasAreaSelecionada={gerarCurvasDaAreaSelecionada}

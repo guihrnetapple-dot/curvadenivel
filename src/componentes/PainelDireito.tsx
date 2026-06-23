@@ -64,6 +64,7 @@ interface PropriedadesPainelDireito {
   aoPesquisarLocalizacao: () => void;
   aoAlternarRotulosMapa: () => void;
   aoSelecionarElemento: (id: string) => void;
+  aoCentralizarElemento: (id: string) => void;
   aoAlterarIntervaloCurvas: (intervaloMetros: number) => void;
   aoGerarCurvas: () => void;
   aoGerarCurvasAreaSelecionada: () => void;
@@ -140,6 +141,7 @@ export function PainelDireito({
   aoPesquisarLocalizacao,
   aoAlternarRotulosMapa,
   aoSelecionarElemento,
+  aoCentralizarElemento,
   aoAlterarIntervaloCurvas,
   aoGerarCurvas,
   aoGerarCurvasAreaSelecionada,
@@ -268,6 +270,7 @@ export function PainelDireito({
                   elementoSelecionadoId === elemento.id ? "item-camada-desenho ativo" : "item-camada-desenho"
                 }
                 onClick={() => aoSelecionarElemento(elemento.id)}
+                onDoubleClick={() => aoCentralizarElemento(elemento.id)}
               >
                 <span className="icone-camada-desenho">{obterIconeElemento(elemento.tipo)}</span>
                 <span>
