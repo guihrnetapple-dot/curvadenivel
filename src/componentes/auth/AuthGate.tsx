@@ -134,17 +134,27 @@ function mensagemEmailConfirmado(email?: string | null): string {
     : "E-mail confirmado. Entre com seu e-mail e senha para acessar o sistema.";
 }
 
-function AuthShell({ children, cadastro }: { children: ReactNode; cadastro?: boolean }) {
+function AuthShell({ children, cadastro, aoClicarMarca }: { children: ReactNode; cadastro?: boolean; aoClicarMarca?: () => void }) {
+  const conteudoMarca = (
+    <>
+      <img src={logoCurvaNivel} alt="Logo GeoCampo" />
+      <div>
+        <strong>GeoCampo</strong>
+        <span>Topografia, irrigação e engenharia.</span>
+      </div>
+    </>
+  );
+
   return (
     <main className="auth-pagina">
       <section className={cadastro ? "auth-card auth-card-cadastro" : "auth-card"}>
-        <div className="auth-marca">
-          <img src={logoCurvaNivel} alt="Logo GeoCampo" />
-          <div>
-            <strong>GeoCampo</strong>
-            <span>Topografia, irrigação e engenharia.</span>
-          </div>
-        </div>
+        {aoClicarMarca ? (
+          <button type="button" className="auth-marca auth-marca-botao" onClick={aoClicarMarca} aria-label="Voltar para o login">
+            {conteudoMarca}
+          </button>
+        ) : (
+          <div className="auth-marca">{conteudoMarca}</div>
+        )}
         <div className="auth-layout">
           <section className="auth-painel-formulario">{children}</section>
           <Suspense fallback={null}>
@@ -187,6 +197,17 @@ export function AuthGate({ children }: { children: ReactNode }) {
     atualizarUrl(rotasPorTela[proximaTela], substituir);
     atualizarTitulo(rotasPorTela[proximaTela]);
   }, []);
+  const voltarParaLogin = useCallback(() => {
+    setMensagemUrl(null);
+    setAvisoLogin(null);
+    if (usuario) {
+      void sair()
+        .catch(() => undefined)
+        .finally(() => navegarAuth("login", true));
+      return;
+    }
+    navegarAuth("login");
+  }, [navegarAuth, usuario]);
 
   useEffect(() => {
     const aoVoltar = () => {
@@ -284,7 +305,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (erroInicializacao) {
     return (
-      <AuthShell>
+      <AuthShell aoClicarMarca={voltarParaLogin}>
         <div className="auth-configuracao">
           <strong>Não foi possível iniciar o aplicativo</strong>
           <span>{erroInicializacao}</span>
@@ -300,7 +321,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (usuario && resetandoSenha) {
     return (
-      <AuthShell>
+      <AuthShell aoClicarMarca={voltarParaLogin}>
         <Suspense fallback={<CarregandoTelaAuth />}>
           <ResetPasswordPage aoConcluir={() => navegarAuth("login", true)} />
         </Suspense>
@@ -310,7 +331,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (usuario && !emailVerificado && !resetandoSenha) {
     return (
-      <AuthShell cadastro>
+      <AuthShell cadastro aoClicarMarca={voltarParaLogin}>
         <Suspense fallback={<CarregandoTelaAuth />}>
           <ConfirmEmailPage
             email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
@@ -339,7 +360,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (usuario && tela === "confirmacao-email") {
     return (
-      <AuthShell cadastro>
+      <AuthShell cadastro aoClicarMarca={voltarParaLogin}>
         <Suspense fallback={<CarregandoTelaAuth />}>
           <ConfirmEmailPage
             email={emailConfirmacao ?? usuario.email ?? desafioEmailApp?.email ?? null}
@@ -368,7 +389,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (usuario && emailVerificado && perfilPendente) {
     return (
-      <AuthShell cadastro>
+      <AuthShell cadastro aoClicarMarca={voltarParaLogin}>
         <Suspense fallback={<CarregandoTelaAuth />}>
           <CompleteProfilePage />
         </Suspense>
@@ -381,7 +402,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthShell cadastro={tela === "cadastro" || tela === "confirmacao-email"}>
+    <AuthShell cadastro={tela === "cadastro" || tela === "confirmacao-email"} aoClicarMarca={voltarParaLogin}>
       {mensagemUrl && (
         <div className="auth-feedback erro" role="alert">
           {mensagemUrl}

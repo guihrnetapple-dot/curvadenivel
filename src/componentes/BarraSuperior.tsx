@@ -4,22 +4,23 @@ import { Settings } from "lucide-react";
 interface BarraSuperiorProps {
   nomeUsuario?: string;
   usuarioEmail?: string;
+  aoIrInicio?: () => void;
   aoAbrirConfiguracoes?: () => void;
   aoSair?: () => void;
 }
 
-export function BarraSuperior({ nomeUsuario, usuarioEmail, aoAbrirConfiguracoes, aoSair }: BarraSuperiorProps) {
+export function BarraSuperior({ nomeUsuario, usuarioEmail, aoIrInicio, aoAbrirConfiguracoes, aoSair }: BarraSuperiorProps) {
   return (
     <header className="barra-superior">
-      <div className="marca">
+      <button type="button" className="marca marca-botao" onClick={aoIrInicio} aria-label="Voltar para a tela inicial">
         <div className="marca-simbolo">
           <img src={logoCurvaNivel} alt="Logo GeoCampo" />
         </div>
         <div>
           <strong>GeoCampo</strong>
-          <span>Topografia, irrigação e Engenharia.</span>
+          <span>Topografia, irrigação e engenharia.</span>
         </div>
-      </div>
+      </button>
       {aoSair && (
         <div className="usuario-topo">
           <span>{nomeUsuario || usuarioEmail}</span>

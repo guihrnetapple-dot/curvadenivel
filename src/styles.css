@@ -120,6 +120,26 @@ button:disabled {
   min-width: 0;
 }
 
+.marca-botao {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.marca-botao:hover,
+.marca-botao:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  outline: 2px solid color-mix(in srgb, var(--verde) 52%, transparent);
+  outline-offset: 4px;
+}
+
 .marca-simbolo {
   display: grid;
   place-items: center;

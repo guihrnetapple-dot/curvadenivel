@@ -555,6 +555,7 @@ export function Aplicacao() {
       <BarraSuperior
         nomeUsuario={perfilUsuario?.full_name}
         usuarioEmail={usuario?.email}
+        aoIrInicio={() => navegarAplicacao("/home")}
         aoAbrirConfiguracoes={() => navegarAplicacao("/configuracoes/conta")}
         aoSair={encerrarSessao}
       />
