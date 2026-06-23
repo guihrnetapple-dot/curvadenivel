@@ -27,7 +27,7 @@ export function ConsentBox({ valores, aoAlterar, erro }: Props) {
         <details>
           <summary>Termos de Uso</summary>
           <p>
-            A plataforma Curva de Nível fornece ferramentas para consulta altimétrica, análise topográfica e apoio ao planejamento rural.
+            A plataforma GeoCampo fornece ferramentas para consulta altimétrica, análise topográfica e apoio ao planejamento rural.
             Os resultados dependem das bases de dados disponíveis, da qualidade das coordenadas informadas e da conexão com serviços externos.
             O usuário deve conferir os dados antes de aplicar decisões técnicas, operacionais ou comerciais.
           </p>

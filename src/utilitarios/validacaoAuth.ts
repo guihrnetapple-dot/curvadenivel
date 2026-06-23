@@ -216,7 +216,7 @@ export function traduzirErroAuth(erro: unknown): string {
     user_already_exists: "Este e-mail já está cadastrado. Entre na sua conta ou recupere a senha.",
     email_address_invalid: "Informe um e-mail válido.",
     email_not_confirmed: "Confirme seu e-mail antes de entrar.",
-    native_email_confirmation_enabled: "A confirmação nativa de e-mail ainda está ativa no Supabase. Desative essa opção para usar o código enviado pela Curva de Nível.",
+    native_email_confirmation_enabled: "A confirmação nativa de e-mail ainda está ativa no banco de dados. Desative essa opção para usar o código enviado pelo GeoCampo.",
     invalid_credentials: "E-mail ou senha inválidos.",
     weak_password: "A senha precisa atender aos requisitos de segurança.",
     otp_expired: "O link de confirmação expirou ou já foi usado. Solicite um novo link de confirmação.",

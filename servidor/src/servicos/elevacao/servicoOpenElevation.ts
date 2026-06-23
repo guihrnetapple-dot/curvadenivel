@@ -117,7 +117,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
 
   obterStatus() {
     return {
-      fonte: "Open-Elevation API",
+      fonte: "API",
       configurada: Boolean(this.urlApi),
       tamanhoLote: this.tamanhoLote,
       timeoutMs: this.timeoutMs,
@@ -153,7 +153,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
 
   private obterUrlProxy(): string {
     if (!this.urlApi) {
-      throw new ErroAplicacao("Proxy de altitude do Supabase não configurado.", 503);
+      throw new ErroAplicacao("API de altitude não configurada.", 503);
     }
     return this.urlApi;
   }
@@ -272,7 +272,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       if (!resposta.ok) {
         const mensagem = typeof (corpo as { erro?: unknown } | null)?.erro === "string"
           ? String((corpo as { erro: string }).erro)
-          : `Proxy de altitude respondeu com status ${resposta.status}.`;
+          : `API de altitude respondeu com status ${resposta.status}.`;
         const detalhesProxy = (corpo as { detalhes?: unknown } | null)?.detalhes;
         throw new ErroAplicacao(mensagem, resposta.status, {
           ...(typeof detalhesProxy === "object" && detalhesProxy ? detalhesProxy : {}),
@@ -281,7 +281,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       }
 
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
+        throw new ErroAplicacao("A resposta da API de altitude veio em formato inesperado.", 502);
       }
 
       return corpo.results.map((resultado, indice) => {
@@ -293,7 +293,7 @@ export class ServicoOpenElevation implements ProvedorElevacao {
       if (erro instanceof ErroAplicacao) {
         throw erro;
       }
-      throw new ErroAplicacao("Não foi possível consultar o proxy de altitude. Verifique sua conexão e tente novamente.", 502);
+      throw new ErroAplicacao("Não foi possível consultar a API de altitude. Verifique sua conexão e tente novamente.", 502);
     } finally {
       clearTimeout(temporizador);
     }

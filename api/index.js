@@ -89,7 +89,7 @@ function obterTokenUsuarioAtual() {
 
 function obterUrlProxyElevacao() {
   if (!URL_PROXY_ELEVACAO) {
-    throw new ErroAplicacao("Proxy de altitude do Supabase não configurado.", 503);
+    throw new ErroAplicacao("API de altitude não configurada.", 503);
   }
   return URL_PROXY_ELEVACAO;
 }
@@ -201,10 +201,10 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
         if (typeof corpo?.erro === "string" && corpo.erro.trim()) {
           throw new ErroAplicacao(corpo.erro, resposta.status, corpo.detalhes ?? null);
         }
-        throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", resposta.status);
+        throw new ErroAplicacao("Não foi possível consultar a API de altitude.", resposta.status);
       }
       if (!Array.isArray(corpo?.results) || corpo.results.length !== coordenadas.length) {
-        throw new ErroAplicacao("A resposta do proxy de altitude veio em formato inesperado.", 502);
+        throw new ErroAplicacao("A resposta da API de altitude veio em formato inesperado.", 502);
       }
       return corpo.results.map((item, indice) => {
         const altitude = Number(item.elevation);
@@ -216,7 +216,7 @@ async function consultarProxyElevacaoLoteUnico(coordenadas) {
       clearTimeout(temporizador);
     }
   }
-  throw new ErroAplicacao("Não foi possível consultar o proxy de altitude.", 502);
+  throw new ErroAplicacao("Não foi possível consultar a API de altitude.", 502);
 }
 
 async function consultarLote(coordenadasEntrada) {
@@ -508,7 +508,7 @@ async function analisarPropriedade(body) {
       metrica("longitude", "Longitude", numeroPtBr(coordenada.longitude, 6), coordenada),
       metrica("altitude_ponto", "Altitude do ponto", metrosPtBr(ponto.altitude, 2), coordenada, "m"),
       metrica("data_consulta", "Data/hora da consulta", new Date().toLocaleString("pt-BR")),
-      metrica("fonte_altitude", "Fonte da altitude", "Open-Elevation"),
+      metrica("fonte_altitude", "Fonte da altitude", "API"),
       metrica("precisao_estimada", "Precisão estimada", "Média"),
       metrica("coordenada_formatada", "Coordenada formatada", coordenadaPtBr(coordenada), coordenada)
     ] };
@@ -992,7 +992,7 @@ async function gerarCurvas(body) {
           if (suaveCortada.length < 2 || comp < Math.max(grade.resolucaoEfetivaMetros * 0.5, 3)) continue;
           features.push({
             type: "Feature",
-            properties: { elevacao: nivel, tipo: nivel % (intervaloSolicitado * 5) === 0 ? "mestra" : "normal", fonte: "Open-Elevation", comprimentoMetros: comp, fechada: chavePonto(suaveCortada[0]) === chavePonto(suaveCortada.at(-1)) },
+            properties: { elevacao: nivel, tipo: nivel % (intervaloSolicitado * 5) === 0 ? "mestra" : "normal", fonte: "API", comprimentoMetros: comp, fechada: chavePonto(suaveCortada[0]) === chavePonto(suaveCortada.at(-1)) },
             geometry: { type: "LineString", coordinates: suaveCortada }
           });
         }
@@ -1003,7 +1003,7 @@ async function gerarCurvas(body) {
     type: "FeatureCollection",
     features,
     metadados: {
-      fonte: "Open-Elevation API",
+      fonte: "API",
       metodo: "open_elevation_api_marching_squares_suavizado",
       modoParametros: null,
       resolucaoAutomatica: null,
@@ -1051,7 +1051,7 @@ export default async function handler(req, res) {
       return await executarComAutenticacaoApi(req, () => responder(res, 200, {
         backendOnline: true,
         dataHora: new Date().toISOString(),
-        elevacao: { fonte: "Open-Elevation API", configurada: Boolean(URL_PROXY_ELEVACAO), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
+        elevacao: { fonte: "API", configurada: Boolean(URL_PROXY_ELEVACAO), tamanhoLote: TAMANHO_LOTE, timeoutMs: TIMEOUT_MS, cacheAtivo: true },
         curvas: {
           limitePontosApi: LIMITE_PONTOS_API,
           resolucaoGradeGlobalMetros: RESOLUCAO_GLOBAL_METROS,
@@ -1120,7 +1120,7 @@ export default async function handler(req, res) {
       return await executarComAutenticacaoApi(req, async () => responder(res, 200, await gerarCurvas(req.body)));
     }
 
-    throw new ErroAplicacao("Rota n?o encontrada.", 404);
+    throw new ErroAplicacao("Rota não encontrada.", 404);
   } catch (erro) {
     const status = erro instanceof ErroAplicacao ? erro.status : 500;
     if (!(erro instanceof ErroAplicacao)) {

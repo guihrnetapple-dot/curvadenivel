@@ -60,7 +60,7 @@ function criarCadastro() {
     full_name: "Usuário Teste",
     profession: "Engenheiro",
     work_area: "Topografia",
-    company_name: "Curva de Nível",
+    company_name: "GeoCampo",
     whatsapp: "+5538999999999",
     city: "Montes Claros",
     state: "Minas Gerais",
@@ -157,14 +157,14 @@ describe("authService", () => {
     expect(localStorage.getItem("auth.perfilConfirmacaoPendente")).not.toContain("senha123");
   });
 
-  it("restaura perfil preenchido antes da confirmaÃ§Ã£o de e-mail", async () => {
+  it("restaura perfil preenchido antes da confirmação de e-mail", async () => {
     mocks.signUp.mockResolvedValueOnce({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
-    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "Usuário Teste" });
 
     await cadastrarComEmailSenha(criarCadastro());
     const perfil = await restaurarPerfilConfirmacaoPendente("u1", "usuario@exemplo.com");
 
-    expect(perfil).toEqual({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    expect(perfil).toEqual({ id: "u1", full_name: "Usuário Teste" });
     expect(mocks.salvarPerfilUsuario).toHaveBeenCalledWith(
       "u1",
       expect.objectContaining({ full_name: "Usuário Teste", whatsapp: "+5538999999999" }),
@@ -173,9 +173,9 @@ describe("authService", () => {
     expect(localStorage.getItem("auth.perfilConfirmacaoPendente")).toBeNull();
   });
 
-  it("restaura perfil do metadata apÃ³s confirmaÃ§Ã£o em nova sessÃ£o", async () => {
+  it("restaura perfil do metadata após confirmação em nova sessão", async () => {
     const cadastro = criarCadastro();
-    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    mocks.salvarPerfilUsuario.mockResolvedValueOnce({ id: "u1", full_name: "Usuário Teste" });
 
     const perfil = await restaurarPerfilCadastroInicial({
       id: "u1",
@@ -205,7 +205,7 @@ describe("authService", () => {
       }
     } as never);
 
-    expect(perfil).toEqual({ id: "u1", full_name: "UsuÃ¡rio Teste" });
+    expect(perfil).toEqual({ id: "u1", full_name: "Usuário Teste" });
     expect(mocks.salvarPerfilUsuario).toHaveBeenCalledWith(
       "u1",
       expect.objectContaining({ whatsapp: "+5538999999999", city: "Montes Claros" }),
@@ -213,7 +213,7 @@ describe("authService", () => {
     );
   });
 
-  it("usa preferÃªncia persistente somente quando o usuário pede para não solicitar login novamente", async () => {
+  it("usa preferência persistente somente quando o usuário pede para não solicitar login novamente", async () => {
     mocks.signInWithPassword.mockResolvedValueOnce({ error: null });
 
     await entrarComEmailSenha("usuario@exemplo.com", "senha123", true);

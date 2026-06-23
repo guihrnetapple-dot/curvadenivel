@@ -54,7 +54,7 @@ function criarClienteSupabase() {
     });
   } catch (erro) {
     if (import.meta.env.DEV) {
-      console.error("Configuração do Supabase inválida:", erro);
+      console.error("Configuração do banco de dados inválida:", erro);
     }
     return null;
   }

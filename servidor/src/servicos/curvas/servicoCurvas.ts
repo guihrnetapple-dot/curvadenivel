@@ -83,7 +83,7 @@ export class ServicoCurvas {
               properties: {
                 elevacao: nivel,
                 tipo,
-                fonte: "Open-Elevation",
+                fonte: "API",
                 comprimentoMetros: linhaFinal.comprimentoMetros,
                 fechada: linhaFinal.fechada
               },
@@ -101,7 +101,7 @@ export class ServicoCurvas {
       type: "FeatureCollection",
       features,
       metadados: {
-        fonte: "Open-Elevation API",
+        fonte: "API",
         metodo: "open_elevation_api_marching_squares_suavizado",
         modoParametros: null,
         resolucaoAutomatica: null,

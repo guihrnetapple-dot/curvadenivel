@@ -30,13 +30,13 @@ const rotasPorTela: Record<TelaAuth, string> = {
 };
 
 const titulosPorRota: Record<string, string> = {
-  "/login": "Login | Curva de Nível",
-  "/cadastro": "Cadastro | Curva de Nível",
-  "/confirmaremail": "Confirmar e-mail | Curva de Nível",
-  "/recuperarsenha": "Recuperar senha | Curva de Nível",
-  "/novasenha": "Nova senha | Curva de Nível",
-  "/completarcadastro": "Completar cadastro | Curva de Nível",
-  "/home": "Home | Curva de Nível"
+  "/login": "Login | GeoCampo",
+  "/cadastro": "Cadastro | GeoCampo",
+  "/confirmaremail": "Confirmar e-mail | GeoCampo",
+  "/recuperarsenha": "Recuperar senha | GeoCampo",
+  "/novasenha": "Nova senha | GeoCampo",
+  "/completarcadastro": "Completar cadastro | GeoCampo",
+  "/home": "Home | GeoCampo"
 };
 
 function normalizarCaminho(caminho: string): string {
@@ -68,7 +68,7 @@ function caminhoProtegido(caminho: string): boolean {
 }
 
 function atualizarTitulo(caminho: string) {
-  document.title = titulosPorRota[normalizarCaminho(caminho).toLowerCase()] ?? "Curva de Nível";
+  document.title = titulosPorRota[normalizarCaminho(caminho).toLowerCase()] ?? "GeoCampo";
 }
 
 function detectarErroUrl(): string | null {
@@ -137,9 +137,9 @@ function AuthShell({ children, cadastro }: { children: ReactNode; cadastro?: boo
     <main className="auth-pagina">
       <section className={cadastro ? "auth-card auth-card-cadastro" : "auth-card"}>
         <div className="auth-marca">
-          <img src={logoCurvaNivel} alt="Logo Curva de Nível" />
+          <img src={logoCurvaNivel} alt="Logo GeoCampo" />
           <div>
-            <strong>Curva de Nível</strong>
+            <strong>GeoCampo</strong>
             <span>Topografia, irrigação e engenharia.</span>
           </div>
         </div>
@@ -157,7 +157,7 @@ function AutenticacaoIndisponivel() {
     <AuthShell>
       <div className="auth-configuracao">
         <strong>Configuração pendente</strong>
-        <span>Configure as variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para liberar o acesso.</span>
+        <span>Configure as credenciais do banco de dados para liberar o acesso.</span>
       </div>
     </AuthShell>
   );

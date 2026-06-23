@@ -12,7 +12,7 @@ function criarHtml(codigo: string): string {
   <body style="margin:0;background:#0f1822;color:#f8fafc;font-family:Arial,sans-serif">
     <div style="max-width:520px;margin:0 auto;padding:32px 20px">
       <h1 style="margin:0 0 12px;font-size:24px">Confirme seu e-mail</h1>
-      <p style="margin:0 0 20px;color:#cfe3f5">Use o código abaixo para confirmar seu e-mail na Curva de Nível.</p>
+      <p style="margin:0 0 20px;color:#cfe3f5">Use o código abaixo para confirmar seu e-mail no GeoCampo.</p>
       <p style="font-size:34px;font-weight:700;letter-spacing:8px;margin:0 0 20px;color:#6ee7b7">${codigo}</p>
       <p style="margin:0;color:#cfe3f5">O código expira em 10 minutos e pode ser usado uma única vez.</p>
       <p style="margin:16px 0 0;color:#9fb4c7">Se você não solicitou esta ação, ignore esta mensagem.</p>
@@ -25,7 +25,7 @@ function criarTexto(codigo: string): string {
   return [
     "Confirme seu e-mail",
     "",
-    "Use o código abaixo para confirmar seu e-mail na Curva de Nível:",
+    "Use o código abaixo para confirmar seu e-mail no GeoCampo:",
     "",
     codigo,
     "",
@@ -42,7 +42,7 @@ export async function enviarCodigoEmail({ destino, codigo }: EnviarCodigoEmailPa
 
   const apiKey = obterEnvObrigatoria("RESEND_API_KEY");
   const from = obterEnvObrigatoria("EMAIL_FROM");
-  const fromName = Deno.env.get("EMAIL_FROM_NAME")?.trim() || "Curva de Nível";
+  const fromName = Deno.env.get("EMAIL_FROM_NAME")?.trim() || "GeoCampo";
   const replyTo = Deno.env.get("EMAIL_REPLY_TO")?.trim();
 
   const resposta = await fetch("https://api.resend.com/emails", {
@@ -55,7 +55,7 @@ export async function enviarCodigoEmail({ destino, codigo }: EnviarCodigoEmailPa
       from: `${fromName} <${from}>`,
       to: [destino],
       reply_to: replyTo || undefined,
-      subject: "Seu código de confirmação - Curva de Nível",
+      subject: "Seu código de confirmação - GeoCampo",
       html: criarHtml(codigo),
       text: criarTexto(codigo)
     })

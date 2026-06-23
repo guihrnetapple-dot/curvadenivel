@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase = obterSupabase();
     } catch (erro) {
       if (import.meta.env.DEV) {
-        console.error("Falha ao inicializar Supabase:", erro);
+        console.error("Falha ao inicializar banco de dados:", erro);
       }
       setCarregando(false);
       return;
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch((erro) => {
         if (import.meta.env.DEV) {
-          console.error("Falha ao obter sessão do Supabase:", erro);
+          console.error("Falha ao obter sessão do banco de dados:", erro);
         }
         if (ativo) {
           setSessao(null);

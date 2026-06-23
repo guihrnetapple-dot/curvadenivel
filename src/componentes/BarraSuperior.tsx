@@ -13,10 +13,10 @@ export function BarraSuperior({ nomeUsuario, usuarioEmail, aoAbrirConfiguracoes,
     <header className="barra-superior">
       <div className="marca">
         <div className="marca-simbolo">
-          <img src={logoCurvaNivel} alt="Logo Curva de Nível" />
+          <img src={logoCurvaNivel} alt="Logo GeoCampo" />
         </div>
         <div>
-          <strong>Curva de Nível</strong>
+          <strong>GeoCampo</strong>
           <span>Topografia, irrigação e Engenharia.</span>
         </div>
       </div>

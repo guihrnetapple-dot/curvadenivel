@@ -17,7 +17,7 @@ function criarCadastro(parcial: Partial<DadosCadastro> = {}): DadosCadastro {
     full_name: "Usuário Teste",
     profession: "Engenheiro",
     work_area: "Topografia",
-    company_name: "Curva de Nível",
+    company_name: "GeoCampo",
     whatsapp: "+5538999999999",
     city: "Montes Claros",
     state: "Minas Gerais",

@@ -103,8 +103,8 @@ export function Aplicacao() {
     function aoVoltar() {
       setRotaAplicacao(window.location.pathname);
       document.title = window.location.pathname === "/configuracoes/conta"
-        ? "Configurações da conta | Curva de Nível"
-        : "Home | Curva de Nível";
+        ? "Configurações da conta | GeoCampo"
+        : "Home | GeoCampo";
     }
 
     window.addEventListener("popstate", aoVoltar);
@@ -121,7 +121,7 @@ export function Aplicacao() {
       return;
     }
     setRotaAplicacao(caminho);
-    document.title = caminho === "/configuracoes/conta" ? "Configurações da conta | Curva de Nível" : "Home | Curva de Nível";
+    document.title = caminho === "/configuracoes/conta" ? "Configurações da conta | GeoCampo" : "Home | GeoCampo";
   }
 
   useEffect(() => {

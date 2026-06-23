@@ -73,7 +73,7 @@ export interface FeatureCollectionCurvas {
   type: "FeatureCollection";
   features: FeatureCurva[];
   metadados: {
-    fonte: "Open-Elevation API";
+    fonte: "API";
     metodo: "open_elevation_api_marching_squares_suavizado";
     modoParametros: null;
     resolucaoAutomatica: number | null;

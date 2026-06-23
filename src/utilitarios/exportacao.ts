@@ -168,7 +168,7 @@ export function exportarElementoKml(elemento: ElementoMapa | null): void {
 
 export function exportarRelatorioHtml(perfil: PerfilElevacao | null): void {
   const estatisticas = perfil?.estatisticas;
-  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório Curva de Nível</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#1d2b27}table{border-collapse:collapse;width:100%;margin-top:20px}td,th{border:1px solid #d7dfd9;padding:8px;text-align:left}h1{font-size:24px}</style></head><body><h1>Relatório Curva de Nível</h1><p>Gerado em ${new Date().toLocaleString(
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório GeoCampo</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#1d2b27}table{border-collapse:collapse;width:100%;margin-top:20px}td,th{border:1px solid #d7dfd9;padding:8px;text-align:left}h1{font-size:24px}</style></head><body><h1>Relatório GeoCampo</h1><p>Gerado em ${new Date().toLocaleString(
     "pt-BR"
   )}</p><table><tbody><tr><th>Altitude mínima</th><td>${formatarNumero(
     estatisticas?.altitudeMinima,

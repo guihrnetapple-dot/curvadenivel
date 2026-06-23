@@ -381,7 +381,7 @@ export class ServicoPropriedades {
         criarMetrica("longitude", "Longitude", formatarNumero(coordenada.longitude, 6), coordenada),
         criarMetrica("altitude_ponto", "Altitude do ponto", formatarMetros(resultado.altitude, 2), coordenada, "m"),
         criarMetrica("data_consulta", "Data/hora da consulta", new Date().toLocaleString("pt-BR")),
-        criarMetrica("fonte_altitude", "Fonte da altitude", "Open-Elevation"),
+        criarMetrica("fonte_altitude", "Fonte da altitude", "API"),
         criarMetrica("precisao_estimada", "Precisão estimada", "Média"),
         criarMetrica("coordenada_formatada", "Coordenada formatada", formatarCoordenada(coordenada), coordenada)
       ]

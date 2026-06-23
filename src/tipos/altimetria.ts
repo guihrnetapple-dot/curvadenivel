@@ -121,7 +121,7 @@ export interface FeatureCurvaNivel {
 }
 
 export interface MetadadosCurvasNivel {
-  fonte: "Open-Elevation API";
+  fonte: "API";
   metodo: "open_elevation_api_marching_squares_suavizado";
   modoParametros: null;
   resolucaoAutomatica: number | null;
