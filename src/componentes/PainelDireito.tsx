@@ -433,10 +433,6 @@ export function PainelDireito({
             </div>
           )}
         </div>
-
-        {curvasNivel?.metadados.avisoPrecisao && (
-          <div className="estado-vazio">{curvasNivel.metadados.avisoPrecisao}</div>
-        )}
       </SecaoPainel>
 
       <SecaoPainel titulo="Exportação" icone={<FileDown size={17} />} abertaInicialmente={false}>
