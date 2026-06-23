@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
-import { GripVertical, Minus, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
+import { GripVertical, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
@@ -43,7 +43,6 @@ const TEMA_PADRAO: TemaVisual = "escuro";
 const LARGURA_PAINEL_PADRAO = 350;
 const LARGURA_PAINEL_MINIMA = 280;
 const LARGURA_PAINEL_MAXIMA = 560;
-const PASSO_LARGURA_PAINEL = 40;
 const camadasIniciais: CamadasVisiveis = {
   gradeAltitude: true,
   importados: true,
@@ -476,11 +475,6 @@ export function Aplicacao() {
     return Math.min(LARGURA_PAINEL_MAXIMA, Math.max(LARGURA_PAINEL_MINIMA, valor));
   }
 
-  function alterarLarguraPainel(delta: number) {
-    setPainelVisivel(true);
-    setLarguraPainel((valorAtual) => limitarLarguraPainel(valorAtual + delta));
-  }
-
   function iniciarRedimensionamentoPainel(evento: ReactPointerEvent<HTMLButtonElement>) {
     evento.preventDefault();
     setPainelVisivel(true);
@@ -609,24 +603,6 @@ export function Aplicacao() {
             <div className="controles-painel-lateral" aria-label="Controles da barra lateral">
               <button type="button" onClick={() => setPainelVisivel(false)} aria-label="Ocultar barra lateral" title="Ocultar">
                 <PanelRightClose size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => alterarLarguraPainel(-PASSO_LARGURA_PAINEL)}
-                aria-label="Diminuir barra lateral"
-                title="Diminuir"
-                disabled={larguraPainel <= LARGURA_PAINEL_MINIMA}
-              >
-                <Minus size={16} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => alterarLarguraPainel(PASSO_LARGURA_PAINEL)}
-                aria-label="Aumentar barra lateral"
-                title="Aumentar"
-                disabled={larguraPainel >= LARGURA_PAINEL_MAXIMA}
-              >
-                <Plus size={16} aria-hidden="true" />
               </button>
             </div>
             <PainelDireito

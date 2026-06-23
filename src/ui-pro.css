@@ -422,8 +422,8 @@ select {
   right: 8px;
   z-index: 710;
   display: inline-flex;
-  gap: 4px;
-  padding: 4px;
+  gap: 0;
+  padding: 3px;
   border: 1px solid color-mix(in srgb, var(--borda) 78%, transparent);
   border-radius: var(--raio);
   background: color-mix(in srgb, var(--grafite-profundo) 84%, transparent);
