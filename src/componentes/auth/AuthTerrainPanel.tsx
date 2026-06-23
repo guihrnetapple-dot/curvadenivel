@@ -94,11 +94,6 @@ export function AuthTerrainPanel() {
   return (
     <aside className="auth-terreno" aria-label="Visualização animada de terreno">
       <canvas ref={canvasRef} aria-hidden="true" />
-      <div className="auth-terreno-conteudo">
-        <span>Modelo altimétrico em tempo real</span>
-        <strong>Curvas que ajudam a ler o terreno antes da decisão.</strong>
-        <p>Topografia, irrigação e planejamento rural em uma área técnica, visual e pronta para trabalho.</p>
-      </div>
     </aside>
   );
 }

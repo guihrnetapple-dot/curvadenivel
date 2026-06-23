@@ -937,41 +937,6 @@ input[type="checkbox"] {
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 78px);
 }
 
-.auth-terreno-conteudo {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 10px;
-  max-width: 560px;
-  padding: clamp(22px, 4vw, 44px);
-}
-
-.auth-terreno-conteudo span {
-  width: fit-content;
-  padding: 6px 9px;
-  border: 1px solid color-mix(in srgb, var(--verde) 34%, var(--borda));
-  border-radius: 999px;
-  background: rgba(12, 17, 23, 0.58);
-  color: var(--verde-escuro);
-  font-size: 0.74rem;
-  font-weight: 850;
-}
-
-.auth-terreno-conteudo strong {
-  max-width: 12ch;
-  color: #ffffff;
-  font-size: clamp(2.1rem, 5vw, 4.8rem);
-  line-height: 0.95;
-  font-weight: 900;
-}
-
-.auth-terreno-conteudo p {
-  max-width: 48ch;
-  color: color-mix(in srgb, var(--texto) 78%, transparent);
-  font-size: 0.94rem;
-  line-height: 1.55;
-}
-
 .auth-formulario {
   display: grid;
   gap: 13px;
@@ -1543,10 +1508,6 @@ input[type="checkbox"] {
   .auth-terreno {
     min-height: 320px;
   }
-
-  .auth-terreno-conteudo strong {
-    max-width: 18ch;
-  }
 }
 
 @media (max-width: 760px) {
@@ -1758,14 +1719,6 @@ input[type="checkbox"] {
 
   .auth-terreno {
     min-height: 260px;
-  }
-
-  .auth-terreno-conteudo {
-    padding: 18px;
-  }
-
-  .auth-terreno-conteudo strong {
-    font-size: 2rem;
   }
 
   .auth-grade-campos {
