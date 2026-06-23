@@ -4,6 +4,7 @@ import { AsYouType, getCountryCallingCode, parsePhoneNumberFromString } from "li
 
 import { obterBandeiraUrl, obterNomePais, obterOpcoesPaises } from "../../utilitarios/localizacaoAuth";
 import { normalizarWhatsApp } from "../../utilitarios/validacaoAuth";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import { SearchableSelect, type OpcaoSelecao } from "./SearchableSelect";
 
 interface Props {
@@ -95,7 +96,10 @@ export function WhatsAppField({ valor, countryCode, erro, aoAlterar, aoAlterarPa
         placeholder="País"
       />
       <label>
-        WhatsApp
+        <span className="rotulo-campo-formulario">
+          <span>WhatsApp</span>
+          {!erro && <InfoTooltip texto="O número será salvo com DDI no formato internacional." />}
+        </span>
         <div className="auth-whatsapp-numero">
           <span>+{ddi}</span>
           <input
@@ -106,15 +110,13 @@ export function WhatsAppField({ valor, countryCode, erro, aoAlterar, aoAlterarPa
             onPaste={colarNumero}
             placeholder={codigo === "BR" ? "(38) 99999-9999" : "Número local"}
             aria-invalid={Boolean(erro)}
-            aria-describedby={erro ? "whatsapp-erro" : "whatsapp-ajuda"}
+            aria-describedby={erro ? "whatsapp-erro" : undefined}
           />
         </div>
-        {erro ? (
+        {erro && (
           <small id="whatsapp-erro" className="auth-erro-campo">
             {erro}
           </small>
-        ) : (
-          <small id="whatsapp-ajuda">O número será salvo com DDI no formato internacional.</small>
         )}
       </label>
     </div>

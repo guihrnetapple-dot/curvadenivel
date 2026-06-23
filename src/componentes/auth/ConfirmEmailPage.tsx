@@ -14,6 +14,7 @@ import {
   validarCodigoEmail
 } from "../../servicos/verificationService";
 import { normalizarEmail, traduzirErroAuth, validarEmail } from "../../utilitarios/validacaoAuth";
+import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {
   email?: string | null;
@@ -265,7 +266,10 @@ export function ConfirmEmailPage({
       </button>
       {modo === "app" && aoPular && (
         <>
-          <small>Você poderá confirmar o e-mail depois nas configurações da sua conta.</small>
+          <div className="linha-ajuda-formulario">
+            <span>Confirmação depois</span>
+            <InfoTooltip texto="Você poderá confirmar o e-mail depois nas configurações da sua conta." />
+          </div>
           <button className="auth-botao-secundario" type="button" onClick={aoPular} disabled={carregando}>
             Fazer isso depois
           </button>

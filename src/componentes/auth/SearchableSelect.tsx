@@ -1,5 +1,7 @@
 import Select, { type FormatOptionLabelMeta, type StylesConfig } from "react-select";
 
+import { InfoTooltip } from "../ui/InfoTooltip";
+
 export interface OpcaoSelecao {
   value: string;
   label: string;
@@ -76,12 +78,14 @@ export function SearchableSelect({
   erro,
   helperText
 }: Props) {
-  const descricaoId = `${id}-descricao`;
   const erroId = `${id}-erro`;
 
   return (
     <label className="auth-campo-select" htmlFor={id}>
-      <span>{label}</span>
+      <span className="rotulo-campo-formulario">
+        <span>{label}</span>
+        {helperText && !erro && <InfoTooltip texto={helperText} />}
+      </span>
       <Select
         inputId={id}
         classNamePrefix="auth-react-select"
@@ -103,9 +107,8 @@ export function SearchableSelect({
         styles={estilosSelect}
         menuPortalTarget={typeof document === "undefined" ? undefined : document.body}
         aria-invalid={Boolean(erro)}
-        aria-describedby={erro ? erroId : helperText ? descricaoId : undefined}
+        aria-describedby={erro ? erroId : undefined}
       />
-      {helperText && !erro && <small id={descricaoId}>{helperText}</small>}
       {erro && (
         <small id={erroId} className="auth-erro-campo">
           {erro}

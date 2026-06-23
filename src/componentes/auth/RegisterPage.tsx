@@ -18,6 +18,7 @@ import { ConsentBox } from "./ConsentBox";
 import { LocationFields } from "./LocationFields";
 import { ProfileFields } from "./ProfileFields";
 import { WhatsAppField } from "./WhatsAppField";
+import { InfoTooltip } from "../ui/InfoTooltip";
 
 interface Props {
   aoEntrar: () => void;
@@ -233,7 +234,10 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
           </label>
 
           <label>
-            Senha
+            <span className="rotulo-campo-formulario">
+              <span>Senha</span>
+              {!erros.password && <InfoTooltip texto="Mínimo de oito caracteres." />}
+            </span>
             <div className="auth-campo-senha">
               <input
                 id="cadastro-password"
@@ -242,17 +246,22 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
                 onChange={(evento) => setPassword(evento.target.value)}
                 autoComplete="new-password"
                 aria-invalid={Boolean(erros.password)}
-                aria-describedby={erros.password ? "cadastro-password-erro" : "senha-ajuda"}
+                aria-describedby={erros.password ? "cadastro-password-erro" : undefined}
               />
               <button type="button" onClick={() => setMostrarSenha((atual) => !atual)} aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}>
                 {mostrarSenha ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
-            {erros.password ? <small id="cadastro-password-erro" className="auth-erro-campo">{erros.password}</small> : <small id="senha-ajuda">Mínimo de oito caracteres.</small>}
+            {erros.password && <small id="cadastro-password-erro" className="auth-erro-campo">{erros.password}</small>}
           </label>
 
           <label>
-            Confirmar senha
+            <span className="rotulo-campo-formulario">
+              <span>Confirmar senha</span>
+              {feedbackConfirmacao && !erros.confirmPassword && (
+                <InfoTooltip texto={feedbackConfirmacao} />
+              )}
+            </span>
             <div className="auth-campo-senha">
               <input
                 id="cadastro-confirmPassword"
@@ -261,13 +270,13 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
                 onChange={(evento) => setConfirmPassword(evento.target.value)}
                 autoComplete="new-password"
                 aria-invalid={Boolean(erros.confirmPassword)}
-                aria-describedby={erros.confirmPassword ? "cadastro-confirmPassword-erro" : "confirmacao-ajuda"}
+                aria-describedby={erros.confirmPassword ? "cadastro-confirmPassword-erro" : undefined}
               />
               <button type="button" onClick={() => setMostrarConfirmacao((atual) => !atual)} aria-label={mostrarConfirmacao ? "Ocultar confirmação de senha" : "Mostrar confirmação de senha"}>
                 {mostrarConfirmacao ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
-            {erros.confirmPassword ? <small id="cadastro-confirmPassword-erro" className="auth-erro-campo">{erros.confirmPassword}</small> : feedbackConfirmacao && <small id="confirmacao-ajuda" className={password === confirmPassword ? "auth-sucesso-campo" : "auth-erro-campo"}>{feedbackConfirmacao}</small>}
+            {erros.confirmPassword && <small id="cadastro-confirmPassword-erro" className="auth-erro-campo">{erros.confirmPassword}</small>}
           </label>
         </div>
       )}

@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 
 import { atualizarSenha } from "../../servicos/authService";
 import { traduzirErroAuth, validarConfirmacaoSenha, validarSenha } from "../../utilitarios/validacaoAuth";
+import { InfoTooltip } from "../ui/InfoTooltip";
 
 export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {
   const [password, setPassword] = useState("");
@@ -47,7 +48,10 @@ export function ResetPasswordPage({ aoConcluir }: { aoConcluir: () => void }) {
       {mensagem && <div className="auth-feedback erro">{mensagem}</div>}
 
       <label>
-        Nova senha
+        <span className="rotulo-campo-formulario">
+          <span>Nova senha</span>
+          <InfoTooltip texto="Use uma senha com pelo menos oito caracteres." />
+        </span>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} required />
       </label>
       <label>

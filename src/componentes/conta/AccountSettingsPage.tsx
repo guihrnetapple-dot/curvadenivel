@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 
 import { WhatsAppField } from "../auth/WhatsAppField";
+import { InfoTooltip } from "../ui/InfoTooltip";
 import { useAuth } from "../../context/AuthContext";
 import { obterInformacaoCliente } from "../../servicos/clientInfoService";
 import { salvarPerfilUsuario } from "../../servicos/profileService";
@@ -246,14 +247,25 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
           />
           <label>Senha atual<input type="password" value={senhaAtualWhatsApp} onChange={(e) => setSenhaAtualWhatsApp(e.target.value)} autoComplete="current-password" required /></label>
           {whatsappVerificado && <small>Confirmado em {dataCurta(perfil?.whatsapp_verified_at)}</small>}
-          {!whatsappVerificado && <small>A confirmação do WhatsApp será incluída depois.</small>}
+          {!whatsappVerificado && (
+            <div className="linha-ajuda-formulario">
+              <span>Confirmação pendente</span>
+              <InfoTooltip texto="A confirmação do WhatsApp será incluída depois." />
+            </div>
+          )}
           <button type="submit" disabled={salvandoWhatsApp}>{salvandoWhatsApp ? "Salvando..." : "Salvar WhatsApp"}</button>
         </form>
 
         <form className="configuracoes-bloco" onSubmit={trocarSenha}>
           <h2>Segurança</h2>
           <label>Senha atual<input type="password" value={senhaAtualSeguranca} onChange={(e) => setSenhaAtualSeguranca(e.target.value)} autoComplete="current-password" required /></label>
-          <label>Nova senha<input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" /></label>
+          <label>
+            <span className="rotulo-campo-formulario">
+              <span>Nova senha</span>
+              <InfoTooltip texto="Use uma senha com pelo menos oito caracteres." />
+            </span>
+            <input type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" />
+          </label>
           <label>Confirmar nova senha<input type="password" value={confirmacaoSenha} onChange={(e) => setConfirmacaoSenha(e.target.value)} autoComplete="new-password" /></label>
           <button type="submit" disabled={alterandoSenha}>{alterandoSenha ? "Atualizando..." : "Atualizar senha"}</button>
         </form>
