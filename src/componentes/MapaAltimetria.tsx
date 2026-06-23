@@ -17,6 +17,7 @@ import type {
   ResultadoAltitude,
   TemaVisual
 } from "../tipos/altimetria";
+import { useRightDragZoom } from "../hooks/useRightDragZoom";
 import { consultarAltitude } from "../servicos/apiAltimetria";
 import { formatarMetros, formatarNumero, gerarIdentificador } from "../utilitarios/formatacao";
 
@@ -555,7 +556,9 @@ export function MapaAltimetria({
   });
   const [informacoesCursor, setInformacoesCursor] = useState<InformacoesCursor>(informacoesCursorIniciais);
   const [seletorCamadaAberto, setSeletorCamadaAberto] = useState(false);
+  const [mapaProntoParaInteracao, setMapaProntoParaInteracao] = useState(false);
   const camadaBaseAtual = opcoesCamadaBase.find((opcao) => opcao.valor === camadaBase) ?? opcoesCamadaBase[0];
+  useRightDragZoom(mapaRef, mapaProntoParaInteracao && !selecaoAreaCurvasAtiva && !selecaoPontoAltitudeAtiva);
 
   function salvarCamadaAtualizada(camada: L.Layer, id: string, tipo: string) {
     propsRef.current.aoElementoAtualizado(converterCamadaEmElemento(id, camada, tipo));
@@ -874,6 +877,7 @@ export function MapaAltimetria({
     }).setView([-16.72, -43.86], 5);
 
     mapaRef.current = mapa;
+    setMapaProntoParaInteracao(true);
     L.control.attribution({ position: "topright", prefix: false }).addTo(mapa);
     const painelRotulos = mapa.createPane("rotulos");
     painelRotulos.style.zIndex = "360";
@@ -1053,6 +1057,7 @@ export function MapaAltimetria({
       }
       mapa.remove();
       mapaRef.current = null;
+      setMapaProntoParaInteracao(false);
       desenhoAreaCurvasRef.current = null;
       removerControleRaioCirculo();
     };
