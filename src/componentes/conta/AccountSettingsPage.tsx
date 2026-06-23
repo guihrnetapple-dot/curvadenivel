@@ -1,5 +1,7 @@
 import { FormEvent, useState } from "react";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 
+import { WhatsAppField } from "../auth/WhatsAppField";
 import { useAuth } from "../../context/AuthContext";
 import { obterInformacaoCliente } from "../../servicos/clientInfoService";
 import { salvarPerfilUsuario } from "../../servicos/profileService";
@@ -18,6 +20,17 @@ function dataCurta(valor?: string | null): string {
   return new Date(valor).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
+function normalizarWhatsAppConta(valor?: string | null): string {
+  const aparado = valor?.trim() ?? "";
+  if (!aparado) return "";
+  return aparado.startsWith("+") ? aparado : `+${aparado.replace(/\D/g, "")}`;
+}
+
+function obterPaisWhatsAppConta(valor?: string | null): string {
+  const numero = parsePhoneNumberFromString(normalizarWhatsAppConta(valor));
+  return numero?.country ?? "BR";
+}
+
 export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
   const { usuario, perfil, emailAtual, emailVerificado, whatsappVerificado, recarregarPerfil } = useAuth();
   const [mensagem, setMensagem] = useState<string | null>(null);
@@ -25,10 +38,16 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
   const [salvandoPerfil, setSalvandoPerfil] = useState(false);
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const [alterandoSenha, setAlterandoSenha] = useState(false);
+  const [salvandoWhatsApp, setSalvandoWhatsApp] = useState(false);
   const [senhaAtualPerfil, setSenhaAtualPerfil] = useState("");
   const [senhaAtualSeguranca, setSenhaAtualSeguranca] = useState("");
+  const [senhaAtualWhatsApp, setSenhaAtualWhatsApp] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmacaoSenha, setConfirmacaoSenha] = useState("");
+  const [whatsappEditado, setWhatsAppEditado] = useState(() => ({
+    valor: normalizarWhatsAppConta(perfil?.whatsapp),
+    countryCode: obterPaisWhatsAppConta(perfil?.whatsapp)
+  }));
   const [perfilEditado, setPerfilEditado] = useState(() => ({
     full_name: perfil?.full_name ?? "",
     profession: perfil?.profession ?? "",
@@ -101,6 +120,55 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
     }
   }
 
+  async function salvarWhatsApp(evento: FormEvent) {
+    evento.preventDefault();
+    if (!usuario || !perfil) return;
+    setErro(null);
+    setMensagem(null);
+    const emailReautenticacao = emailAtual || usuario.email || "";
+    if (!emailReautenticacao) {
+      setErro("Não foi possível confirmar sua conta para alterar o WhatsApp.");
+      return;
+    }
+    if (!senhaAtualWhatsApp) {
+      setErro("Informe sua senha atual para alterar o WhatsApp.");
+      return;
+    }
+
+    const dados: DadosPerfilCadastro = {
+      ...perfil,
+      whatsapp: whatsappEditado.valor,
+      whatsappCountryCode: whatsappEditado.countryCode,
+      aceitaTermos: true,
+      aceitaPrivacidadeLgpd: true,
+      aceitaCookies: true,
+      aceitaComunicacoes: true
+    };
+    const erroPerfil = validarPerfilObrigatorio(dados);
+    if (erroPerfil) {
+      setErro(erroPerfil);
+      return;
+    }
+
+    setSalvandoWhatsApp(true);
+    try {
+      await reautenticarUsuario(emailReautenticacao, senhaAtualWhatsApp);
+      await salvarPerfilUsuario(usuario.id, dados, await obterInformacaoCliente(), {
+        accepted_terms_at: perfil.accepted_terms_at,
+        accepted_privacy_policy_at: perfil.accepted_privacy_policy_at,
+        accepted_cookies_at: perfil.accepted_cookies_at,
+        accepted_free_use_communication_terms_at: perfil.accepted_free_use_communication_terms_at
+      });
+      await recarregarPerfil();
+      setMensagem("WhatsApp atualizado.");
+    } catch {
+      setErro("Não foi possível atualizar o WhatsApp. Confira sua senha atual e tente novamente.");
+    } finally {
+      setSenhaAtualWhatsApp("");
+      setSalvandoWhatsApp(false);
+    }
+  }
+
   async function trocarSenha(evento: FormEvent) {
     evento.preventDefault();
     if (!usuario) return;
@@ -167,13 +235,20 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
           {!emailVerificado && <button type="button" onClick={confirmarEmail} disabled={enviandoCodigo}>{enviandoCodigo ? "Enviando..." : "Confirmar e-mail"}</button>}
         </section>
 
-        <section className="configuracoes-bloco">
+        <form className="configuracoes-bloco" onSubmit={salvarWhatsApp}>
           <h2>WhatsApp</h2>
           <span className={whatsappVerificado ? "badge-verificado" : "badge-pendente"}>{whatsappVerificado ? "Confirmado" : "Não confirmado"}</span>
-          <p>{perfil?.whatsapp ?? "-"}</p>
+          <WhatsAppField
+            valor={whatsappEditado.valor}
+            countryCode={whatsappEditado.countryCode}
+            aoAlterar={(valorE164) => setWhatsAppEditado((atual) => ({ ...atual, valor: valorE164 }))}
+            aoAlterarPais={(countryCode) => setWhatsAppEditado((atual) => ({ ...atual, countryCode }))}
+          />
+          <label>Senha atual<input type="password" value={senhaAtualWhatsApp} onChange={(e) => setSenhaAtualWhatsApp(e.target.value)} autoComplete="current-password" required /></label>
           {whatsappVerificado && <small>Confirmado em {dataCurta(perfil?.whatsapp_verified_at)}</small>}
-          {!whatsappVerificado && <small>A confirmação por WhatsApp depende da configuração do Twilio Verify.</small>}
-        </section>
+          {!whatsappVerificado && <small>A confirmação do WhatsApp será incluída depois.</small>}
+          <button type="submit" disabled={salvandoWhatsApp}>{salvandoWhatsApp ? "Salvando..." : "Salvar WhatsApp"}</button>
+        </form>
 
         <form className="configuracoes-bloco" onSubmit={trocarSenha}>
           <h2>Segurança</h2>
