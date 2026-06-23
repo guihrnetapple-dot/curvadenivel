@@ -304,10 +304,15 @@ select {
 }
 
 .area-trabalho {
-  grid-template-columns: minmax(0, 1fr) 350px;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, var(--largura-painel, 350px));
   gap: 12px;
   height: calc(100dvh - 70px);
   padding: 12px;
+}
+
+.area-trabalho.painel-lateral-oculto {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .coluna-mapa {
@@ -397,6 +402,88 @@ select {
 
 .painel-direito {
   padding: 8px;
+}
+
+.painel-lateral {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.painel-lateral .painel-direito {
+  height: 100%;
+  min-width: 0;
+}
+
+.controles-painel-lateral {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 710;
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--borda) 78%, transparent);
+  border-radius: var(--raio);
+  background: color-mix(in srgb, var(--grafite-profundo) 84%, transparent);
+  box-shadow: var(--sombra-leve);
+}
+
+.controles-painel-lateral button,
+.botao-reexibir-painel,
+.alca-redimensionar-painel {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid color-mix(in srgb, var(--borda) 74%, transparent);
+  border-radius: var(--raio-menor);
+  background: color-mix(in srgb, var(--superficie-secundaria) 92%, transparent);
+  color: var(--texto);
+  box-shadow: none;
+}
+
+.controles-painel-lateral button:hover,
+.botao-reexibir-painel:hover,
+.alca-redimensionar-painel:hover {
+  border-color: color-mix(in srgb, var(--verde) 44%, var(--borda));
+  color: var(--verde-escuro);
+}
+
+.controles-painel-lateral button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.alca-redimensionar-painel {
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  z-index: 711;
+  width: 22px;
+  min-width: 22px;
+  height: 52px;
+  min-height: 52px;
+  padding: 0;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.botao-reexibir-painel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 720;
+  width: 40px;
+  height: 40px;
+  background: color-mix(in srgb, var(--grafite-profundo) 88%, transparent);
+  box-shadow: var(--sombra-leve);
+}
+
+body.redimensionando-painel {
+  cursor: ew-resize;
+  user-select: none;
 }
 
 .secao-painel + .secao-painel {
@@ -1401,7 +1488,11 @@ input[type="checkbox"] {
 
 @media (max-width: 1280px) {
   .area-trabalho {
-    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, var(--largura-painel, 330px));
+  }
+
+  .area-trabalho.painel-lateral-oculto {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .barra-superior {
@@ -1436,6 +1527,11 @@ input[type="checkbox"] {
 
   .area-trabalho {
     height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .alca-redimensionar-painel {
+    display: none;
   }
 
   .coluna-mapa {

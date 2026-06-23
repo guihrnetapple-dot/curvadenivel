@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { GripVertical, Minus, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
 
 import { BarraSuperior } from "./componentes/BarraSuperior";
 import { CarregamentoInicial } from "./componentes/CarregamentoInicial";
@@ -38,6 +40,10 @@ import { importarArquivoGeografico } from "./utilitarios/importacaoGeografica";
 
 const CHAVE_HISTORICO = "agroaltimetria.historico";
 const TEMA_PADRAO: TemaVisual = "escuro";
+const LARGURA_PAINEL_PADRAO = 350;
+const LARGURA_PAINEL_MINIMA = 280;
+const LARGURA_PAINEL_MAXIMA = 560;
+const PASSO_LARGURA_PAINEL = 40;
 const camadasIniciais: CamadasVisiveis = {
   gradeAltitude: true,
   importados: true,
@@ -59,6 +65,8 @@ export function Aplicacao() {
   const elementosRef = useRef<ElementoMapa[]>([]);
   const historicoElementosRef = useRef<ElementoMapa[][]>([]);
   const refazimentoElementosRef = useRef<ElementoMapa[][]>([]);
+  const larguraInicialPainelRef = useRef(LARGURA_PAINEL_PADRAO);
+  const xInicialRedimensionamentoRef = useRef(0);
   const tema = TEMA_PADRAO;
   const [, setStatusApi] = useState<StatusApi>({
     carregando: true,
@@ -91,6 +99,8 @@ export function Aplicacao() {
   const [alerta, setAlerta] = useState<AlertaSistema | null>(null);
   const [rotaAplicacao, setRotaAplicacao] = useState(() => window.location.pathname);
   const [bannerEmailFechado, setBannerEmailFechado] = useState(false);
+  const [painelVisivel, setPainelVisivel] = useState(true);
+  const [larguraPainel, setLarguraPainel] = useState(LARGURA_PAINEL_PADRAO);
 
   useEffect(() => {
     document.documentElement.dataset.tema = tema;
@@ -462,6 +472,37 @@ export function Aplicacao() {
     }
   }
 
+  function limitarLarguraPainel(valor: number): number {
+    return Math.min(LARGURA_PAINEL_MAXIMA, Math.max(LARGURA_PAINEL_MINIMA, valor));
+  }
+
+  function alterarLarguraPainel(delta: number) {
+    setPainelVisivel(true);
+    setLarguraPainel((valorAtual) => limitarLarguraPainel(valorAtual + delta));
+  }
+
+  function iniciarRedimensionamentoPainel(evento: ReactPointerEvent<HTMLButtonElement>) {
+    evento.preventDefault();
+    setPainelVisivel(true);
+    larguraInicialPainelRef.current = larguraPainel;
+    xInicialRedimensionamentoRef.current = evento.clientX;
+    document.body.classList.add("redimensionando-painel");
+
+    function aoMover(ponteiro: PointerEvent) {
+      const deslocamento = ponteiro.clientX - xInicialRedimensionamentoRef.current;
+      setLarguraPainel(limitarLarguraPainel(larguraInicialPainelRef.current - deslocamento));
+    }
+
+    function aoSoltar() {
+      window.removeEventListener("pointermove", aoMover);
+      window.removeEventListener("pointerup", aoSoltar);
+      document.body.classList.remove("redimensionando-painel");
+    }
+
+    window.addEventListener("pointermove", aoMover);
+    window.addEventListener("pointerup", aoSoltar, { once: true });
+  }
+
   async function buscarLocalizacao() {
     setCarregandoLocalizacao(true);
     try {
@@ -521,7 +562,10 @@ export function Aplicacao() {
             </div>
           )}
 
-      <main className="area-trabalho">
+      <main
+        className={painelVisivel ? "area-trabalho" : "area-trabalho painel-lateral-oculto"}
+        style={{ "--largura-painel": `${larguraPainel}px` } as CSSProperties}
+      >
         <div className="coluna-mapa">
           <MapaAltimetria
             tema={tema}
@@ -551,7 +595,41 @@ export function Aplicacao() {
           />
         </div>
 
-        <PainelDireito
+        {painelVisivel ? (
+          <div className="painel-lateral">
+            <button
+              className="alca-redimensionar-painel"
+              type="button"
+              aria-label="Redimensionar barra lateral"
+              title="Arraste para redimensionar"
+              onPointerDown={iniciarRedimensionamentoPainel}
+            >
+              <GripVertical size={16} aria-hidden="true" />
+            </button>
+            <div className="controles-painel-lateral" aria-label="Controles da barra lateral">
+              <button type="button" onClick={() => setPainelVisivel(false)} aria-label="Ocultar barra lateral" title="Ocultar">
+                <PanelRightClose size={16} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => alterarLarguraPainel(-PASSO_LARGURA_PAINEL)}
+                aria-label="Diminuir barra lateral"
+                title="Diminuir"
+                disabled={larguraPainel <= LARGURA_PAINEL_MINIMA}
+              >
+                <Minus size={16} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => alterarLarguraPainel(PASSO_LARGURA_PAINEL)}
+                aria-label="Aumentar barra lateral"
+                title="Aumentar"
+                disabled={larguraPainel >= LARGURA_PAINEL_MAXIMA}
+              >
+                <Plus size={16} aria-hidden="true" />
+              </button>
+            </div>
+            <PainelDireito
           elementos={elementos}
           elementoSelecionadoId={elementoSelecionadoId}
           curvasNivel={curvasNivel}
@@ -585,6 +663,18 @@ export function Aplicacao() {
           aoExportarKml={() => executarExportacao(() => exportarDesenhosKml(elementos))}
           aoCriarMarcadorTecnico={criarMarcadorTecnico}
         />
+          </div>
+        ) : (
+          <button
+            className="botao-reexibir-painel"
+            type="button"
+            onClick={() => setPainelVisivel(true)}
+            aria-label="Exibir barra lateral"
+            title="Exibir barra lateral"
+          >
+            <PanelRightOpen size={18} aria-hidden="true" />
+          </button>
+        )}
       </main>
         </>
       )}
