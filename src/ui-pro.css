@@ -48,11 +48,13 @@ body,
 
 body {
   font-family:
-    "Outfit",
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
+    "customFont",
+    "customFont Fallback",
+    Circular,
+    custom-font,
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
     sans-serif;
   font-size: 14px;
   line-height: 1.35;
@@ -67,7 +69,10 @@ select {
 }
 
 .aplicacao {
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background:
     radial-gradient(circle at 18% -10%, rgba(47, 159, 117, 0.16), transparent 30rem),
     linear-gradient(135deg, rgba(106, 166, 184, 0.07), transparent 34%),
@@ -1515,6 +1520,7 @@ input[type="checkbox"] {
 
   .aplicacao {
     height: auto;
+    overflow: visible;
   }
 
   .area-trabalho {

@@ -156,6 +156,12 @@ export function AccountSettingsPage({ aoVoltar, aoConfirmarEmail }: Props) {
           <button type="submit" disabled={alterandoSenha}>{alterandoSenha ? "Atualizando..." : "Atualizar senha"}</button>
         </form>
       </section>
+
+      <footer className="configuracoes-rodape">
+        <strong>GeoCampo</strong>
+        <span>Topografia, irrigação e engenharia.</span>
+        <small>© {new Date().getFullYear()} GeoCampo. Todos os direitos reservados.</small>
+      </footer>
     </main>
   );
 }

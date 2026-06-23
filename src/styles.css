@@ -1,13 +1,15 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600;700&display=swap");
 
 :root {
   color-scheme: dark;
   font-family:
-    "Outfit",
-    "Segoe UI",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
+    "customFont",
+    "customFont Fallback",
+    Circular,
+    custom-font,
+    "Helvetica Neue",
+    Helvetica,
+    Arial,
     sans-serif;
   --fundo: #0c1117;
   --superficie: #121922;
@@ -955,15 +957,19 @@ input[type="checkbox"] {
 }
 
 .pagina-configuracoes-conta {
-  min-height: calc(100vh - 72px);
-  padding: 24px;
-  overflow: auto;
+  height: calc(100vh - 70px);
+  min-height: 0;
+  padding: 24px 24px 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
   background: var(--fundo);
   color: var(--texto);
 }
 
 .configuracoes-cabecalho,
-.configuracoes-grade {
+.configuracoes-grade,
+.configuracoes-rodape {
   width: min(1120px, 100%);
   margin: 0 auto;
 }
@@ -983,7 +989,7 @@ input[type="checkbox"] {
 
 .configuracoes-cabecalho p {
   margin: 6px 0 0;
-  color: var(--texto-secundario);
+  color: var(--texto-suave);
 }
 
 .configuracoes-grade {
@@ -1013,8 +1019,34 @@ input[type="checkbox"] {
   border: 1px solid var(--borda);
   border-radius: 8px;
   padding: 0 12px;
-  background: var(--superficie-elevada);
+  background: var(--superficie-secundaria);
   color: var(--texto);
+}
+
+.configuracoes-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 18px;
+  padding: 16px 0 2px;
+  border-top: 1px solid var(--borda);
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+}
+
+.configuracoes-rodape strong {
+  color: var(--texto);
+  font-size: 0.86rem;
+}
+
+.configuracoes-rodape span {
+  margin-right: auto;
+}
+
+.configuracoes-rodape small {
+  color: var(--texto-suave);
 }
 
 .badge-verificado,
@@ -1045,6 +1077,18 @@ input[type="checkbox"] {
 
   .configuracoes-grade {
     grid-template-columns: 1fr;
+  }
+
+  .pagina-configuracoes-conta {
+    height: auto;
+    min-height: calc(100vh - 70px);
+    overflow: visible;
+    padding: 18px 12px 24px;
+  }
+
+  .configuracoes-rodape {
+    display: grid;
+    justify-items: start;
   }
 }
 
