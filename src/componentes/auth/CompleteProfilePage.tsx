@@ -34,8 +34,14 @@ function criarPerfilInicial(nome = ""): DadosPerfilCadastro {
   };
 }
 
-function consentimentosObrigatoriosAceitos(perfil: DadosPerfilCadastro): boolean {
-  return perfil.aceitaTermos && perfil.aceitaPrivacidadeLgpd && perfil.aceitaCookies && perfil.aceitaComunicacoes;
+function aplicarAceiteGeral(perfil: DadosPerfilCadastro): DadosPerfilCadastro {
+  return {
+    ...perfil,
+    aceitaTermos: true,
+    aceitaPrivacidadeLgpd: true,
+    aceitaCookies: true,
+    aceitaComunicacoes: true
+  };
 }
 
 export function CompleteProfilePage() {
@@ -47,7 +53,6 @@ export function CompleteProfilePage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagem, setMensagem] = useState<string | null>(null);
   const [erros, setErros] = useState<ErrosCamposAuth>({});
-  const podeEnviarPerfil = consentimentosObrigatoriosAceitos(perfil);
 
   function alterarPerfil(campo: keyof DadosPerfilCadastro, valor: string | boolean) {
     setPerfil((atual) => ({ ...atual, [campo]: valor }));
@@ -63,7 +68,8 @@ export function CompleteProfilePage() {
       return;
     }
 
-    const novosErros = validarPerfilCampos(perfil);
+    const perfilComAceite = aplicarAceiteGeral(perfil);
+    const novosErros = validarPerfilCampos(perfilComAceite);
     setErros(novosErros);
     if (Object.keys(novosErros).length > 0) {
       return;
@@ -71,7 +77,7 @@ export function CompleteProfilePage() {
 
     setCarregando(true);
     try {
-      await completarPerfilSocial(usuario.id, perfil);
+      await completarPerfilSocial(usuario.id, perfilComAceite);
       await recarregarPerfil();
     } catch (erro) {
       setMensagem(traduzirErroAuth(erro));
@@ -114,10 +120,10 @@ export function CompleteProfilePage() {
           alterarPerfil("whatsappCountryCode", countryCode);
         }}
       />
-      <ConsentBox valores={perfil} erro={erros.consentimentos} aoAlterar={(campo, valor) => alterarPerfil(campo, valor)} />
+      <ConsentBox erro={erros.consentimentos} />
 
-      <button type="submit" disabled={carregando || !podeEnviarPerfil}>
-        {carregando ? "Salvando..." : "Liberar acesso"}
+      <button type="submit" disabled={carregando}>
+        {carregando ? "Salvando..." : "Liberar acesso e aceitar os Termos de Uso"}
       </button>
     </form>
   );

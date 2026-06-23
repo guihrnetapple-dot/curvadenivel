@@ -1498,8 +1498,8 @@ input[type="checkbox"] {
 
 .auth-consentimentos {
   display: grid;
-  gap: 9px;
-  padding: 10px;
+  gap: 12px;
+  padding: 14px;
   border: 1px solid color-mix(in srgb, var(--borda) 82%, transparent);
   border-radius: var(--raio);
   background: var(--superficie-secundaria);
@@ -1512,57 +1512,124 @@ input[type="checkbox"] {
 
 .auth-consentimentos-topo strong {
   color: #ffffff;
-  font-size: 0.86rem;
+  font-size: 0.94rem;
 }
 
 .auth-consentimentos-topo span {
   color: var(--texto-suave);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   line-height: 1.35;
 }
 
-.auth-termos-legais {
+.auth-termos-caixa {
+  height: clamp(280px, 42vh, 430px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--verde) 34%, var(--borda));
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--superficie) 86%, transparent), color-mix(in srgb, var(--superficie-secundaria) 92%, transparent)),
+    var(--superficie);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--verde) 62%, var(--borda)) color-mix(in srgb, var(--superficie) 78%, transparent);
+}
+
+.auth-termos-caixa:focus {
+  outline: 2px solid color-mix(in srgb, var(--verde) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.auth-termos-caixa::-webkit-scrollbar {
+  width: 9px;
+}
+
+.auth-termos-caixa::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--superficie) 78%, transparent);
+  border-radius: 999px;
+}
+
+.auth-termos-caixa::-webkit-scrollbar-thumb {
+  border: 2px solid color-mix(in srgb, var(--superficie) 78%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--verde) 62%, var(--borda));
+}
+
+.auth-termos-sumario {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--borda) 72%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--superficie-secundaria) 76%, transparent);
 }
 
-.auth-termos-legais details {
-  border: 1px solid color-mix(in srgb, var(--borda) 80%, transparent);
-  border-radius: var(--raio-menor);
-  background: color-mix(in srgb, var(--superficie) 72%, transparent);
-}
-
-.auth-termos-legais summary {
-  cursor: pointer;
-  padding: 7px 9px;
-  color: var(--verde-escuro);
-  font-size: 0.76rem;
+.auth-termos-sumario strong {
+  color: #ffffff;
+  font-size: 0.8rem;
   font-weight: 850;
 }
 
-.auth-termos-legais p {
+.auth-termos-sumario ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 18px;
   margin: 0;
-  padding: 0 9px 9px;
+  padding-left: 18px;
   color: var(--texto-suave);
   font-size: 0.74rem;
-  font-weight: 650;
-  line-height: 1.45;
-}
-
-.auth-consentimentos label {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  color: var(--texto);
-  font-size: 0.76rem;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.35;
 }
 
-.auth-consentimentos input {
-  width: 15px;
-  min-height: 15px;
-  margin-top: 1px;
-  padding: 0;
+.auth-termos-conteudo {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-termos-conteudo section {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-termos-conteudo h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.auth-termos-conteudo p {
+  margin: 0;
+  color: var(--texto-suave);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.62;
+}
+
+.auth-termos-alerta {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, #ffb156 54%, var(--borda));
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 177, 86, 0.12), rgba(255, 177, 86, 0.045));
+}
+
+.auth-termos-alerta h3 {
+  color: #ffd39a;
+}
+
+.auth-termos-aceite {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--verde) 34%, var(--borda));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--verde) 9%, var(--superficie));
+  color: #dce8e1;
+  font-size: 0.8rem;
+  font-weight: 760;
+  line-height: 1.48;
 }
 
 .auth-feedback,
@@ -1941,6 +2008,15 @@ input[type="checkbox"] {
     padding: 9px;
   }
 
+  .auth-termos-caixa {
+    height: 300px;
+    padding: 12px;
+  }
+
+  .auth-termos-sumario ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .auth-links {
     display: grid;
     justify-content: stretch;
@@ -1974,11 +2050,17 @@ input[type="checkbox"] {
     padding: 9px;
   }
 
-  .auth-termos-legais summary {
-    padding: 6px 8px;
+  .auth-termos-caixa {
+    height: 260px;
+    padding: 11px;
   }
 
-  .auth-termos-legais p {
-    padding: 0 8px 8px;
+  .auth-termos-conteudo {
+    gap: 12px;
+  }
+
+  .auth-termos-conteudo p {
+    font-size: 0.74rem;
+    line-height: 1.5;
   }
 }

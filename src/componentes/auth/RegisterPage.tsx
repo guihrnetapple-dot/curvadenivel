@@ -61,8 +61,14 @@ function idsCamposComErro(erros: ErrosCamposAuth): string[] {
   return Object.keys(erros).map((campo) => `cadastro-${campo}`);
 }
 
-function consentimentosObrigatoriosAceitos(perfil: DadosPerfilCadastro): boolean {
-  return perfil.aceitaTermos && perfil.aceitaPrivacidadeLgpd && perfil.aceitaCookies && perfil.aceitaComunicacoes;
+function aplicarAceiteGeral(perfil: DadosPerfilCadastro): DadosPerfilCadastro {
+  return {
+    ...perfil,
+    aceitaTermos: true,
+    aceitaPrivacidadeLgpd: true,
+    aceitaCookies: true,
+    aceitaComunicacoes: true
+  };
 }
 
 export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
@@ -142,7 +148,7 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
     }
 
     if (etapa === 3) {
-      novosErros = validarPerfilCampos(perfil);
+      novosErros = validarPerfilCampos(aplicarAceiteGeral(perfil));
     }
 
     setErros(novosErros);
@@ -170,7 +176,7 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
 
     setCarregando(true);
     try {
-      const dados: DadosCadastro = { ...perfil, email: normalizarEmail(email), password };
+      const dados: DadosCadastro = { ...aplicarAceiteGeral(perfil), email: normalizarEmail(email), password };
       const resultado = await cadastrarComEmailSenha(dados);
       if (resultado.status === "verificacao_app") {
         aoConfirmacaoNecessaria(resultado.email, {
@@ -196,7 +202,6 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
         ? "As senhas coincidem."
         : "As senhas ainda não coincidem."
       : null;
-  const podeEnviarEtapaAtual = etapa !== 3 || consentimentosObrigatoriosAceitos(perfil);
 
   return (
     <form className="auth-formulario auth-formulario-cadastro" onSubmit={enviar} noValidate>
@@ -305,7 +310,7 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
               alterarPerfil("whatsappCountryCode", countryCode);
             }}
           />
-          <ConsentBox valores={perfil} erro={erros.consentimentos} aoAlterar={(campo, valor) => alterarPerfil(campo, valor)} />
+          <ConsentBox erro={erros.consentimentos} />
         </>
       )}
 
@@ -315,8 +320,8 @@ export function RegisterPage({ aoEntrar, aoConfirmacaoNecessaria }: Props) {
             Voltar
           </button>
         )}
-        <button type="submit" disabled={carregando || !podeEnviarEtapaAtual}>
-          {carregando ? "Criando conta..." : etapa === 3 ? "Criar conta" : "Continuar"}
+        <button type="submit" disabled={carregando}>
+          {carregando ? "Criando conta..." : etapa === 3 ? "Criar conta e aceitar os Termos de Uso" : "Continuar"}
         </button>
       </div>
 
